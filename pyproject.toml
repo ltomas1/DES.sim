@@ -1,0 +1,40 @@
+[tool.setuptools]
+
+[project]
+name = "DES_sim"
+authors = [{name = "Leroy Tomas", email = "leroy.tomas@hs-offenburg.de"}]
+version = "1.0.1"
+requires-python = "==3.10.13"
+readme = "README.md"
+keywords = ["DES", "mosaik", "simulation", "HP", "CHP", "PV"]
+
+# add necessary dependencies of the repo. They can be installed via "pip install ."
+dependencies = [
+    "mosaik",
+    "mosaik-api",
+    "mosaik-heatpump",
+#    "mosaik-components"
+ #   "mosaik-model",
+    "mosaik-pv",
+    "mosaik-pvlib",
+    "mosaik-csv",
+    "pandas",
+    "numpy",
+    "pytest",
+    "flake8",
+    "matplotlib",
+    "nest_asyncio"
+]
+
+
+[project.optional-dependencies]
+# add optional dependencies of the repo. They could be installed via "pip install .[dev]" 
+dev = [
+    "pytest",
+]
+# add optional dependencies of the repo. They could be installed via "pip install .[docs]" 
+docs = [
+    "sphinx==7.4.5",
+    "sphinx-rtd-theme==2.0.0",
+    "m2r2==0.3.3.post2",
+]

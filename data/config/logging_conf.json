@@ -1,0 +1,30 @@
+{
+    "version": 1,
+    "disable_existing_loggers": false,
+    "formatters": {
+        "custom_formatter": {
+            "format": "[%(levelname)s|%(module)s|L%(lineno)d] %(asctime)s: %(message)s",
+            "datefmt": "%Y-%m-%dT%H:%M:%S%z"
+        }
+    },
+    "handlers": {
+        "file": {
+            "level": "INFO",
+            "class": "logging.FileHandler",
+            "filename": "data/logs/Info_Logging.log", 
+            "formatter": "custom_formatter"
+        },
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "custom_formatter"
+        }
+    },
+    "loggers": {
+        "example_logger": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": false
+        }
+    }
+}

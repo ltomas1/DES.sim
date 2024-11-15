@@ -1,0 +1,5 @@
+#Ignore all files in folder except the git ignore file
+*
+!.gitignore
+
+#This folder should contain all outputs of the project. 
