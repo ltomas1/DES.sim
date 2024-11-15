@@ -7,6 +7,9 @@ import numpy as np
 import nest_asyncio
 nest_asyncio.apply()
 
+Path = os.getcwd()
+parent_dir = Path.replace(os.sep, '/')
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_PATH = os.path.join(current_dir, "..", 'data/outputs')
 sys.path.append(os.path.join(current_dir, ".."))
@@ -49,7 +52,7 @@ def run_DES():
     world = mosaik.World(sim_config)
 
     START = '2022-01-01 00:00:00'
-    END =  5*24*60*60 # one year in seconds
+    END =  30*24*60*60 # one year in seconds
     STEP_SIZE = 60*15 # step size 15 minutes 
 
     # Heat pump
@@ -87,17 +90,17 @@ def run_DES():
         }
 
     init_vals_hwt1 = {
-            'layers': {'T': [50.0, 30.0, 22.0]}
+            'layers': {'T': [40.0, 30.0, 22.0]}
         }
 
     init_vals_hwt2 = {
-            'layers': {'T': [60.0, 30.0, 23.0]}
+            'layers': {'T': [40.0, 30.0, 23.0]}
         }
 
 
     # Parameters for controller model
     params_ctrl = {
-        'T_hp_sp_h': 70,
+        'T_hp_sp_h': 50,
         'T_hp_sp_l': 30,
         'T_hr_sp': 65,
         'operation_mode': 'heating',
@@ -316,7 +319,7 @@ def run_DES():
     world.run(until=END)
 
     # plot the data flow
-    mosaik.util.plot_dataflow_graph(world, folder='utils/util_figures')
+    mosaik.util.plot_dataflow_graph(world, folder='utils/util_figures', show_plot=False)
 
 if __name__ == "__main__":  
     run_DES() 

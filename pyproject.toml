@@ -13,8 +13,6 @@ dependencies = [
     "mosaik",
     "mosaik-api",
     "mosaik-heatpump",
-#    "mosaik-components"
- #   "mosaik-model",
     "mosaik-pv",
     "mosaik-pvlib",
     "mosaik-csv",
@@ -23,7 +21,8 @@ dependencies = [
     "pytest",
     "flake8",
     "matplotlib",
-    "nest_asyncio"
+    "nest_asyncio",
+    "ipykernel"
 ]
 
 

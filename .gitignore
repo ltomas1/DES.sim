@@ -14,6 +14,9 @@ __pycache__/
 #ignore the build folder
 **/build
 
+#ignore the util_figures folder
+**/src/utils/util_figures
+
 # ignore all logging files
 *.log
 
