@@ -1,3 +1,3 @@
 """
-All models of the project should be created in this folder. Feel free to add folders, etc.
+This folder contains all additional models and simulators of the mosaik scenario in main.py.  
 """

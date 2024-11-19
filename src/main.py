@@ -3,19 +3,21 @@ import mosaik.util
 from mosaik_components.pv.configurations import generate_configurations, Scenarios
 import os
 import sys
-import numpy as np
 import nest_asyncio
 nest_asyncio.apply()
 
-Path = os.getcwd()
-parent_dir = Path.replace(os.sep, '/')
+import logging
+from utils.setup_logging import setup_logging
+#setup the logger
+setup_logging()
+logger = logging.getLogger("mosaik_logger")
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_PATH = os.path.join(current_dir, "..", 'data/outputs')
 sys.path.append(os.path.join(current_dir, ".."))
 
-from src.models import controller_mosaik
-from src.models import chp_mosaik
+from models import controller_mosaik
+from models import chp_mosaik
 
 def run_DES():
     sim_config = {
@@ -317,6 +319,13 @@ def run_DES():
 
     # Run simulation
     world.run(until=END)
+
+    #logger message
+    logger.info("Scenario successfully simulated.") #It is possible to have different logger levels depending on how important the information of the logger is.
+    # Levels are (debug, info, warning, error)
+    
+    #warning log
+    # logger.warning("Result of the simulation is:" +str(result))
 
     # plot the data flow
     mosaik.util.plot_dataflow_graph(world, folder='utils/util_figures', show_plot=False)

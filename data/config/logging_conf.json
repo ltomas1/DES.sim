@@ -21,7 +21,7 @@
         }
     },
     "loggers": {
-        "example_logger": {
+        "mosaik_logger": {
             "handlers": ["file", "console"],
             "level": "INFO",
             "propagate": false
