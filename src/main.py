@@ -71,7 +71,7 @@ def run_DES():
     # hot water tank
     params_hwt = {
             'height': 2500,
-            'volume': 15000,
+            'volume': 5000,
             'T_env': 20.0,
             'htc_walls': 0.28,
             'htc_layers': 0.897,
