@@ -155,8 +155,6 @@ def run_DES():
     hwts0 = hwtsim0.HotWaterTank.create(1, params=params_hwt, init_vals=init_vals_hwt0)
     hwts1 = hwtsim1.HotWaterTank.create(1, params=params_hwt, init_vals=init_vals_hwt1)
     hwts2 = hwtsim2.HotWaterTank.create(1, params=params_hwt, init_vals=init_vals_hwt2)
-    # tc0 = tcsim0.TankConnector.create(1, params=params_tc0)
-    # tc1 = tcsim1.TankConnector.create(1, params=params_tc1)
     ctrls = ctrlsim.Controller.create(1, params=params_ctrl)
     heat_load = csv.HEATLOAD.create(1)
     # pv_model = pv_sim.PVSim.create(pv_count) # PVlib
