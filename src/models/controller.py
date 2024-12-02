@@ -175,7 +175,6 @@ class Controller():
                 if self.top_layer_T < self.T_hp_sp_h:
                     self.chp_status = 'on'
                     self.hp_status = 'off'
-
                 
                 if self.chp_status == 'on':
                     if self.bottom_layer_T_chp < self.T_hp_sp_h:
