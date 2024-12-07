@@ -116,6 +116,7 @@ class CHP:  # Defining the HeatPumpModel class
         self.state.P_th = self.P_th
         self.state.temp_in = self.inputs.temp_in
         self.state.temp_out = self.temp_out
+        self.state.P_el = self.P_el
         
     def calc_P_el(self):
         
