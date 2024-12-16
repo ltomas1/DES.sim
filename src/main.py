@@ -54,7 +54,7 @@ def run_DES():
     world = mosaik.World(sim_config)
 
     START = '2022-01-01 00:00:00'
-    END =  30*24*60*60 # one year in seconds
+    END =  365*24*60*60 # one year in seconds
     STEP_SIZE = 60*15 # step size 15 minutes 
 
     # Heat pump
@@ -284,7 +284,7 @@ def run_DES():
     world.connect(heat_load[0], csv_writer, 'T_amb', 'Heat Demand [kW]')
     world.connect(heatpump[0], csv_writer, 'Q_Demand', 'Q_Supplied', 'T_amb', 'heat_source_T', 'cons_T',
                 'P_Required',
-                'COP', 'cond_m', 'cond_in_T', 'on_fraction')
+                'COP', 'cond_m', 'cond_in_T', 'on_fraction','Q_evap')
 
     world.connect(ctrls[0], csv_writer, 'heat_demand', 'heat_supply', 'hp_demand', 'hp_supply',
                 'chp_demand', 'chp_supply',
