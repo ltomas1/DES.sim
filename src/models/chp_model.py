@@ -32,7 +32,7 @@ class CHP_State():
 
 class CHPInputs():
     """Inputs variables to the CHP for each time step"""
-    __slots__ = ['Q_Demand', 'eff_el', 'nom_P_th', 'mdot', 'step_size', 'temp_in']
+    __slots__ = ['Q_Demand', 'eff_el', 'nom_P_th', 'mdot', 'step_size', 'temp_in', 'chp_status']
 
     def __init__(self, params):
 
@@ -53,6 +53,9 @@ class CHPInputs():
         
         self.temp_in = None
         """The input temperature coming from the water source (in °C)"""
+
+        self.chp_status = 'off'
+
         # self.temp_out = None
         # """The output temperature flowing out of the CHP (in °C)"""
         
@@ -76,6 +79,8 @@ class CHP:  # Defining the HeatPumpModel class
         Initializes the simpe CHP Model 
         
         """
+        self.lag_status = 'off'
+        self.time_reset = 0
         
         self.temp_out = 0
         self.P_th = 0
@@ -92,25 +97,37 @@ class CHP:  # Defining the HeatPumpModel class
         """stores the state variables of the CHP in a
         :class:`.CHPModel.CHP_State` object"""
                 
+    
     def step(self, time):  # Defining the step method
         """
         simulates the CHP for one timestep
         """
-        self.time = time/60
         
-        if self.inputs.Q_Demand == 0:
+        # self.time = time/60  #converting time to minutes
+         
+        if self.inputs.chp_status == 'off':
             self.P_th = 0
             # self.temp_out = self.inputs.temp_in
-        elif self.time < (11*60):
-            self.P_th = -15.7 + 9.6 * self.time  #linear regression model fitted on startup data for the first 10 minutes.
-            if self.P_th < 0:  #for the lack of a better linear model :)
-                self.P_th = 0
-        else:
-            self.P_th = self.inputs.nom_P_th
+        else :
+          
+            if self.inputs.chp_status != self.lag_status: #lag_status initialized to off, so when turned on, reset var assigned
+                self.time_reset = time
+            
+            self.time = (time - self.time_reset)/60
+
+            if self.time < (11):
+                self.P_th = -15.7 + 9.6 * self.time  #linear regression model fitted on startup data for the first 10 minutes.
+                self.P_th = self.P_th * 1000
+                if self.P_th < 0:  #for the lack of a better model :)
+                    self.P_th = 0
+            else:
+                self.P_th = self.inputs.nom_P_th
         
         self.calc_P_el()
         self.temp_out = ( self.P_th * self.inputs.step_size  / (self.inputs.mdot *self.inputs.step_size * self.cp))  + self.inputs.temp_in
         
+        self.lag_status = self.inputs.chp_status  #the current status variable from controller, to be compared in the next iteration.
+
         # Update the state of the CHP for the outputs
         self.state.Q_Demand = self.inputs.Q_Demand
         self.state.eff_el = self.inputs.eff_el
