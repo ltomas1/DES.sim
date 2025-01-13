@@ -67,7 +67,7 @@ class CHPSimulator(mosaik_api.Simulator):
             self.models[eid].inputs.step_size = self.step_size
 
         for eid, model in self.models.items():
-            model.step()
+            model.step(time)
 
         if self.meta['type'] == 'event-based':
             return None

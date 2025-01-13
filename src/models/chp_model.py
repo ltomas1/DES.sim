@@ -53,7 +53,6 @@ class CHPInputs():
         
         self.temp_in = None
         """The input temperature coming from the water source (in °C)"""
-        
         # self.temp_out = None
         # """The output temperature flowing out of the CHP (in °C)"""
         
@@ -93,14 +92,19 @@ class CHP:  # Defining the HeatPumpModel class
         """stores the state variables of the CHP in a
         :class:`.CHPModel.CHP_State` object"""
                 
-    def step(self):  # Defining the step method
+    def step(self, time):  # Defining the step method
         """
         simulates the CHP for one timestep
         """
+        self.time = time/60
+        
         if self.inputs.Q_Demand == 0:
             self.P_th = 0
             # self.temp_out = self.inputs.temp_in
-        
+        elif self.time < (11*60):
+            self.P_th = -15.7 + 9.6 * self.time  #linear regression model fitted on startup data for the first 10 minutes.
+            if self.P_th < 0:  #for the lack of a better linear model :)
+                self.P_th = 0
         else:
             self.P_th = self.inputs.nom_P_th
         
