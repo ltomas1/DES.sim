@@ -32,7 +32,7 @@ class CHP_State():
 
 class CHPInputs():
     """Inputs variables to the CHP for each time step"""
-    __slots__ = ['Q_Demand', 'eff_el', 'nom_P_th', 'mdot', 'step_size', 'temp_in']
+    __slots__ = ['Q_Demand', 'eff_el', 'nom_P_th', 'mdot', 'step_size', 'temp_in', 'chp_status']
 
     def __init__(self, params):
 
@@ -53,7 +53,9 @@ class CHPInputs():
         
         self.temp_in = None
         """The input temperature coming from the water source (in °C)"""
-        
+
+        self.chp_status = 'off'
+
         # self.temp_out = None
         # """The output temperature flowing out of the CHP (in °C)"""
         
@@ -67,7 +69,8 @@ class CHP:  # Defining the HeatPumpModel class
         params = {
             'eff_el': 0.8,
             'nom_P_th': 20,      
-            'mdot': 200, # in kg/h
+            'mdot': 200, # in kg/h,
+            'startup_coeff : [] 
             }
         
     """
@@ -77,6 +80,8 @@ class CHP:  # Defining the HeatPumpModel class
         Initializes the simpe CHP Model 
         
         """
+        self.lag_status = 'off'
+        self.time_reset = 0
         
         self.temp_out = 0
         self.P_th = 0
@@ -85,6 +90,8 @@ class CHP:  # Defining the HeatPumpModel class
             self.cp = params.get('cp')
         else:
             self.cp = 4184
+
+        self.startup_coeff = params.get('startup_coeff')
         
         self.inputs = CHPInputs(params)
         """stores the input parameters of the heat pump model in a
@@ -93,20 +100,44 @@ class CHP:  # Defining the HeatPumpModel class
         """stores the state variables of the CHP in a
         :class:`.CHPModel.CHP_State` object"""
                 
-    def step(self):  # Defining the step method
+    
+    def step(self, time):  # Defining the step method
         """
         simulates the CHP for one timestep
         """
-        if self.inputs.Q_Demand == 0:
+        
+        # self.time = time/60  #converting time to minutes
+         
+        if self.inputs.chp_status == 'off':
             self.P_th = 0
             # self.temp_out = self.inputs.temp_in
-        
-        else:
-            self.P_th = self.inputs.nom_P_th
+        else :
+          
+            if self.inputs.chp_status != self.lag_status: #lag_status initialized to off, so when turned on, reset var assigned
+                self.time_reset = time
+            #to count time passed after each startup. In the previous line, time_reset is assigned the time of initialisation of startup.
+            self.time = (time - self.time_reset)/60  #the regression model takes time in minutes.
+
+            if self.time < (11):
+                self.P_th = 0
+                for i in range(len(self.startup_coeff)):
+                    self.P_th += self.startup_coeff[i] * self.time**i #i starts for 0, so will work for intercept as well.
+                
+                # self.P_th = -15.7 + 9.6 * self.time  #linear regression model fitted on startup data for the first 10 minutes.
+                
+                self.P_th = self.P_th * 1000 # converting to watts
+                if self.P_th < 0:  #for the lack of a better model :)
+                    self.P_th = 0
+            else:
+                self.P_th = self.inputs.nom_P_th
+
+                # in the next model, these coefficients could be passed on as an input in the model, so maybe part of the chp attributes.
         
         self.calc_P_el()
         self.temp_out = ( self.P_th * self.inputs.step_size  / (self.inputs.mdot *self.inputs.step_size * self.cp))  + self.inputs.temp_in
         
+        self.lag_status = self.inputs.chp_status  #the current status variable from controller, to be compared in the next iteration.
+
         # Update the state of the CHP for the outputs
         self.state.Q_Demand = self.inputs.Q_Demand
         self.state.eff_el = self.inputs.eff_el

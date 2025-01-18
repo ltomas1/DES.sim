@@ -56,6 +56,8 @@ def run_DES():
     START = '2022-01-01 00:00:00'
     END =  365*24*60*60 # one year in seconds
     STEP_SIZE = 60*15 # step size 15 minutes 
+    END =  30*24*60*60 # one year in seconds
+    STEP_SIZE = 60*1 # step size 15 minutes 
 
     # Heat pump
     params_hp = {'hp_model': 'Air_60kW',
@@ -66,7 +68,9 @@ def run_DES():
     # CHP
     params_chp = {'eff_el': 0.8,
                 'nom_P_th': 92_000,
-                'mdot': 4.0,}
+                'mdot': 4.0,
+                'startup_coeff' : [-2.63, 3.9, 0.57] #coefficients to model the startup behaviour, in the order : Intercept, x,x^2,x^3...
+                }
 
     # hot water tank
     params_hwt = {
@@ -182,7 +186,7 @@ def run_DES():
     world.connect(chp[0], ctrls[0], ('P_th', 'chp_supply'), 
                 ('mdot', 'chp_mdot')) 
 
-    world.connect(ctrls[0], chp[0], ('chp_demand', 'Q_Demand'),
+    world.connect(ctrls[0], chp[0], ('chp_demand', 'Q_Demand'), ('chp_status' , 'chp_status'),
                 time_shifted=True,
                 initial_data={'chp_demand': 0})
 
@@ -307,7 +311,8 @@ def run_DES():
                 'hp_out.F', 'heat_in.T', 'heat_in.F',
                 'T_mean')
 
-    world.connect(chp[0], csv_writer, 'eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'temp_out', 'P_th', 'P_el')      
+    world.connect(chp[0], csv_writer, 'eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'temp_out', 'P_th', 'P_el', 
+                  )      
 
 
     """__________________________________________ world run ______________________________________________________________"""
