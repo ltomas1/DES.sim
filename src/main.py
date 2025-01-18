@@ -66,7 +66,9 @@ def run_DES():
     # CHP
     params_chp = {'eff_el': 0.8,
                 'nom_P_th': 92_000,
-                'mdot': 4.0,}
+                'mdot': 4.0,
+                'startup_coeff' : [-2.63, 3.9, 0.57] #coefficients to model the startup behaviour, in the order : Intercept, x,x^2,x^3...
+                }
 
     # hot water tank
     params_hwt = {
