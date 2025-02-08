@@ -57,7 +57,7 @@ def run_DES():
     END =  365*24*60*60 # one year in seconds
     STEP_SIZE = 60*15 # step size 15 minutes 
     END =  30*24*60*60 # one year in seconds
-    STEP_SIZE = 60*1 # step size 15 minutes 
+    STEP_SIZE = 60*15 # step size 15 minutes 
 
     # Heat pump
     params_hp = {'hp_model': 'Air_60kW',

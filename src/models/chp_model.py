@@ -101,13 +101,19 @@ class CHP:  # Defining the HeatPumpModel class
         :class:`.CHPModel.CHP_State` object"""
                 
     
-    def step(self, time):  # Defining the step method
+    def step(self, time, step_size):  # Defining the step method
         """
         simulates the CHP for one timestep
+               
+        """
+        """_summary_
+
+        Args:
+            time (int): time returned by the mosaik sim, in seconds
+            step_size (int): simulation step size, in seconds
         """
         
-        # self.time = time/60  #converting time to minutes
-         
+        reglimit = 11 # the regression model works only for the first 11 minutes.
         if self.inputs.chp_status == 'off':
             self.P_th = 0
             # self.temp_out = self.inputs.temp_in
@@ -117,8 +123,8 @@ class CHP:  # Defining the HeatPumpModel class
                 self.time_reset = time
             #to count time passed after each startup. In the previous line, time_reset is assigned the time of initialisation of startup.
             self.time = (time - self.time_reset)/60  #the regression model takes time in minutes.
-
-            if self.time < (11):
+            
+            if self.time < (reglimit):
                 self.P_th = 0
                 for i in range(len(self.startup_coeff)):
                     self.P_th += self.startup_coeff[i] * self.time**i #i starts for 0, so will work for intercept as well.
@@ -128,10 +134,16 @@ class CHP:  # Defining the HeatPumpModel class
                 self.P_th = self.P_th * 1000 # converting to watts
                 if self.P_th < 0:  #for the lack of a better model :)
                     self.P_th = 0
+
             else:
                 self.P_th = self.inputs.nom_P_th
 
-                # in the next model, these coefficients could be passed on as an input in the model, so maybe part of the chp attributes.
+            # If the time step is greater than the regression limit, then the first o/p value will be < nom_Pth, cuz ramp up.
+            if step_size/60 > reglimit and self.time == 0:
+                self.P_th = (5999.667 + self.inputs.nom_P_th*((step_size/60) - 11)/60)/(step_size/3600) #(wh + w * h)/stepsize in h = W
+                # 5999.667 Wh, obtained from measured data, energy in the first 11 minutes.
+
+                
         
         self.calc_P_el()
         self.temp_out = ( self.P_th * self.inputs.step_size  / (self.inputs.mdot *self.inputs.step_size * self.cp))  + self.inputs.temp_in
