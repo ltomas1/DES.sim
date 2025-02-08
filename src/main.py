@@ -311,7 +311,7 @@ def run_DES():
                 'hp_out.F', 'heat_in.T', 'heat_in.F',
                 'T_mean')
 
-    world.connect(chp[0], csv_writer, 'eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'temp_out', 'P_th', 'P_el', 
+    world.connect(chp[0], csv_writer, 'eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'temp_out', 'P_th', 'P_el', 'fuel_l' 
                   )      
 
 

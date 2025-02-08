@@ -29,6 +29,9 @@ class CHP_State():
         self.P_th = 0
         """ The actual thermal power output of the CHP in W"""
 
+        self.fuel_l = 0
+        """ Fuel consumption in litres/kwh"""
+
 
 class CHPInputs():
     """Inputs variables to the CHP for each time step"""
@@ -150,6 +153,11 @@ class CHP:  # Defining the HeatPumpModel class
         
         self.lag_status = self.inputs.chp_status  #the current status variable from controller, to be compared in the next iteration.
 
+        # Fuel consumption
+        self.fuel_eta = 0.083 # From measured data
+
+        self.fuel_l = self.P_th*(self.inputs.step_size/3600) * self.fuel_eta
+
         # Update the state of the CHP for the outputs
         self.state.Q_Demand = self.inputs.Q_Demand
         self.state.eff_el = self.inputs.eff_el
@@ -160,6 +168,8 @@ class CHP:  # Defining the HeatPumpModel class
         self.state.temp_in = self.inputs.temp_in
         self.state.temp_out = self.temp_out
         self.state.P_el = self.P_el
+
+        self.state.fuel_l = self.fuel_l
         
     def calc_P_el(self):
         
