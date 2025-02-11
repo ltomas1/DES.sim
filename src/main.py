@@ -59,6 +59,8 @@ def run_DES():
     END =  30*24*60*60 # one year in seconds
     STEP_SIZE = 60*15 # step size 15 minutes 
 
+    HV = 10833.3 #Heating value of natural gas in Wh/m^3
+
     # Heat pump
     params_hp = {'hp_model': 'Air_60kW',
                     'heat_source': 'Air',
@@ -69,7 +71,9 @@ def run_DES():
     params_chp = {'eff_el': 0.8,
                 'nom_P_th': 92_000,
                 'mdot': 4.0,
-                'startup_coeff' : [-2.63, 3.9, 0.57] #coefficients to model the startup behaviour, in the order : Intercept, x,x^2,x^3...
+                'startup_coeff' : [-2.63, 3.9, 0.57], #coefficients to model the startup behaviour, in the order : Intercept, x,x^2,x^3...
+                'eta' : 0.5897, # fuel efficiency of chp, from datasheet.
+                'hv' : HV
                 }
 
     # hot water tank
@@ -311,7 +315,7 @@ def run_DES():
                 'hp_out.F', 'heat_in.T', 'heat_in.F',
                 'T_mean')
 
-    world.connect(chp[0], csv_writer, 'eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'temp_out', 'P_th', 'P_el', 'fuel_l' 
+    world.connect(chp[0], csv_writer, 'eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'temp_out', 'P_th', 'P_el', 'fuel_m3' 
                   )      
 
 

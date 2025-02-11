@@ -29,13 +29,13 @@ class CHP_State():
         self.P_th = 0
         """ The actual thermal power output of the CHP in W"""
 
-        self.fuel_l = 0
-        """ Fuel consumption in litres/kwh"""
+        self.fuel_m3 = 0
+        """ Fuel consumption in stand cubic meter"""
 
 
 class CHPInputs():
     """Inputs variables to the CHP for each time step"""
-    __slots__ = ['Q_Demand', 'eff_el', 'nom_P_th', 'mdot', 'step_size', 'temp_in', 'chp_status']
+    __slots__ = ['Q_Demand', 'eff_el', 'nom_P_th', 'mdot', 'step_size', 'temp_in', 'chp_status', 'fuel_eta', 'heat_value']
 
     def __init__(self, params):
 
@@ -58,6 +58,13 @@ class CHPInputs():
         """The input temperature coming from the water source (in °C)"""
 
         self.chp_status = 'off'
+
+        self.fuel_eta = params.get('eta')
+        """fuel efficiency of chp | Kwh_heat/kwh_fuel; from datasheet"""
+
+        self.heat_value = params.get('hv')
+        """Heating value of supplied natural gas, in wh/ standard cubic meter"""
+
 
         # self.temp_out = None
         # """The output temperature flowing out of the CHP (in °C)"""
@@ -154,9 +161,10 @@ class CHP:  # Defining the HeatPumpModel class
         self.lag_status = self.inputs.chp_status  #the current status variable from controller, to be compared in the next iteration.
 
         # Fuel consumption
-        self.fuel_eta = 0.083 # From measured data
-
-        self.fuel_l = self.P_th*(self.inputs.step_size/3600) * self.fuel_eta
+        
+        # self.fuel_eta = 0.083 # From measured data
+        # self.fuel_l = self.P_th*(self.inputs.step_size/3600) * self.fuel_eta
+        self.fuel_m3 = (self.P_th*(self.inputs.step_size/3600))/(self.inputs.fuel_eta * self.inputs.heat_value)
 
         # Update the state of the CHP for the outputs
         self.state.Q_Demand = self.inputs.Q_Demand
@@ -169,7 +177,7 @@ class CHP:  # Defining the HeatPumpModel class
         self.state.temp_out = self.temp_out
         self.state.P_el = self.P_el
 
-        self.state.fuel_l = self.fuel_l
+        self.state.fuel_m3 = self.fuel_m3
         
     def calc_P_el(self):
         
