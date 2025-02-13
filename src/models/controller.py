@@ -91,6 +91,11 @@ class Controller():
 
         self.P_hr = None                 # The heat supplied by the back up heater (in W)
 
+        self.boiler_demand = None
+        self.boiler_supply = None
+        self.boiler_mdot = None
+        self.boiler_status = None
+
         #TODO write all comments for TES variables 
         self.tes0_heat_out_T = None         # The temperature of the heat_out connection for the tank 0 
         self.tes0_heat_out_F = None         
@@ -159,8 +164,49 @@ class Controller():
             
             # Control strategy 3 - start
             if self.control_strategy == '3':
-                if self.bottom_layer_T < self.T_hp_sp_l:
+                self.boiler_demand = 0
+                
+                if self.bottom_layer_T < self.T_hp_sp_l: #Turns on only when below threshold of 35 degrees.
                     self.chp_status = 'off'
+                    self.hp_status = 'on'
+                    
+                if self.hp_status == 'on': # Hp runs until upper threshold achieved.
+                    if self.bottom_layer_T < self.T_hp_sp_h:
+                        self.hp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_T) / self.step_size
+                    else:
+                        self.hp_demand = 0
+                        self.hp_status = 'off'
+                else:
+                    self.hp_demand = 0
+
+                if self.top_layer_T < self.T_hp_sp_h: #i.e high heat demand
+                    self.chp_status = 'on'
+                    self.hp_status = 'off'
+                
+                if self.chp_status == 'on': #runs until bottom layer of 3 reaches the threshold
+                    if self.bottom_layer_T_chp < self.T_hp_sp_h:
+                        self.chp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_T_chp) / self.step_size
+                    else:
+                        self.chp_demand = 0
+                        self.chp_status = 'off'
+                else:
+                    self.hp_demand = 0
+                    self.chp_demand = 0
+            # Control strategy 3 - end
+
+            if self.control_strategy == '4' :
+                self.chp_status = 'off'
+                self.hp_status = 'off'
+                self.chp_demand, self.hp_demand = 0,0
+                if self.bottom_layer_T_chp < self.T_hp_sp_h:
+                    self.boiler_demand = self.hwt_mass * 4184 * (65 - self.bottom_layer_T_chp) / self.step_size
+            
+            
+            if self.control_strategy == '5' : #boiler substitutes chp from strat 3
+                self.chp_status = 'off'
+                self.chp_demand = 0
+                if self.bottom_layer_T < self.T_hp_sp_l:
+                    self.boiler_status = 'off'
                     self.hp_status = 'on'
                     
                 if self.hp_status == 'on':
@@ -173,19 +219,19 @@ class Controller():
                     self.hp_demand = 0
 
                 if self.top_layer_T < self.T_hp_sp_h:
-                    self.chp_status = 'on'
+                    self.boiler_status = 'on'
                     self.hp_status = 'off'
                 
-                if self.chp_status == 'on':
+                if self.boiler_status == 'on':
                     if self.bottom_layer_T_chp < self.T_hp_sp_h:
-                        self.chp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_T_chp) / self.step_size
+                        self.boiler_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_T_chp) / self.step_size
                     else:
-                        self.chp_demand = 0
-                        self.chp_status = 'off'
+                        self.boiler_demand = 0
+                        self.boiler_status = 'off'
                 else:
                     self.hp_demand = 0
-                    self.chp_demand = 0
-            # Control strategy 3 - end
+                    self.boiler_demand = 0
+
 
         # Control strategies for the operation of heat pump in cooling mode
         elif self.operation_mode.lower() == 'cooling':
@@ -219,6 +265,9 @@ class Controller():
         
         if self.chp_supply is None:
             self.chp_supply = 0
+
+        if self.boiler_supply is None:
+            self.boiler_supply = 0
             
         # Adjusting the mass flow rates for hot water tank in the heat pump circuit, when heat pump operates for only
         # a fraction of the time step
@@ -229,7 +278,11 @@ class Controller():
         # Do the same for CHP
         if self.chp_mdot is not None:
             self.chp_in_F = self.chp_mdot
-            self.chp_out_F = -self.chp_mdot
+            self.chp_out_F = -self.chp_mdot #TODO is this needed for the boiler as well?
+
+        if self.boiler_mdot is not None:
+            self.chp_in_F = self.boiler_mdot
+            self.chp_out_F = -self.boiler_mdot  #The same connections as chp being used.
 
         # Calculating the heat required from the in-built heating rod of the hot water tank
         if self.T_hr_sp_hwt is not None:
@@ -245,13 +298,14 @@ class Controller():
         self.tes1_hp_in_F = self.hp_in_F
         self.tes0_residual_flow = self.tes0_heat_in_F + self.tes0_hp_out_F
 
+        #If Demand flow < hp flow, the residual flow from tank 0 to 1.
         if self.tes0_residual_flow > 0:
             self.tes1_hp_out_T = self.tes0_heat_out_T
             self.tes0_heat_out_F = - self.tes0_residual_flow
             self.tes1_hp_out_F = self.tes0_residual_flow
 
         else:
-            self.tes0_heat_out_T = self.tes1_hp_out_T
+            self.tes0_heat_out_T = self.tes1_hp_out_T #Flow from 1 to 0.
             self.tes0_heat_out_F = - self.tes0_residual_flow
             self.tes1_hp_out_F = self.tes0_residual_flow
 

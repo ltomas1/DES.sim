@@ -16,6 +16,7 @@ META = {
     },
 }
 
+#The following attrs appended to the attrs entry in META dict.
 hp_attrs = ['hp_demand', 'hp_out_T', 'T_amb', 'heat_source_T']
 chp_attrs = ['chp_demand', 'chp_out_T', 'chp_status']
 hwt_attrs = ['heat_in_F', 'heat_in_T', 'heat_out_F', 'T_amb_hwt', 'hp_in_T',
@@ -26,6 +27,7 @@ hwt_attrs = ['heat_in_F', 'heat_in_T', 'heat_out_F', 'T_amb_hwt', 'hp_in_T',
 db_attrs = ['heat_supply', 'heat_demand', 'hp_supply', 'chp_supply',
             'T_mean_hwt', 'hwt_mass', 'hwt_hr_P_th_set', 'hp_on_fraction', 'hp_cond_m', 'heat_out_T', 'chp_mdot',
             'P_hr', 'T_room', 'bottom_layer_T','bottom_layer_T_chp', 'top_layer_T']
+boiler_attrs = ['boiler_demand', 'boiler_mdot', 'boiler_supply', 'boiler_status']
 
 
 class ControllerSimulator(mosaik_api.Simulator):
@@ -51,7 +53,7 @@ class ControllerSimulator(mosaik_api.Simulator):
         self.step_size = step_size
         if same_time_loop:
             self.meta['type'] = 'event-based'
-        self.meta['models']['Controller']['attrs'] += hp_attrs + chp_attrs + hwt_attrs + db_attrs
+        self.meta['models']['Controller']['attrs'] += hp_attrs + chp_attrs + hwt_attrs + db_attrs + boiler_attrs
         return self.meta
 
     def create(self, num, model, params=None):

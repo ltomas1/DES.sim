@@ -18,6 +18,7 @@ sys.path.append(os.path.join(current_dir, ".."))
 
 from models import controller_mosaik
 from models import chp_mosaik
+from models import gasboiler_mosaik
 
 def run_DES():
     sim_config = {
@@ -46,6 +47,9 @@ def run_DES():
         'PVSim': {
                 'python': 'mosaik_components.pv.pvsimulator:PVSimulator'
         },
+        'Boilersim' : {
+                'python' : 'models.gasboiler_mosaik:Boilersimulator'
+        }
 
     }
 
@@ -54,12 +58,12 @@ def run_DES():
     world = mosaik.World(sim_config)
 
     START = '2022-01-01 00:00:00'
-    END =  365*24*60*60 # one year in seconds
+    # END =  365*24*60*60 # one year in seconds
     STEP_SIZE = 60*15 # step size 15 minutes 
     END =  30*24*60*60 # one year in seconds
     STEP_SIZE = 60*15 # step size 15 minutes 
 
-    HV = 10833.3 #Heating value of natural gas in Wh/m^3
+    HV = 10833.3 #Heating value of natural gas in Wh/m^3; standard cubic meter.
 
     # Heat pump
     params_hp = {'hp_model': 'Air_60kW',
@@ -75,6 +79,11 @@ def run_DES():
                 'eta' : 0.5897, # fuel efficiency of chp, from datasheet.
                 'hv' : HV
                 }
+    
+    #Gas boiler
+    params_boiler = {'eta' : 0.98, 'hv' : HV, 'mdot' : 4.0,
+                     'nom_P_th' : [74000, 148000, 222000, 296000, 370000] #Operating points of boiler, in W
+                     }
 
     # hot water tank
     params_hwt = {
@@ -92,6 +101,8 @@ def run_DES():
                 'chp_out': {'pos': 50},
                 'hp_in': {'pos': 2200},
                 'hp_out': {'pos': 100},
+                'boiler_in' : {'pos' : 2400},
+                'boiler_out' : {'pos' : 100}
             },
         }
 
@@ -114,7 +125,7 @@ def run_DES():
         'T_hp_sp_l': 35,
         'T_hr_sp': 65,
         'operation_mode': 'heating',
-        'control_strategy': '3'
+        'control_strategy': '5'
     }
 
     # parameters for pv model
@@ -137,6 +148,9 @@ def run_DES():
     hwtsim2 = world.start('HotWaterTankSim', step_size=STEP_SIZE, config=params_hwt)
     ctrlsim = world.start('ControllerSim', step_size=STEP_SIZE)
     chpsim = world.start('CHPSim', step_size=STEP_SIZE)
+
+    boilersim = world.start('Boilersim', step_size = STEP_SIZE)
+
 
     # pv_sim = world.start("PVSim", start_date=START, step_size=STEP_SIZE, pv_data=pv_config,) # pvlib (takes 4:01 minutes for 1 year)
     pv_sim = world.start("PVSim",start_date=START,step_size=STEP_SIZE) # pv
@@ -165,6 +179,9 @@ def run_DES():
     hwts2 = hwtsim2.HotWaterTank.create(1, params=params_hwt, init_vals=init_vals_hwt2)
     ctrls = ctrlsim.Controller.create(1, params=params_ctrl)
     heat_load = csv.HEATLOAD.create(1)
+
+    boiler = boilersim.GasBoiler.create(1, params = params_boiler)
+
     # pv_model = pv_sim.PVSim.create(pv_count) # PVlib
     pv_model = pv_sim.PV.create(1, latitude=LAT, area=AREA,efficiency=EFF, el_tilt=EL, az_tilt=AZ) # pv
     DNI_model = DNI_sim.DNI.create(1) # pv
@@ -181,6 +198,20 @@ def run_DES():
                 'hp_in_F', 'tes1_hp_out_F'
                 )
 
+    """__________________________________________Boiler_______________________________________________________________________"""
+
+    world.connect(hwts2[0], boiler[0], ('sensor_00.T', 'temp_in'))
+    world.connect(boiler[0], hwts2[0], ('temp_out', 'boiler_in.T'), ('mdot','boiler_in.F'), ('mdot_neg', 'boiler_out.F'),
+                    time_shifted=True, initial_data={'temp_out': 20, 'mdot':0, 'mdot_neg':0})
+    
+    world.connect(boiler[0], ctrls[0], ('P_th', 'boiler_supply'), 
+                ('mdot', 'boiler_mdot'))
+    
+    world.connect(ctrls[0], boiler[0], ('boiler_demand', 'Q_Demand'), 'boiler_status',
+                time_shifted=True,
+                initial_data={'boiler_demand': 0})
+    
+    
     """__________________________________________ CHP ________________________________________________________________________"""
 
     world.connect(hwts2[0], chp[0], ('sensor_00.T', 'temp_in'))
@@ -316,14 +347,15 @@ def run_DES():
                 'T_mean')
 
     world.connect(chp[0], csv_writer, 'eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'temp_out', 'P_th', 'P_el', 'fuel_m3' 
-                  )      
+                  )   
+    world.connect(boiler[0], csv_writer, 'P_th', 'Q_Demand', 'temp_out', 'fuel_m3', 'mdot')   
 
 
     """__________________________________________ world run ______________________________________________________________"""
 
     # To start heatpump as first simulator
     world.set_initial_event(heatpump[0].sid)
-
+    typ = type(boiler[0])
     # Run simulation
     world.run(until=END)
 
