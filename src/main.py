@@ -218,7 +218,7 @@ def run_DES():
     world.connect(chp[0], hwts2[0], ('temp_out', 'chp_in.T'), ('mdot','chp_in.F'), ('mdot_neg', 'chp_out.F'),
                     time_shifted=True, initial_data={'temp_out': 20, 'mdot':0, 'mdot_neg':0})
 
-    world.connect(chp[0], ctrls[0], ('P_th', 'chp_supply'), 
+    world.connect(chp[0], ctrls[0], ('P_th', 'chp_supply'), ('chp_uptime', 'chp_uptime'),
                 ('mdot', 'chp_mdot')) 
 
     world.connect(ctrls[0], chp[0], ('chp_demand', 'Q_Demand'), ('chp_status' , 'chp_status'),

@@ -31,6 +31,7 @@ class CHP_State():
 
         self.fuel_m3 = 0
         """ Fuel consumption in stand cubic meter"""
+        self.chp_uptime = 0  #TODO why is this needed here, although, this data is not to be printed to csv, just outputed, how does chp_status work tho?
 
 
 class CHPInputs():
@@ -92,6 +93,7 @@ class CHP:  # Defining the HeatPumpModel class
         """
         self.lag_status = 'off'
         self.time_reset = 0
+        self.uptime = 0
         
         self.temp_out = 0
         self.P_th = 0
@@ -132,12 +134,12 @@ class CHP:  # Defining the HeatPumpModel class
             if self.inputs.chp_status != self.lag_status: #lag_status initialized to off, so when turned on, reset var assigned
                 self.time_reset = time
             #to count time passed after each startup. In the previous line, time_reset is assigned the time of initialisation of startup.
-            self.time = (time - self.time_reset)/60  #the regression model takes time in minutes.
+            self.uptime = (time - self.time_reset)/60  #the regression model takes time in minutes.
             
-            if self.time < (reglimit):
+            if self.uptime < (reglimit):
                 self.P_th = 0
                 for i in range(len(self.startup_coeff)):
-                    self.P_th += self.startup_coeff[i] * self.time**i #i starts for 0, so will work for intercept as well.
+                    self.P_th += self.startup_coeff[i] * self.uptime**i #i starts for 0, so will work for intercept as well.
                 
                 # self.P_th = -15.7 + 9.6 * self.time  #linear regression model fitted on startup data for the first 10 minutes.
                 
@@ -149,7 +151,7 @@ class CHP:  # Defining the HeatPumpModel class
                 self.P_th = self.inputs.nom_P_th
 
             # If the time step is greater than the regression limit, then the first o/p value will be < nom_Pth, cuz ramp up.
-            if step_size/60 > reglimit and self.time == 0:
+            if step_size/60 > reglimit and self.uptime == 0:
                 self.P_th = (5999.667 + self.inputs.nom_P_th*((step_size/60) - 11)/60)/(step_size/3600) #(wh + w * h)/stepsize in h = W
                 # 5999.667 Wh, obtained from measured data, energy in the first 11 minutes.
 
@@ -178,6 +180,7 @@ class CHP:  # Defining the HeatPumpModel class
         self.state.P_el = self.P_el
 
         self.state.fuel_m3 = self.fuel_m3
+        self.state.chp_uptime = self.uptime
         
     def calc_P_el(self):
         

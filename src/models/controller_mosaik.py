@@ -18,7 +18,7 @@ META = {
 
 #The following attrs appended to the attrs entry in META dict.
 hp_attrs = ['hp_demand', 'hp_out_T', 'T_amb', 'heat_source_T']
-chp_attrs = ['chp_demand', 'chp_out_T', 'chp_status']
+chp_attrs = ['chp_demand', 'chp_out_T', 'chp_status', 'chp_uptime']
 hwt_attrs = ['heat_in_F', 'heat_in_T', 'heat_out_F', 'T_amb_hwt', 'hp_in_T',
              'hp_out_F', 'hp_in_F', 'chp_in_T', 'chp_in_F', 'chp_out_F',
              'tes0_heat_out_T', 'tes0_heat_out_F', 'tes0_heat_in_F', 'tes0_hp_out_F',
@@ -91,11 +91,11 @@ class ControllerSimulator(mosaik_api.Simulator):
             if self.meta['type'] == 'event-based':
                 if not self.step_executed:
                     self.models[eid].step_size = self.step_size
-                    self.models[eid].step()
+                    self.models[eid].step(time)
                     self.step_executed = True
             else:
                 self.models[eid].step_size = self.step_size
-                self.models[eid].step()
+                self.models[eid].step(time)
 
         if self.meta['type'] == 'event-based':
             return None

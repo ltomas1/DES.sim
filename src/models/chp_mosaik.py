@@ -13,7 +13,7 @@ META = {
         'CHP': {
             'public': True,
             'params': ['params'],
-            'attrs': ['eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'cp', 'temp_out', 'P_th', 'P_el', 'chp_status', 'fuel_m3'],
+            'attrs': ['eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'cp', 'temp_out', 'P_th', 'P_el', 'chp_status', 'fuel_m3', 'chp_uptime'],
         },
     },
 }
