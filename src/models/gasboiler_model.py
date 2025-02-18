@@ -1,5 +1,22 @@
 # -*- coding: utf-8 -*-
 
+
+#Logging setup------------------------------------------------------------------------------------------------------------#
+import logging
+
+logger_boiler = logging.getLogger("mosaik_logger")
+logger_boiler.setLevel(logging.DEBUG)  # Log everything (DEBUG, INFO, WARNING, ERROR)
+
+# Create a file handler to store logs
+file_handler_boiler = logging.FileHandler("boiler_mosaik_simulation.log")  # Save to file
+file_handler_boiler.setLevel(logging.DEBUG)
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+
+logger_boiler.addHandler(file_handler_boiler)
+#----------------------------------------------------------------------------------------------------------------------------#
+
 class Boiler_State():
     """Attributes that define the state of the CHP"""
     def __init__(self):
@@ -23,6 +40,8 @@ class Boiler_State():
 
         self.fuel_m3 = 0
         """ Fuel consumption in stand cubic meter"""
+
+        self.boiler_uptime = 0
 
 
 class BoilerInputs():
@@ -83,7 +102,10 @@ class GasBoiler:  # Defining the HeatPumpModel class
         
         self.temp_out = 0
         self.P_th = 0
-        
+        self.lag_status = 'off'
+        self.uptime = 0
+        self.time_reset = 0
+
         if 'cp' in  params.keys():
             self.cp = params.get('cp')
         else:
@@ -108,7 +130,13 @@ class GasBoiler:  # Defining the HeatPumpModel class
             time (int): time returned by the mosaik sim, in seconds
             step_size (int): simulation step size, in seconds
         """
-        self.time = time #This is just for debugging!
+        
+        if self.inputs.boiler_status != self.lag_status: #lag_status initialized to off, so when turned on, reset var assigned
+            self.time_reset = time
+            #to count time passed after each startup. In the previous line, time_reset is assigned the time of initialisation of startup.
+        self.uptime = (time - self.time_reset)
+        
+        
         if self.inputs.Q_Demand == 0:
             self.P_th = 0
 
@@ -118,13 +146,17 @@ class GasBoiler:  # Defining the HeatPumpModel class
 
             self.P_th = min((i for i in self.inputs.nom_P_th if i >= self.inputs.Q_Demand), default=370000)
 
-        #Now what?
+        self.lag_status = self.inputs.boiler_status
+       
                 
         # self.temp_out = ( self.P_th / (self.inputs.mdot * self.cp))  + self.inputs.temp_in
         # Trying out variable volume rate
 
         self.temp_out = 75
         self.inputs.mdot = self.P_th/((self.temp_out - self.inputs.temp_in) * self.cp)
+        if self.inputs.mdot < 0:
+            logger_boiler.debug(f"Boiler \t: Flow : {self.inputs.mdot}, tempin : {self.inputs.temp_in}, Pth : {self.P_th}")
+            self.inputs.mdot = 0
         
 
 
@@ -144,6 +176,7 @@ class GasBoiler:  # Defining the HeatPumpModel class
         self.state.temp_out = self.temp_out
 
         self.state.fuel_m3 = self.fuel_m3
+        self.state.boiler_uptime = self.uptime
         
     def print_instance_attributes(self):
         for attribute, value in self.__dict__.items():

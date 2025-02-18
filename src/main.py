@@ -72,7 +72,7 @@ def run_DES():
                     }
 
     # CHP
-    params_chp = {'eff_el': 0.8,
+    params_chp = {'eff_el': 0.54,
                 'nom_P_th': 92_000,
                 'mdot': 4.0,
                 'startup_coeff' : [-2.63, 3.9, 0.57], #coefficients to model the startup behaviour, in the order : Intercept, x,x^2,x^3...
@@ -121,9 +121,10 @@ def run_DES():
 
     # Parameters for controller model
     params_ctrl = {
-        'T_hp_sp_h': 55,
+        'T_hp_sp_h': 65,
         'T_hp_sp_l': 35,
         'T_hr_sp': 65,
+        'heat_rT' : 35,
         'operation_mode': 'heating',
         'control_strategy': '5'
     }
@@ -204,7 +205,7 @@ def run_DES():
     world.connect(boiler[0], hwts2[0], ('temp_out', 'boiler_in.T'), ('mdot','boiler_in.F'), ('mdot_neg', 'boiler_out.F'),
                     time_shifted=True, initial_data={'temp_out': 20, 'mdot':0, 'mdot_neg':0})
     
-    world.connect(boiler[0], ctrls[0], ('P_th', 'boiler_supply'), 
+    world.connect(boiler[0], ctrls[0], ('P_th', 'boiler_supply'), ('boiler_uptime','boiler_uptime'),
                 ('mdot', 'boiler_mdot'))
     
     world.connect(ctrls[0], boiler[0], ('boiler_demand', 'Q_Demand'), 'boiler_status',
@@ -329,7 +330,7 @@ def run_DES():
                 'chp_demand', 'chp_supply',
                 'heat_in_F', 'heat_in_T', 'heat_out_F', 'heat_out_T', 
                 'chp_in_F', 'chp_in_T', 'chp_out_F', 'chp_out_T',
-                'hp_out_F', 'hp_out_T', 'P_hr')
+                'hp_out_F', 'hp_out_T', 'P_hr', 'dt')
 
     world.connect(hwts0[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
                 'heat_out.T', 'heat_out.F', 'hp_in.T', 'hp_in.F', 'hp_out.T',

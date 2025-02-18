@@ -96,8 +96,11 @@ class Controller():
         self.boiler_supply = None
         self.boiler_mdot = None
         self.boiler_status = None
+        self.boiler_uptime = None
+        self.boiler_in_F = None
+        self.boiler_out_F = None
 
-        self.dt = 0
+        self.dt = 0 #Time for how long top layer of Tank 3 below threshold, i.e chp not able to keep up with demand.
 
         #TODO write all comments for TES variables 
         self.tes0_heat_out_T = None         # The temperature of the heat_out connection for the tank 0 
@@ -114,6 +117,8 @@ class Controller():
         self.tes2_heat_out_F = None
         self.tes2_hp_out_T = None
         self.tes2_hp_out_F = None
+
+        
 
 
     def step(self, stepsize):
@@ -249,7 +254,7 @@ class Controller():
                     self.chp_status = 'on'
                     self.hp_status = 'off'
                 
-                if self.chp_status == 'on': #runs until bottom layer of 3 reaches the threshold
+                if self.chp_status == 'on': #runs until bottom layer of tank 2 reaches the threshold
                     if self.bottom_layer_T_chp < self.T_hp_sp_h:
                         self.chp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_T_chp) / self.step_size
                     elif self.chp_uptime > 15: #15 minute minimum runtime
@@ -272,7 +277,7 @@ class Controller():
                 if self.boiler_status == 'on':
                     if self.bottom_layer_T_chp < self.T_hp_sp_h:
                         self.boiler_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_T_chp) / self.step_size
-                    else:
+                    elif self.boiler_uptime > 15 * 60: #boiler uptime is in seconds
                         self.boiler_demand = 0
                         self.boiler_status = 'off'
                 else:
@@ -327,8 +332,8 @@ class Controller():
             self.chp_out_F = -self.chp_mdot 
 
         if self.boiler_mdot is not None:
-            self.chp_in_F = self.boiler_mdot
-            self.chp_out_F = -self.boiler_mdot  #The same connections as chp being used.
+            self.boiler_in_F = self.boiler_mdot
+            self.boiler_out_F = -self.boiler_mdot  
 
         # Calculating the heat required from the in-built heating rod of the hot water tank
         if self.T_hr_sp_hwt is not None:
@@ -372,6 +377,7 @@ class Controller():
 
         if self.tes1_heat_out_F + self.tes1_hp_out_F + self.tes1_hp_in_F > 1e-5:
             raise ValueError("Tank-1 netflow error!")
+        
 
 
     def calc_heat_supply(self):
@@ -387,5 +393,6 @@ class Controller():
             self.P_hr = 0
         else:
             self.P_hr = self.heat_in_F * 4184 * (self.T_hr_sp - self.heat_out_T)
+            
             self.heat_in_T = self.heat_rT
         self.heat_out_F = - self.heat_in_F

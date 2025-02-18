@@ -184,7 +184,7 @@ class CHP:  # Defining the HeatPumpModel class
         
     def calc_P_el(self):
         
-        self.P_el = self.P_th / self.inputs.eff_el
+        self.P_el = self.P_th * self.inputs.eff_el
         
     def print_instance_attributes(self):
         for attribute, value in self.__dict__.items():

@@ -27,7 +27,7 @@ hwt_attrs = ['heat_in_F', 'heat_in_T', 'heat_out_F', 'T_amb_hwt', 'hp_in_T',
 db_attrs = ['heat_supply', 'heat_demand', 'hp_supply', 'chp_supply',
             'T_mean_hwt', 'hwt_mass', 'hwt_hr_P_th_set', 'hp_on_fraction', 'hp_cond_m', 'heat_out_T', 'chp_mdot',
             'P_hr', 'T_room', 'bottom_layer_T','bottom_layer_T_chp', 'top_layer_T']
-boiler_attrs = ['boiler_demand', 'boiler_mdot', 'boiler_supply', 'boiler_status']
+boiler_attrs = ['boiler_demand', 'boiler_mdot', 'boiler_supply', 'boiler_status', 'dt', 'boiler_uptime']
 
 
 class ControllerSimulator(mosaik_api.Simulator):

@@ -13,7 +13,7 @@ META = {
         'GasBoiler': {
             'public': True,
             'params': ['params'],
-            'attrs': ['nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'cp', 'temp_out', 'P_th', 'fuel_m3', 'boiler_status', 'mdot'],
+            'attrs': ['nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'cp', 'temp_out', 'P_th', 'fuel_m3', 'boiler_status', 'mdot', 'boiler_uptime'],
         },
     },
 }
