@@ -53,9 +53,9 @@ df_dhw.rename(columns={'dhw':'DHW Demand [L]'}, inplace=True)
 
 #%%
 
-file_polysun = 'Polysun_raw.csv'
+file_polysun = 'Polysun.csv'
 
-df_poly = pd.read_csv(file_polysun, sep=';', index_col='Datum', encoding='unicode_escape')
+df_poly = pd.read_csv(file_polysun, sep=',', index_col='Time', skiprows=1)
 df_poly.index = df_long.index
 
 df_poly.rename(columns={'Energiebedarf thermisch [W]':'Heat Demand [W]'}, inplace=True)
