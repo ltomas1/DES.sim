@@ -25,7 +25,7 @@ pip install . docs
 ```
 ## Documentation
 
-The documentation for the individual models is available [here](docs/html/index.html)
+The documentation for the individual models is available [here](docs/index.md)
 
 ## Recommended vscode-extensions
 - GitLens -Git supercharged: Nice graphical git support

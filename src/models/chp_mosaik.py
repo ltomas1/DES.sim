@@ -13,7 +13,7 @@ META = {
         'CHP': {
             'public': True,
             'params': ['params'],
-            'attrs': ['eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'cp', 'temp_out', 'P_th', 'P_el', 'chp_status'],
+            'attrs': ['eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'cp', 'temp_out', 'P_th', 'P_el', 'chp_status', 'fuel_m3', 'chp_uptime'],
         },
     },
 }
@@ -67,7 +67,7 @@ class CHPSimulator(mosaik_api.Simulator):
             self.models[eid].inputs.step_size = self.step_size
 
         for eid, model in self.models.items():
-            model.step(time)
+            model.step(time,self.step_size)
 
         if self.meta['type'] == 'event-based':
             return None

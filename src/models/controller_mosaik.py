@@ -16,8 +16,9 @@ META = {
     },
 }
 
+#The following attrs appended to the attrs entry in META dict.
 hp_attrs = ['hp_demand', 'hp_out_T', 'T_amb', 'heat_source_T']
-chp_attrs = ['chp_demand', 'chp_out_T', 'chp_status']
+chp_attrs = ['chp_demand', 'chp_out_T', 'chp_status', 'chp_uptime']
 hwt_attrs = ['heat_in_F', 'heat_in_T', 'heat_out_F', 'T_amb_hwt', 'hp_in_T',
              'hp_out_F', 'hp_in_F', 'chp_in_T', 'chp_in_F', 'chp_out_F',
              'tes0_heat_out_T', 'tes0_heat_out_F', 'tes0_heat_in_F', 'tes0_hp_out_F',
@@ -25,7 +26,8 @@ hwt_attrs = ['heat_in_F', 'heat_in_T', 'heat_out_F', 'T_amb_hwt', 'hp_in_T',
              'tes2_heat_out_F',  'tes2_hp_out_T', 'tes2_hp_out_F']
 db_attrs = ['heat_supply', 'heat_demand', 'hp_supply', 'chp_supply',
             'T_mean_hwt', 'hwt_mass', 'hwt_hr_P_th_set', 'hp_on_fraction', 'hp_cond_m', 'heat_out_T', 'chp_mdot',
-            'P_hr', 'T_room', 'bottom_layer_T','bottom_layer_T_chp', 'top_layer_T']
+            'P_hr', 'T_room', 'bottom_layer_T','bottom_layer_T_chp', 'top_layer_T', 'top_layer_T_chp']
+boiler_attrs = ['boiler_demand', 'boiler_mdot', 'boiler_supply', 'boiler_status', 'dt', 'boiler_uptime']
 
 
 class ControllerSimulator(mosaik_api.Simulator):
@@ -51,7 +53,7 @@ class ControllerSimulator(mosaik_api.Simulator):
         self.step_size = step_size
         if same_time_loop:
             self.meta['type'] = 'event-based'
-        self.meta['models']['Controller']['attrs'] += hp_attrs + chp_attrs + hwt_attrs + db_attrs
+        self.meta['models']['Controller']['attrs'] += hp_attrs + chp_attrs + hwt_attrs + db_attrs + boiler_attrs
         return self.meta
 
     def create(self, num, model, params=None):
@@ -89,11 +91,11 @@ class ControllerSimulator(mosaik_api.Simulator):
             if self.meta['type'] == 'event-based':
                 if not self.step_executed:
                     self.models[eid].step_size = self.step_size
-                    self.models[eid].step()
+                    self.models[eid].step(time)
                     self.step_executed = True
             else:
                 self.models[eid].step_size = self.step_size
-                self.models[eid].step()
+                self.models[eid].step(time)
 
         if self.meta['type'] == 'event-based':
             return None
