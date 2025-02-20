@@ -128,6 +128,7 @@ class CHP:  # Defining the HeatPumpModel class
         reglimit = 11 # the regression model works only for the first 11 minutes.
         if self.inputs.chp_status == 'off':
             self.P_th = 0
+            self.uptime = 0
             # self.temp_out = self.inputs.temp_in
         else :
           

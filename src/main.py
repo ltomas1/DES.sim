@@ -82,7 +82,7 @@ def run_DES():
     
     #Gas boiler
     params_boiler = {'eta' : 0.98, 'hv' : HV, 'mdot' : 4.0,
-                     'nom_P_th' : [74000, 148000, 222000, 296000, 370000] #Operating points of boiler, in W
+                     'nom_P_th' : [0, 74000, 148000, 222000, 296000, 370000] #Operating points of boiler, in W
                      }
 
     # hot water tank
@@ -102,7 +102,7 @@ def run_DES():
                 'hp_in': {'pos': 2200},
                 'hp_out': {'pos': 100},
                 'boiler_in' : {'pos' : 2400},
-                'boiler_out' : {'pos' : 100}
+                'boiler_out' : {'pos' : 120}
             },
         }
 
@@ -282,7 +282,7 @@ def run_DES():
                                 },)
 
     world.connect(hwts2[0], ctrls[0], ('heat_out.T', 'heat_out_T'), ('chp_out.T', 'chp_out_T'),
-                ('heat_out.F', 'heat_out_F'), ('sensor_00.T', 'bottom_layer_T_chp'))
+                ('heat_out.F', 'heat_out_F'), ('sensor_00.T', 'bottom_layer_T_chp'), ('sensor_02.T', 'top_layer_T_chp'))
 
     """__________________________________________ PV ___________________________________________________________________""" 
 
@@ -330,7 +330,7 @@ def run_DES():
                 'chp_demand', 'chp_supply',
                 'heat_in_F', 'heat_in_T', 'heat_out_F', 'heat_out_T', 
                 'chp_in_F', 'chp_in_T', 'chp_out_F', 'chp_out_T',
-                'hp_out_F', 'hp_out_T', 'P_hr', 'dt')
+                'hp_out_F', 'hp_out_T', 'P_hr', 'dt', 'boiler_demand')
 
     world.connect(hwts0[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
                 'heat_out.T', 'heat_out.F', 'hp_in.T', 'hp_in.F', 'hp_out.T',

@@ -1,6 +1,23 @@
 __doc__ = """
 The controller module contains an updated class for the controller model (:class:`Controller`).
 """
+#Logging setup------------------------------------------------------------------------------------------------------------#
+import logging
+
+logger_controller = logging.getLogger("mosaik_logger")
+logger_controller.setLevel(logging.DEBUG)  # Log everything (DEBUG, INFO, WARNING, ERROR)
+
+# Create a file handler to store logs
+file_handler_controller = logging.FileHandler("controller_mosaik_simulation.log")  # Save to file
+file_handler_controller.setLevel(logging.DEBUG)
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+
+logger_controller.addHandler(file_handler_controller)
+#----------------------------------------------------------------------------------------------------------------------------#
+
+
 
 class Controller():
     """
@@ -81,7 +98,8 @@ class Controller():
         
         self.bottom_layer_T = None       # The temperature of the bottom layer of the hot water tank 0 (in °C)
         self.bottom_layer_T_chp = None      # The temperature of the bottom layer of the hot water tank 2 (in °C)
-        self.top_layer_T = None             # The temperature of the top layer of the hot water tank (in °C)
+        self.top_layer_T = None             # The temperature of the top layer of the hot water tank 1 (in °C)
+        self.top_layer_T_chp = None              # top layer of tank 2
         self.T_mean_hwt = None              # The mean temperature of the hot water tank (in °C)
         self.hwt_mass = None                # The total mass of water inside the hot water tank (kg)
 
@@ -121,7 +139,7 @@ class Controller():
         
 
 
-    def step(self, stepsize):
+    def step(self, time):
         """Perform simulation step with step size step_size"""
 
         # Convert the heat demand available in kW to W
@@ -250,7 +268,7 @@ class Controller():
                 else:
                     self.hp_demand = 0
 
-                if self.top_layer_T < self.T_hp_sp_h: #i.e high heat demand
+                if self.top_layer_T_chp < self.T_hp_sp_h: #i.e high heat demand
                     self.chp_status = 'on'
                     self.hp_status = 'off'
                 
@@ -260,15 +278,17 @@ class Controller():
                     elif self.chp_uptime > 15: #15 minute minimum runtime
                         self.chp_demand = 0
                         self.chp_status = 'off'
+                    # logger_controller.debug(f'time : {time} \tbottom layer : {self.bottom_layer_T_chp}, uptime : {self.chp_uptime}, status : {self.chp_status}')
                 else:
                     self.hp_demand = 0
                     self.chp_demand = 0
                 
                 #If the CHP is not able to keep up :
-                if self.bottom_layer_T_chp < self.T_hp_sp_h and self.chp_uptime > 0: #To start from 0.
+                if self.top_layer_T_chp < self.T_hp_sp_h and self.chp_uptime > 0: #To start from 0.
                     self.dt += self.step_size
                 else :
                     self.dt = 0
+                
                 
                 if self.dt > 10 * 60 and self.top_layer_T < self.T_hp_sp_h:
                      self.boiler_status = 'on'
@@ -283,7 +303,8 @@ class Controller():
                 else:
                     self.hp_demand = 0
                     self.boiler_demand = 0
-
+                
+                logger_controller.debug(f'time : {time}\t Top layer temp : {self.top_layer_T_chp}, uptime : {self.chp_uptime}, chpstatus : {self.chp_status}, dt : {self.dt}, boiler : {self.boiler_status}, boiler uptime : {self.boiler_uptime}\n')
         # Control strategies for the operation of heat pump in cooling mode
         elif self.operation_mode.lower() == 'cooling':
 
