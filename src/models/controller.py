@@ -284,7 +284,8 @@ class Controller():
                     self.chp_demand = 0
                 
                 #If the CHP is not able to keep up :
-                if self.top_layer_T_chp < self.T_hp_sp_h and self.chp_uptime > 0: #To start from 0.
+                # Data transfer only at end of step, so this ensures, dt incremented after one step of chp.
+                if self.top_layer_T_chp < self.T_hp_sp_h and self.chp_uptime > 0: 
                     self.dt += self.step_size
                 else :
                     self.dt = 0
@@ -296,7 +297,8 @@ class Controller():
                 
                 if self.boiler_status == 'on':
                     if self.bottom_layer_T_chp < self.T_hp_sp_h:
-                        self.boiler_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_T_chp) / self.step_size
+                        # self.boiler_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_T_chp) / self.step_size
+                        self.boiler_demand =  self.heat_demand             
                     elif self.boiler_uptime > 15 * 60: #boiler uptime is in seconds
                         self.boiler_demand = 0
                         self.boiler_status = 'off'

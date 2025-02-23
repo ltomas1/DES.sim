@@ -183,6 +183,8 @@ def run_DES():
 
     boiler = boilersim.GasBoiler.create(1, params = params_boiler)
 
+
+
     # pv_model = pv_sim.PVSim.create(pv_count) # PVlib
     pv_model = pv_sim.PV.create(1, latitude=LAT, area=AREA,efficiency=EFF, el_tilt=EL, az_tilt=AZ) # pv
     DNI_model = DNI_sim.DNI.create(1) # pv
@@ -198,53 +200,7 @@ def run_DES():
     world.connect(ctrls[0], csv_debug, 'tes0_heat_out_F', 'tes0_heat_in_F', 'tes0_hp_out_F',
                 'hp_in_F', 'tes1_hp_out_F'
                 )
-
-    """__________________________________________Boiler_______________________________________________________________________"""
-
-    world.connect(hwts2[0], boiler[0], ('sensor_00.T', 'temp_in'))
-    world.connect(boiler[0], hwts2[0], ('temp_out', 'boiler_in.T'), ('mdot','boiler_in.F'), ('mdot_neg', 'boiler_out.F'),
-                    time_shifted=True, initial_data={'temp_out': 20, 'mdot':0, 'mdot_neg':0})
     
-    world.connect(boiler[0], ctrls[0], ('P_th', 'boiler_supply'), ('boiler_uptime','boiler_uptime'),
-                ('mdot', 'boiler_mdot'))
-    
-    world.connect(ctrls[0], boiler[0], ('boiler_demand', 'Q_Demand'), 'boiler_status',
-                time_shifted=True,
-                initial_data={'boiler_demand': 0})
-    
-    
-    """__________________________________________ CHP ________________________________________________________________________"""
-
-    world.connect(hwts2[0], chp[0], ('sensor_00.T', 'temp_in'))
-    world.connect(chp[0], hwts2[0], ('temp_out', 'chp_in.T'), ('mdot','chp_in.F'), ('mdot_neg', 'chp_out.F'),
-                    time_shifted=True, initial_data={'temp_out': 20, 'mdot':0, 'mdot_neg':0})
-
-    world.connect(chp[0], ctrls[0], ('P_th', 'chp_supply'), ('chp_uptime', 'chp_uptime'),
-                ('mdot', 'chp_mdot')) 
-
-    world.connect(ctrls[0], chp[0], ('chp_demand', 'Q_Demand'), ('chp_status' , 'chp_status'),
-                time_shifted=True,
-                initial_data={'chp_demand': 0})
-
-    """__________________________________________ heat pump ___________________________________________________________________""" 
-
-    world.connect(heatpump[0], ctrls[0], ('Q_Supplied', 'hp_supply'), ('on_fraction', 'hp_on_fraction'),
-                ('cond_m', 'hp_cond_m'))
-
-    world.connect(ctrls[0], heatpump[0], ('hp_demand', 'Q_Demand'),
-                'T_amb', 'heat_source_T', time_shifted=True,
-                initial_data={'hp_demand': 0, 'T_amb': 5, 'heat_source_T': 5})
-
-    world.connect(hwts0[0], heatpump[0], ('hp_out.T', 'cond_in_T'),
-                time_shifted=True, initial_data={'hp_out.T':0}
-                )
-
-    world.connect(heatpump[0], hwts0[0], ('cond_m_neg', 'hp_out.F'),
-                )
-
-    world.connect(heatpump[0], hwts1[0], ('cons_T', 'hp_in.T'), ('cond_m', 'hp_in.F'),
-                )
-
     """__________________________________________ hwts ___________________________________________________________________""" 
 
     world.connect(hwts0[0], ctrls[0], ('heat_out.T', 'tes0_heat_out_T'), 
@@ -283,6 +239,55 @@ def run_DES():
 
     world.connect(hwts2[0], ctrls[0], ('heat_out.T', 'heat_out_T'), ('chp_out.T', 'chp_out_T'),
                 ('heat_out.F', 'heat_out_F'), ('sensor_00.T', 'bottom_layer_T_chp'), ('sensor_02.T', 'top_layer_T_chp'))
+ 
+ 
+    """__________________________________________Boiler_______________________________________________________________________"""
+
+    world.connect(hwts2[0], boiler[0], ('sensor_00.T', 'temp_in'))
+    world.connect(boiler[0], hwts2[0], ('temp_out', 'boiler_in.T'), ('mdot','boiler_in.F'), ('mdot_neg', 'boiler_out.F'),
+                    time_shifted=True, initial_data={'temp_out': 20, 'mdot':0, 'mdot_neg':0})
+    
+    world.connect(boiler[0], ctrls[0], ('P_th', 'boiler_supply'), ('boiler_uptime','boiler_uptime'),
+                ('mdot', 'boiler_mdot'))
+    
+    world.connect(ctrls[0], boiler[0], ('boiler_demand', 'Q_Demand'), 'boiler_status',
+                time_shifted=True,
+                initial_data={'boiler_demand': 0})
+    
+    
+    """__________________________________________ CHP ________________________________________________________________________"""
+
+    world.connect(hwts2[0], chp[0], ('sensor_00.T', 'temp_in'))
+    world.connect(chp[0], hwts2[0], ('temp_out', 'chp_in.T'), ('mdot','chp_in.F'), ('mdot_neg', 'chp_out.F'),
+                    time_shifted=True, initial_data={'temp_out': 20, 'mdot':0, 'mdot_neg':0})
+
+    world.connect(chp[0], ctrls[0], ('P_th', 'chp_supply'), ('chp_uptime', 'chp_uptime'),
+                ('mdot', 'chp_mdot')) 
+
+    world.connect(ctrls[0], chp[0], ('chp_demand', 'Q_Demand'), ('chp_status' , 'chp_status'),
+                time_shifted=True,
+                initial_data={'chp_demand': 90000}
+                )
+
+    """__________________________________________ heat pump ___________________________________________________________________""" 
+
+    world.connect(heatpump[0], ctrls[0], ('Q_Supplied', 'hp_supply'), ('on_fraction', 'hp_on_fraction'),
+                ('cond_m', 'hp_cond_m'))
+
+    world.connect(ctrls[0], heatpump[0], ('hp_demand', 'Q_Demand'),
+                'T_amb', 'heat_source_T', time_shifted=True,
+                initial_data={'hp_demand': 0, 'T_amb': 5, 'heat_source_T': 5})
+
+    world.connect(hwts0[0], heatpump[0], ('hp_out.T', 'cond_in_T'),
+                time_shifted=True, initial_data={'hp_out.T':0}
+                )
+
+    world.connect(heatpump[0], hwts0[0], ('cond_m_neg', 'hp_out.F'),
+                )
+
+    world.connect(heatpump[0], hwts1[0], ('cons_T', 'hp_in.T'), ('cond_m', 'hp_in.F'),
+                )
+
 
     """__________________________________________ PV ___________________________________________________________________""" 
 
@@ -330,7 +335,7 @@ def run_DES():
                 'chp_demand', 'chp_supply',
                 'heat_in_F', 'heat_in_T', 'heat_out_F', 'heat_out_T', 
                 'chp_in_F', 'chp_in_T', 'chp_out_F', 'chp_out_T',
-                'hp_out_F', 'hp_out_T', 'P_hr', 'dt', 'boiler_demand')
+                'hp_out_F', 'hp_out_T', 'P_hr', 'dt', 'boiler_demand', 'chp_uptime')
 
     world.connect(hwts0[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
                 'heat_out.T', 'heat_out.F', 'hp_in.T', 'hp_in.F', 'hp_out.T',
@@ -347,16 +352,24 @@ def run_DES():
                 'hp_out.F', 'heat_in.T', 'heat_in.F',
                 'T_mean')
 
-    world.connect(chp[0], csv_writer, 'eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'temp_out', 'P_th', 'P_el', 'fuel_m3' 
+    world.connect(chp[0], csv_writer, 'eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'temp_out',
+                   'P_th', 'P_el', 'fuel_m3', 'chp_uptime'
                   )   
     world.connect(boiler[0], csv_writer, 'P_th', 'Q_Demand', 'temp_out', 'fuel_m3', 'mdot')   
 
 
     """__________________________________________ world run ______________________________________________________________"""
 
+    # # Set execution order so the controller receives up-to-date values
+    # world.set_execution_order([heat_load, hwts0, hwts1, hwts2, ctrls, chp, heatpump, boiler])
+
+    # # Ensure initial data transfer before first step
+    # world.step(0)
+    
+    
     # To start heatpump as first simulator
     world.set_initial_event(heatpump[0].sid)
-    typ = type(boiler[0])
+    
     # Run simulation
     world.run(until=END)
 
