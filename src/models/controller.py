@@ -256,7 +256,7 @@ class Controller():
             if self.control_strategy == '5':
                                 
                 if self.bottom_layer_T < self.T_hp_sp_l: #Turns on only when below threshold of 35 degrees.
-                    self.chp_status = 'off'
+                    # self.chp_status = 'off'
                     self.hp_status = 'on'
                     
                 if self.hp_status == 'on': # Hp runs until upper threshold achieved.
@@ -270,7 +270,7 @@ class Controller():
 
                 if self.top_layer_T_chp < self.T_hp_sp_h: #i.e high heat demand
                     self.chp_status = 'on'
-                    self.hp_status = 'off'
+                    # self.hp_status = 'off'
                 
                 if self.chp_status == 'on': #runs until bottom layer of tank 2 reaches the threshold
                     if self.bottom_layer_T_chp < self.T_hp_sp_h:
@@ -280,7 +280,7 @@ class Controller():
                         self.chp_status = 'off'
                     # logger_controller.debug(f'time : {time} \tbottom layer : {self.bottom_layer_T_chp}, uptime : {self.chp_uptime}, status : {self.chp_status}')
                 else:
-                    self.hp_demand = 0
+                    # self.hp_demand = 0
                     self.chp_demand = 0
                 
                 #If the CHP is not able to keep up :
@@ -293,7 +293,7 @@ class Controller():
                 
                 if self.dt > 10 * 60 and self.top_layer_T < self.T_hp_sp_h:
                      self.boiler_status = 'on'
-                     self.hp_status = 'off'
+                    #  self.hp_status = 'off'
                 
                 if self.boiler_status == 'on':
                     if self.bottom_layer_T_chp < self.T_hp_sp_h:
@@ -303,7 +303,7 @@ class Controller():
                         self.boiler_demand = 0
                         self.boiler_status = 'off'
                 else:
-                    self.hp_demand = 0
+                    # self.hp_demand = 0
                     self.boiler_demand = 0
                 
                 logger_controller.debug(f'time : {time}\t Top layer temp : {self.top_layer_T_chp}, uptime : {self.chp_uptime}, chpstatus : {self.chp_status}, dt : {self.dt}, boiler : {self.boiler_status}, boiler uptime : {self.boiler_uptime}\n')
