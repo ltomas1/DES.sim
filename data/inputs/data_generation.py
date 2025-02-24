@@ -48,4 +48,6 @@ df_polysun.columns = df_polysun.columns.to_series().map(rename_dict)
 df_polysun = df_polysun.loc[:, df_polysun.columns.notna()] # delete all columns with nan headers
 # df_polysun.DNI = pd.to_numeric(df_polysun.DNI)
 
-df_polysun.head()
+print(df_polysun.head())
+
+# %%
