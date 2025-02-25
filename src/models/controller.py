@@ -244,7 +244,7 @@ class Controller():
                 if self.chp_status == 'on': #runs until bottom layer of tank 2 reaches the threshold
                     if self.bottom_layer_Tank2 < self.T_hp_sp_h:
                         self.chp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_Tank2) / self.step_size
-                    elif self.chp_uptime > 15: #15 minute minimum runtime
+                    elif self.chp_uptime >= 15: #15 minute minimum runtime
                         self.chp_demand = 0
                         self.chp_status = 'off'
                     # logger_controller.debug(f'time : {time} \tbottom layer : {self.bottom_layer_T_chp}, uptime : {self.chp_uptime}, status : {self.chp_status}')
@@ -268,7 +268,7 @@ class Controller():
                     if self.bottom_layer_Tank2 < self.T_hp_sp_h:
                         # self.boiler_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_T_chp) / self.step_size
                         self.boiler_demand =  self.heat_demand             
-                    elif self.boiler_uptime > 15 * 60: #boiler uptime is in seconds
+                    elif self.boiler_uptime >= 15 * 60: #boiler uptime is in seconds
                         self.boiler_demand = 0
                         self.boiler_status = 'off'
                 else:
