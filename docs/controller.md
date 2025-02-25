@@ -14,8 +14,8 @@ Return line from Network is connected to the first tank, as well as the inflow t
 The second tank recieves the hot water from the Heat pump, this along with the balancing flow between first and second tanks, dictates the flow into the third tank.  
 The third tank recieves flow from the CHP and the gas boiler, both of which form a closed loop with the third tank.  
 
-![Storage Schematic](image.png)
 
+![Storage Schematic](Storage_scheme.png)
 
 
 ## Controller Logic - Heating mode
