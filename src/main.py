@@ -126,7 +126,8 @@ def run_DES():
         'T_hr_sp': 65,
         'heat_rT' : 35,
         'operation_mode': 'heating',
-        'control_strategy': '5'
+        'control_strategy': '5',
+        'hr_mode' : 'off'
     }
 
     # parameters for pv model
@@ -204,7 +205,7 @@ def run_DES():
     """__________________________________________ hwts ___________________________________________________________________""" 
 
     world.connect(hwts0[0], ctrls[0], ('heat_out.T', 'tes0_heat_out_T'), 
-                ('hp_out.T', 'hp_out_T'), ('sensor_00.T', 'bottom_layer_T'),
+                ('hp_out.T', 'hp_out_T'), ('sensor_00.T', 'bottom_layer_Tank0'),
                 time_shifted=True, initial_data={'heat_out.T':0, 'hp_out.T':0, 'sensor_00.T':0}
                 )
 
@@ -217,7 +218,7 @@ def run_DES():
     world.connect(hwts1[0], ctrls[0], 
                 ('heat_out.T', 'tes1_heat_out_T'),
                 ('T_mean', 'T_mean_hwt'), ('mass', 'hwt_mass'),
-                ('sensor_02.T', 'top_layer_T'),
+                ('sensor_02.T', 'top_layer_Tank1'),
                 ('hp_out.T', 'tes1_hp_out_T'),
                 time_shifted=True, initial_data={
                     'heat_out.T':0, 'T_mean':0, 'mass':0, 
@@ -238,7 +239,7 @@ def run_DES():
                                 },)
 
     world.connect(hwts2[0], ctrls[0], ('heat_out.T', 'heat_out_T'), ('chp_out.T', 'chp_out_T'),
-                ('heat_out.F', 'heat_out_F'), ('sensor_00.T', 'bottom_layer_T_chp'), ('sensor_02.T', 'top_layer_T_chp'))
+                ('heat_out.F', 'heat_out_F'), ('sensor_00.T', 'bottom_layer_Tank2'), ('sensor_02.T', 'top_layer_Tank2'))
  
  
     """__________________________________________Boiler_______________________________________________________________________"""
