@@ -247,6 +247,9 @@ class Controller():
                     elif self.chp_uptime >= 15: #15 minute minimum runtime
                         self.chp_demand = 0
                         self.chp_status = 'off'
+                    else:
+                        self.chp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_Tank2) / self.step_size
+
                     # logger_controller.debug(f'time : {time} \tbottom layer : {self.bottom_layer_T_chp}, uptime : {self.chp_uptime}, status : {self.chp_status}')
                 else:
                     
@@ -271,11 +274,13 @@ class Controller():
                     elif self.boiler_uptime >= 15 * 60: #boiler uptime is in seconds
                         self.boiler_demand = 0
                         self.boiler_status = 'off'
+                    else :
+                        self.boiler_demand =  self.heat_demand
                 else:
                     
                     self.boiler_demand = 0
                 
-                logger_controller.debug(f'time : {time}\t Top layer temp : {self.top_layer_Tank2}, uptime : {self.chp_uptime}, chpstatus : {self.chp_status}, dt : {self.dt}, boiler : {self.boiler_status}, boiler uptime : {self.boiler_uptime}\n')
+                # logger_controller.debug(f'time : {time}\t Top layer temp : {self.top_layer_Tank2}, uptime : {self.chp_uptime}, chpstatus : {self.chp_status}, dt : {self.dt}, boiler : {self.boiler_status}, boiler uptime : {self.boiler_uptime}\n')
         
         # Control strategies for the operation of heat pump in cooling mode
         elif self.operation_mode.lower() == 'cooling':
@@ -357,6 +362,7 @@ class Controller():
             raise ValueError("Tank-0 netflow error!")
         
         self.tes1_residual_flow = self.tes1_hp_in_F + self.tes1_hp_out_F
+        logger_controller.debug(f'tes1 residual flow: {self.tes1_residual_flow}')
 
         if self.tes1_residual_flow > 0:
             self.tes2_hp_out_T = self.tes1_heat_out_T
@@ -365,8 +371,8 @@ class Controller():
 
         else:
             self.tes1_heat_out_T = self.tes2_hp_out_T
-            self.tes1_heat_out_F = self.tes1_residual_flow
-            self.tes2_hp_out_F = - self.tes1_residual_flow
+            self.tes1_heat_out_F = - self.tes1_residual_flow
+            self.tes2_hp_out_F =  self.tes1_residual_flow
 
         if self.tes1_heat_out_F + self.tes1_hp_out_F + self.tes1_hp_in_F > 1e-5:
             raise ValueError("Tank-1 netflow error!")
@@ -396,6 +402,8 @@ class Controller():
         
         self.heat_dT = self.heat_out_T - self.heat_rT
         self.heat_in_F = self.heat_demand / (4184 * self.heat_dT)
+        if self.heat_in_F < 0 :
+            self.heat_in_F = 0 # heat out > heat in, i.e not enough temp gradient for heat transfer
         self.heat_supply = self.heat_in_F * 4184 * self.heat_dT
         
         if self.heat_out_T < self.T_hr_sp and self.hr_mode=='on':
