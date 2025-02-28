@@ -60,7 +60,7 @@ def run_DES():
     START = '2022-01-01 00:00:00'
     # END =  365*24*60*60 # one year in seconds
     STEP_SIZE = 60*15 # step size 15 minutes 
-    END =  30*24*60*60 # one year in seconds
+    END =  365*24*60*60 # one year in seconds
     STEP_SIZE = 60*15 # step size 15 minutes 
 
     HV = 10833.3 #Heating value of natural gas in Wh/m^3; standard cubic meter.
@@ -107,15 +107,15 @@ def run_DES():
         }
 
     init_vals_hwt0 = {
-            'layers': {'T': [40.0, 30.0, 21.0]}
+            'layers': {'T': [40.0, 30.0, 20.0]}
         }
 
     init_vals_hwt1 = {
-            'layers': {'T': [40.0, 30.0, 22.0]}
+            'layers': {'T': [40.0, 30.0, 20.0]}
         }
 
     init_vals_hwt2 = {
-            'layers': {'T': [40.0, 30.0, 23.0]}
+            'layers': {'T': [80.0, 70.0, 60.0]}
         }
 
 

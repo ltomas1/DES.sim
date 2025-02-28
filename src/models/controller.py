@@ -379,22 +379,22 @@ class Controller():
         
 
 
-    def calc_heat_supply(self):
-        """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
-        heating (SH) circuit"""
+    # def calc_heat_supply(self):
+    #     """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
+    #     heating (SH) circuit"""
         
-        self.heat_dT = self.heat_out_T - self.heat_rT
-        self.heat_in_F = self.heat_demand / (4184 * self.heat_dT)
-        self.heat_supply = self.heat_in_F * 4184 * self.heat_dT
-        if self.heat_out_T >= self.T_hr_sp:
-            self.heat_in_T = self.heat_rT
+    #     self.heat_dT = self.heat_out_T - self.heat_rT
+    #     self.heat_in_F = self.heat_demand / (4184 * self.heat_dT)
+    #     self.heat_supply = self.heat_in_F * 4184 * self.heat_dT
+    #     if self.heat_out_T >= self.T_hr_sp:
+    #         self.heat_in_T = self.heat_rT
             
-            self.P_hr = 0
-        else:
-            self.P_hr = self.heat_in_F * 4184 * (self.T_hr_sp - self.heat_out_T)
+    #         self.P_hr = 0
+    #     else:
+    #         self.P_hr = self.heat_in_F * 4184 * (self.T_hr_sp - self.heat_out_T)
             
-            self.heat_in_T = self.heat_rT
-        self.heat_out_F = - self.heat_in_F
+    #         self.heat_in_T = self.heat_rT
+    #     self.heat_out_F = - self.heat_in_F
 
     def calc_heat_supply(self):
         """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
