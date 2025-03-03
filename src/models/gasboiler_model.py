@@ -137,7 +137,7 @@ class GasBoiler:  # Defining the HeatPumpModel class
         self.uptime = (time - self.time_reset)
         
         
-        if self.inputs.Q_Demand == 0:
+        if self.inputs.Q_Demand == 0 or self.inputs.Q_Demand == None:
             self.P_th = 0
 
             self.inputs.mdot = 0
