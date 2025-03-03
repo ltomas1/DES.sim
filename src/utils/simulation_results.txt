@@ -1,0 +1,7 @@
+Run : kfw40_load&hp
+Average time below threshold(in min) : 29.95540691192865
+Product of temp diff and time(in degree*secE-5) : 304.36564775330123Run : smpl_boilerdemand
+Average time below threshold(in min) : 29.966216216216214
+Product of temp diff and time(in degree*secE-5) : 307.38457105010923Run : Demandprofile2
+Average time below threshold(in min) : 24.1
+Product of temp diff and time(in degree*secE-5) : 16.815786383732956

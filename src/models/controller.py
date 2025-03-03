@@ -143,6 +143,8 @@ class Controller():
     def step(self, time):
         """Perform simulation step with step size step_size"""
 
+        self.heat_source_T = self.T_amb
+        
         # Convert the heat demand available in kW to W
         if self.heat_demand is None or self.heat_demand < 0:
             self.heat_demand = 0
@@ -237,6 +239,9 @@ class Controller():
                 else:
                     self.hp_demand = 0
 
+                if self.hp_status == None:
+                    self.hp_status = 'off'
+                    
                 if self.top_layer_Tank2 < self.T_hp_sp_h: #i.e high heat demand
                     self.chp_status = 'on'
                     
@@ -269,8 +274,8 @@ class Controller():
                 
                 if self.boiler_status == 'on':
                     if self.bottom_layer_Tank2 < self.T_hp_sp_h:
-                        # self.boiler_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_T_chp) / self.step_size
-                        self.boiler_demand =  self.heat_demand             
+                        self.boiler_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_Tank2) / self.step_size
+                        # self.boiler_demand =  self.heat_demand             
                     elif self.boiler_uptime >= 15 * 60: #boiler uptime is in seconds
                         self.boiler_demand = 0
                         self.boiler_status = 'off'
@@ -362,7 +367,7 @@ class Controller():
             raise ValueError("Tank-0 netflow error!")
         
         self.tes1_residual_flow = self.tes1_hp_in_F + self.tes1_hp_out_F
-        logger_controller.debug(f'tes1 residual flow: {self.tes1_residual_flow}')
+        # logger_controller.debug(f'tes1 residual flow: {self.tes1_residual_flow}')
 
         if self.tes1_residual_flow > 0:
             self.tes2_hp_out_T = self.tes1_heat_out_T
