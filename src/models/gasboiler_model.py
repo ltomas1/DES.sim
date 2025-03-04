@@ -56,8 +56,8 @@ class BoilerInputs():
         self.nom_P_th = params.get('nom_P_th')
         """The nominal thermal power in W (in kW)"""
 
-        self.mdot = params.get('mdot')
-        """The mass flow rate of the water circuit in kg/s (in kg/h)"""
+        # self.mdot = params.get('mdot')
+        # """The mass flow rate of the water circuit in kg/s (in kg/h)"""
        
         self.step_size = None
         """step size in seconds"""
@@ -72,6 +72,9 @@ class BoilerInputs():
 
         self.heat_value = params.get('hv')
         """Heating value of supplied natural gas, in wh/ standard cubic meter"""
+
+        self.temp_out = params.get('Set_Temp')
+        """Set point temperature for boiler output"""
 
 
 
@@ -100,7 +103,7 @@ class GasBoiler:  # Defining the HeatPumpModel class
         
         """
         
-        self.temp_out = 0
+        
         self.P_th = 0
         self.lag_status = 'off'
         self.uptime = 0
@@ -152,8 +155,9 @@ class GasBoiler:  # Defining the HeatPumpModel class
         # self.temp_out = ( self.P_th / (self.inputs.mdot * self.cp))  + self.inputs.temp_in
         # Trying out variable volume rate
 
-        self.temp_out = 75
+        
         self.inputs.mdot = self.P_th/((self.temp_out - self.inputs.temp_in) * self.cp)
+        
         if self.inputs.mdot < 0:
             logger_boiler.debug(f"Boiler \t: Flow : {self.inputs.mdot}, tempin : {self.inputs.temp_in}, Pth : {self.P_th}")
             self.inputs.mdot = 0

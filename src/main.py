@@ -81,8 +81,9 @@ def run_DES():
                 }
     
     #Gas boiler
-    params_boiler = {'eta' : 0.98, 'hv' : HV, 'mdot' : 4.0,
-                     'nom_P_th' : [0, 74000, 148000, 222000, 296000, 370000] #Operating points of boiler, in W
+    params_boiler = {'eta' : 0.98, 'hv' : HV,
+                     'nom_P_th' : [0, 74000, 148000, 222000, 296000, 370000], #Operating points of boiler, in W
+                     'Set_Temp' : 75
                      }
 
     # hot water tank
