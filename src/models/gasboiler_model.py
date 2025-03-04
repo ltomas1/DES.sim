@@ -46,7 +46,7 @@ class Boiler_State():
 
 class BoilerInputs():
     """Inputs variables to the CHP for each time step"""
-    __slots__ = ['Q_Demand', 'nom_P_th', 'mdot', 'step_size', 'temp_in', 'fuel_eta', 'heat_value', 'boiler_status']
+    __slots__ = ['Q_Demand', 'nom_P_th', 'mdot', 'step_size', 'temp_in', 'fuel_eta', 'heat_value', 'boiler_status', 'temp_out']
 
     def __init__(self, params):
 
@@ -156,7 +156,7 @@ class GasBoiler:  # Defining the HeatPumpModel class
         # Trying out variable volume rate
 
         
-        self.inputs.mdot = self.P_th/((self.temp_out - self.inputs.temp_in) * self.cp)
+        self.inputs.mdot = self.P_th/((self.inputs.temp_out - self.inputs.temp_in) * self.cp)
         
         if self.inputs.mdot < 0:
             logger_boiler.debug(f"Boiler \t: Flow : {self.inputs.mdot}, tempin : {self.inputs.temp_in}, Pth : {self.P_th}")
@@ -177,7 +177,7 @@ class GasBoiler:  # Defining the HeatPumpModel class
         self.state.nom_P_th = self.inputs.nom_P_th
         self.state.P_th = self.P_th
         self.state.temp_in = self.inputs.temp_in
-        self.state.temp_out = self.temp_out
+        self.state.temp_out = self.inputs.temp_out
 
         self.state.fuel_m3 = self.fuel_m3
         self.state.boiler_uptime = self.uptime
