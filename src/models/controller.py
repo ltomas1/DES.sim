@@ -64,6 +64,7 @@ class Controller():
         self.operation_mode = params.get('operation_mode', 'heating')
         self.control_strategy = params.get('control_strategy', '1')
         self.hr_mode = params.get('hr_mode', 'off')
+        self.T_chp_h = params.get('T_chp_h')
 
         self.T_amb = None                   # The ambient air temperature (in °C)
         self.heat_source_T = None           # The temperature of source for the heat pump (in °C)
@@ -247,7 +248,7 @@ class Controller():
                     
                 
                 if self.chp_status == 'on': #runs until bottom layer of tank 2 reaches the threshold
-                    if self.bottom_layer_Tank2 < self.T_hp_sp_h:
+                    if self.bottom_layer_Tank2 < self.T_chp_h:
                         self.chp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_Tank2) / self.step_size
                     elif self.chp_uptime >= 15: #15 minute minimum runtime
                         self.chp_demand = 0
@@ -273,7 +274,7 @@ class Controller():
                     
                 
                 if self.boiler_status == 'on':
-                    if self.bottom_layer_Tank2 < self.T_hp_sp_h:
+                    if self.bottom_layer_Tank2 < self.T_chp_h:
                         self.boiler_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_Tank2) / self.step_size
                         # self.boiler_demand =  self.heat_demand             
                     elif self.boiler_uptime >= 15 * 60: #boiler uptime is in seconds

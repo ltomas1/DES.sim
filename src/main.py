@@ -122,6 +122,7 @@ def run_DES():
     # Parameters for controller model
     params_ctrl = {
         'T_hp_sp_h': 65,
+        'T_chp_h' : 75,
         'T_hp_sp_l': 35,
         'T_hr_sp': 65,
         'heat_rT' : 35,
@@ -160,7 +161,7 @@ def run_DES():
     # meteo_sim = world.start("CSV", sim_start=START, datafile=METEO_DATA) # pvlib (takes 13:16 minutes for 1 year)
 
     # Input data csv
-    HEAT_LOAD_DATA = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'data', 'inputs', 'Input_profile2.csv'))
+    HEAT_LOAD_DATA = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'data', 'inputs', 'Input_profile3.csv'))
     # configure the simulator
     csv = world.start('CSV', sim_start=START, datafile=HEAT_LOAD_DATA)
     # Instantiate model

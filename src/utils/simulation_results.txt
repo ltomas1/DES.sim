@@ -5,3 +5,9 @@ Average time below threshold(in min) : 29.966216216216214
 Product of temp diff and time(in degree*secE-5) : 307.38457105010923Run : Demandprofile2
 Average time below threshold(in min) : 24.1
 Product of temp diff and time(in degree*secE-5) : 16.815786383732956
+Run : Demandprofile3
+Average time below threshold(in min) : 23.27521793275218
+Product of temp diff and time(in degree*secE-5) : 5.483483288453022
+Run : T_chp_h
+Average time below threshold(in min) : 23.46958174904943
+Product of temp diff and time(in degree*secE-5) : 3.8899948593202507
