@@ -19,6 +19,77 @@ sys.path.append(os.path.join(current_dir, ".."))
 from models import controller_mosaik
 from models import chp_mosaik
 from models import gasboiler_mosaik
+#______________________________moved outside method, to be accessible from other scripts(visu.ipynb)
+STEP_SIZE = 60*15 # step size 15 minutes 
+
+HV = 10833.3 #Heating value of natural gas in Wh/m^3; standard cubic meter
+
+# Heat pump
+params_hp = {'hp_model': 'Air_60kW',
+                'heat_source': 'Air',
+                'calc_mode': 'fast'
+                }
+
+# CHP
+params_chp = {'eff_el': 0.54,
+            'nom_P_th': 92_000,
+            'mdot': 4.0,
+            'startup_coeff' : [-2.63, 3.9, 0.57], #coefficients to model the startup behaviour, in the order : Intercept, x,x^2,x^3...
+            'eta' : 0.5897, # fuel efficiency of chp, from datasheet.
+            'hv' : HV
+            }
+
+#Gas boiler
+params_boiler = {'eta' : 0.98, 'hv' : HV,
+                    'nom_P_th' : [0, 74000, 148000, 222000, 296000, 370000], #Operating points of boiler, in W
+                    'Set_Temp' : 75
+                    }
+
+# hot water tank
+params_hwt = {
+        'height': 2500,
+        'volume': 5000,
+        'T_env': 20.0,
+        'htc_walls': 0.28,
+        'htc_layers': 0.897,
+        'n_layers': 3,
+        'n_sensors': 3,
+        'connections': {
+            'heat_in': {'pos': 150},
+            'heat_out': {'pos': 2350},
+            'chp_in': {'pos': 2300},
+            'chp_out': {'pos': 50},
+            'hp_in': {'pos': 2200},
+            'hp_out': {'pos': 100},
+            'boiler_in' : {'pos' : 2400},
+            'boiler_out' : {'pos' : 120}
+        },
+    }
+
+init_vals_hwt0 = {
+        'layers': {'T': [40.0, 30.0, 20.0]}
+    }
+
+init_vals_hwt1 = {
+        'layers': {'T': [40.0, 30.0, 20.0]}
+    }
+
+init_vals_hwt2 = {
+        'layers': {'T': [80.0, 70.0, 60.0]}
+    }
+
+
+# Parameters for controller model
+params_ctrl = {
+    'T_hp_sp_h': 65,
+    'T_chp_h' : 75,
+    'T_hp_sp_l': 35,
+    'T_hr_sp': 65,
+    'heat_rT' : 35,
+    'operation_mode': 'heating',
+    'control_strategy': '5',
+    'hr_mode' : 'on'
+}
 
 def run_DES():
     sim_config = {
@@ -60,77 +131,8 @@ def run_DES():
     START = '2022-01-01 00:00:00'
     # END =  365*24*60*60 # one year in seconds
     STEP_SIZE = 60*15 # step size 15 minutes 
-    END =  365*24*60*60 # one year in seconds
-    STEP_SIZE = 60*15 # step size 15 minutes 
-
-    HV = 10833.3 #Heating value of natural gas in Wh/m^3; standard cubic meter.
-
-    # Heat pump
-    params_hp = {'hp_model': 'Air_60kW',
-                    'heat_source': 'Air',
-                    'calc_mode': 'fast'
-                    }
-
-    # CHP
-    params_chp = {'eff_el': 0.54,
-                'nom_P_th': 92_000,
-                'mdot': 4.0,
-                'startup_coeff' : [-2.63, 3.9, 0.57], #coefficients to model the startup behaviour, in the order : Intercept, x,x^2,x^3...
-                'eta' : 0.5897, # fuel efficiency of chp, from datasheet.
-                'hv' : HV
-                }
+    END =  30*24*60*60 # one year in seconds.
     
-    #Gas boiler
-    params_boiler = {'eta' : 0.98, 'hv' : HV,
-                     'nom_P_th' : [0, 74000, 148000, 222000, 296000, 370000], #Operating points of boiler, in W
-                     'Set_Temp' : 75
-                     }
-
-    # hot water tank
-    params_hwt = {
-            'height': 2500,
-            'volume': 5000,
-            'T_env': 20.0,
-            'htc_walls': 0.28,
-            'htc_layers': 0.897,
-            'n_layers': 3,
-            'n_sensors': 3,
-            'connections': {
-                'heat_in': {'pos': 150},
-                'heat_out': {'pos': 2350},
-                'chp_in': {'pos': 2300},
-                'chp_out': {'pos': 50},
-                'hp_in': {'pos': 2200},
-                'hp_out': {'pos': 100},
-                'boiler_in' : {'pos' : 2400},
-                'boiler_out' : {'pos' : 120}
-            },
-        }
-
-    init_vals_hwt0 = {
-            'layers': {'T': [40.0, 30.0, 20.0]}
-        }
-
-    init_vals_hwt1 = {
-            'layers': {'T': [40.0, 30.0, 20.0]}
-        }
-
-    init_vals_hwt2 = {
-            'layers': {'T': [80.0, 70.0, 60.0]}
-        }
-
-
-    # Parameters for controller model
-    params_ctrl = {
-        'T_hp_sp_h': 65,
-        'T_chp_h' : 75,
-        'T_hp_sp_l': 35,
-        'T_hr_sp': 65,
-        'heat_rT' : 35,
-        'operation_mode': 'heating',
-        'control_strategy': '5',
-        'hr_mode' : 'on'
-    }
 
     # parameters for pv model
     LAT = 32.0
