@@ -20,7 +20,7 @@ from models import controller_mosaik
 from models import chp_mosaik
 from models import gasboiler_mosaik
 #______________________________moved outside method, to be accessible from other scripts(visu.ipynb)
-STEP_SIZE = 60*15 # step size 15 minutes 
+ 
 
 HV = 10833.3 #Heating value of natural gas in Wh/m^3; standard cubic meter
 
@@ -88,7 +88,7 @@ params_ctrl = {
     'heat_rT' : 35,
     'operation_mode': 'heating',
     'control_strategy': '5',
-    'hr_mode' : 'on'
+    'hr_mode' : 'off'
 }
 
 def run_DES():

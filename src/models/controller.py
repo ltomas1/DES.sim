@@ -413,7 +413,7 @@ class Controller():
         self.heat_supply = self.heat_in_F * 4184 * self.heat_dT
         
         if self.heat_out_T < self.T_hr_sp and self.hr_mode=='on':
-            self.P_hr = self.heat_in_F * 4184 * (self.T_hr_sp - self.heat_out_T)
+            self.P_hr = self.heat_in_F * 4184 * (self.T_hr_sp - self.heat_out_T) #FIXME this does nothing in essence
 
             self.heat_in_T = self.heat_rT
 
