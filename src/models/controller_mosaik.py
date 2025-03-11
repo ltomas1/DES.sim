@@ -23,8 +23,10 @@ hwt_attrs = ['heat_in_F', 'heat_in_T', 'heat_out_F', 'T_amb_hwt', 'hp_in_T',
              'hp_out_F', 'hp_in_F', 'chp_in_T', 'chp_in_F', 'chp_out_F',
              'tes0_heat_out_T', 'tes0_heat_out_F', 'tes0_heat_in_F', 'tes0_hp_out_F',
              'tes1_heat_out_T', 'tes1_heat_out_F', 'tes1_hp_in_F', 'tes1_hp_out_T', 'tes1_hp_out_F',
-             'tes2_heat_out_F',  'tes2_hp_out_T', 'tes2_hp_out_F']
-db_attrs = ['heat_supply', 'heat_demand', 'hp_supply', 'chp_supply',
+             'tes2_heat_out_F',  'tes2_hp_out_T', 'tes2_hp_out_F', 'tes2_heat_in2_T', 'tes2_heat_in2_F', 'tes2_heat_out_T',
+             'tes2_heat_out2_T', 'tes2_heat_out2_F','tes1_heat_out2_F','tes1_heat_out2_T', 'tes1_heat_in2_F', 'tes1_heat_in2_T',
+             'tes0_heat_in2_T', 'tes0_heat_in2_F', 'tes0_heat_in_T', 'tes0_heat_out2_T', 'tes0_heat_out2_F']
+db_attrs = ['heat_supply', 'heat_demand', 'hp_supply', 'chp_supply', 'sh_demand', 'dhw_demand', 'dhw_supply', 'sh_supply',
             'T_mean_hwt', 'hwt_mass', 'hwt_hr_P_th_set', 'hp_on_fraction', 'hp_cond_m', 'heat_out_T', 'chp_mdot',
             'P_hr', 'T_room', 'bottom_layer_Tank0','bottom_layer_Tank2', 'top_layer_Tank1', 'top_layer_Tank2', 'hr_mode']
 boiler_attrs = ['boiler_demand', 'boiler_mdot', 'boiler_supply', 'boiler_status', 'dt', 'boiler_uptime']

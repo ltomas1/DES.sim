@@ -11,3 +11,15 @@ Product of temp diff and time(in degree*secE-5) : 5.483483288453022
 Run : T_chp_h
 Average time below threshold(in min) : 23.46958174904943
 Product of temp diff and time(in degree*secE-5) : 3.8899948593202507
+Run : Unrealised energy
+Average time below threshold(in min) : 76.05386416861826
+Product of temp diff and time(in degree*secE-5) : 4.583248237467468
+Run : 2runner
+Average time below threshold(in min) : 25.588235294117645
+Product of temp diff and time(in degree*secE-5) : 2.068003795943842
+Run : 2runner
+Average time below threshold(in min) : 26.70731707317073
+Product of temp diff and time(in degree*secE-5) : 0.7515574427381729
+Run : 3runner
+Average time below threshold(in min) : 26.70731707317073
+Product of temp diff and time(in degree*secE-5) : 0.7515574427381729

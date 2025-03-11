@@ -66,11 +66,18 @@ class Controller():
         self.hr_mode = params.get('hr_mode', 'off')
         self.T_chp_h = params.get('T_chp_h')
 
+        self.config = params.get('supply_config')
+        self.sh_out = params.get('sh_out')
+        self.dhw_out = params.get('dhw_out')
+
         self.T_amb = None                   # The ambient air temperature (in °C)
         self.heat_source_T = None           # The temperature of source for the heat pump (in °C)
         self.T_room = None                  # The temperature of the room (used in cooling mode, in °C)
 
         self.heat_demand = None             # The total heat demand from SH & DHW (in W)
+        self.dhw_demand = None
+        self.sh_demand = None
+
         self.heat_supply = None             # The total heat supplied by the heating system for SH & DHW (in W)
         self.hp_demand = None               # The heat demand for the heat pump from the hot water tank (in W)
         self.hp_supply = None               # The heat supplied by the heat pump to the hot water tank (in W)
@@ -127,16 +134,31 @@ class Controller():
         self.tes0_heat_out_F = None         
         self.tes0_heat_in_F = None
         self.tes0_hp_out_F = None
+        self.tes0_heat_in2_F = None
+        self.tes0_heat_in2_T = None
+        self.tes0_heat_in_T = None
+        self.tes0_heat_out2_F = None
+        self.tes0_heat_out2_T = None
 
         self.tes1_heat_out_T = None
         self.tes1_heat_out_F = None
         self.tes1_hp_in_F = None
         self.tes1_hp_out_T = None
         self.tes1_hp_out_F = None
+        self.tes1_heat_out2_F = 0
+        self.tes1_heat_out2_T = None
+        self.tes1_heat_in2_F = None
+        self.tes1_heat_in2_T = None
+        
 
         self.tes2_heat_out_F = None
+        self.tes2_heat_out_T = None
         self.tes2_hp_out_T = None
         self.tes2_hp_out_F = None
+        self.tes2_heat_out2_F = None
+        self.tes2_heat_out2_T = None
+        self.tes2_heat_in2_F = None
+        self.tes2_heat_in2_T = None
 
         
 
@@ -152,8 +174,24 @@ class Controller():
         else:
             self.heat_demand *= 1000
 
+        if self.sh_demand is None or self.sh_demand < 0:
+            self.sh_demand = 0
+        else:
+            self.sh_demand *= 1000
+
+        if self.dhw_demand is None or self.dhw_demand < 0:
+            self.dhw_demand = 0
+        else:
+            self.dhw_demand *= 1000
+
+        if self.tes0_heat_in_F is None :
+            self.tes0_heat_in_F = 0
+        if self.tes0_hp_out_F is None :
+            self.tes0_hp_out_F = 0
+        
+
         # Calculate the mass flows, temperatures and heat from back up heater for the SH circuit
-        self.calc_heat_supply()
+        self.calc_heat_supply(self.config)
 
         # Control strategies for the operation of heat pump in heating mode
         if self.operation_mode.lower() == 'heating':
@@ -348,10 +386,10 @@ class Controller():
         
         # Calculating the resulting mass flows for the TES the distributing the temperatures and flows to the next TES 
         #! the following functions are specific to this configuration
-        self.tes0_heat_in_F = self.heat_in_F
+        # self.tes0_heat_in_F = self.heat_in_F
         self.tes0_hp_out_F = self.hp_out_F
         self.tes1_hp_in_F = self.hp_in_F
-        self.tes0_residual_flow = self.tes0_heat_in_F + self.tes0_hp_out_F
+        self.tes0_residual_flow = self.tes0_heat_in_F + self.tes0_hp_out_F + self.tes0_heat_out2_F
 
         #If Demand flow < hp flow, the residual flow from tank 0 to 1.
         if self.tes0_residual_flow > 0:
@@ -367,7 +405,7 @@ class Controller():
         if self.tes0_heat_in_F + self.tes0_heat_out_F + self.tes0_hp_out_F > 1e-5:
             raise ValueError("Tank-0 netflow error!")
         
-        self.tes1_residual_flow = self.tes1_hp_in_F + self.tes1_hp_out_F
+        self.tes1_residual_flow = self.tes1_hp_in_F + self.tes1_hp_out_F + self.tes1_heat_out2_F
         # logger_controller.debug(f'tes1 residual flow: {self.tes1_residual_flow}')
 
         if self.tes1_residual_flow > 0:
@@ -380,10 +418,10 @@ class Controller():
             self.tes1_heat_out_F = - self.tes1_residual_flow
             self.tes2_hp_out_F =  self.tes1_residual_flow
 
-        if self.tes1_heat_out_F + self.tes1_hp_out_F + self.tes1_hp_in_F > 1e-5:
+        if self.tes1_heat_out_F + self.tes1_hp_out_F + self.tes1_hp_in_F + self.tes1_heat_out2_F > 1e-5:
             raise ValueError("Tank-1 netflow error!")
         
-
+        logger_controller.debug(f'TES0:  heat_out:{self.tes0_heat_out_F}, heat_in:{self.tes0_heat_in_F}, hp_out:{self.tes0_hp_out_F}, resid : {self.tes0_residual_flow}\n')
 
     # def calc_heat_supply(self):
     #     """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
@@ -402,24 +440,95 @@ class Controller():
     #         self.heat_in_T = self.heat_rT
     #     self.heat_out_F = - self.heat_in_F
 
-    def calc_heat_supply(self):
+    def neg2zero(attrs) :
+
+        for i in range(len(attrs)):
+            attrs[i] = max(0, attrs[i])
+        return attrs
+        
+    
+    def calc_heat_supply(self, config):
         """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
         heating (SH) circuit"""
         
-        self.heat_dT = self.heat_out_T - self.heat_rT
-        self.heat_in_F = self.heat_demand / (4184 * self.heat_dT)
-        if self.heat_in_F < 0 :
-            self.heat_in_F = 0 # heat out > heat in, i.e not enough temp gradient for heat transfer
-        self.heat_supply = self.heat_in_F * 4184 * self.heat_dT
+        # self.heat_dT = self.heat_out_T - self.heat_rT
+        # self.heat_in_F = self.heat_demand / (4184 * self.heat_dT)
+        # if self.heat_in_F < 0 :
+        #     self.heat_in_F = 0 # heat out < heat in, i.e not enough temp gradient for heat transfer
+        # self.heat_supply = self.heat_in_F * 4184 * self.heat_dT
         
-        if self.heat_out_T < self.T_hr_sp and self.hr_mode=='on':
-            self.P_hr = self.heat_in_F * 4184 * (self.T_hr_sp - self.heat_out_T) #FIXME this does nothing in essence
+        # if self.heat_out_T < self.T_hr_sp and self.hr_mode=='on':
+        #     self.P_hr = self.heat_in_F * 4184 * (self.T_hr_sp - self.heat_out_T) #FIXME this does nothing in essence
 
-            self.heat_in_T = self.heat_rT
+        #     self.heat_in_T = self.heat_rT
 
-        else:
-            self.heat_in_T = self.heat_rT
+        # else:
+        #     self.heat_in_T = self.heat_rT
 
-            self.P_hr = 0
+        #     self.P_hr = 0
         
-        self.heat_out_F = - self.heat_in_F
+        # self.heat_out_F = - self.heat_in_F
+
+
+        if config == '2-runner':
+            
+            sh_out = 'tes1'
+            dhw_out = 'tes2'
+
+            # sh_out_T = getattr(self, sh_out+'')
+
+            
+            self.heat_dT = self.tes2_heat_out_T - self.heat_rT
+            self.tes0_heat_in_F = self.heat_demand/ (4184 * self.heat_dT)
+            self.tes0_heat_in_F = max(0,self.tes0_heat_in_F)
+            self.heat_supply = self.heat_in_F * 4184 * self.heat_dT
+            
+            self.tes2_heat_out_F = -self.tes0_heat_in_F
+
+            self.tes0_heat_in_T = self.heat_rT
+        
+        
+        
+        
+        if config == '3-runner':
+            
+            sh_out = self.sh_out+'_heat_out2'  #self.sh_out = tes1 or tes2, passed as a parameter to controller.
+            dhw_out = self.dhw_out+'_heat_out'
+            
+            
+            sh_out_T = getattr(self, sh_out+'_T')
+            dhw_out_T = getattr(self,dhw_out+'_T')
+
+
+            self.heat_dT_sh = sh_out_T - self.heat_rT
+            self.heat_dT_dhw = dhw_out_T - self.heat_rT
+            
+            sh_F = self.sh_demand/ (4184 * self.heat_dT_sh)
+            dhw_F = self.dhw_demand/(4184 * self.heat_dT_dhw)
+            sh_F = max(0,sh_F)  #-ve flow set to zero.
+            dhw_F = max(0,dhw_F)
+            # self.tes1_heat_out2_F = -sh_F
+            # self.tes2_heat_out_F = -dhw_F
+            setattr(self,sh_out+'_F', -sh_F)
+            setattr(self,dhw_out+'_F', -dhw_F)
+
+            self.dhw_supply = sh_F * 4184 * self.heat_dT_sh
+            self.sh_supply = dhw_F * 4184 * self.heat_dT_dhw
+            self.heat_supply = 0 #for now, this will be exclusive to 2-runner model. To make it easier in visu.ipynb(sankey)
+            
+            
+            self.tes0_heat_in_F = sh_F + dhw_F
+            self.tes0_heat_in_T = self.heat_rT
+
+        if config == '4-runner':
+            
+
+            self.heat_dT_sh = self.tes1_heat_out2_T - self.heat_rT
+            self.heat_dT_dhw = self.tes2_heat_out_T - self.heat_rT
+            sh_F = self.sh_demand/ (4184 * self.heat_dT_sh)
+            dhw_F = self.dhw_demand/(4184 * self.heat_dT_dhw)
+            self.tes1_heat_out2_F = -sh_F
+            self.tes2_heat_out_F = -dhw_F
+
+            self.tes = sh_F + dhw_F#incomplete
+            self.tes0_heat_in_T = self.heat_rT
