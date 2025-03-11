@@ -23,3 +23,6 @@ Product of temp diff and time(in degree*secE-5) : 0.7515574427381729
 Run : 3runner
 Average time below threshold(in min) : 26.70731707317073
 Product of temp diff and time(in degree*secE-5) : 0.7515574427381729
+Run : 3runner
+Average time below threshold(in min) : 23.591331269349844
+Product of temp diff and time(in degree*secE-5) : 1.5531461571141627

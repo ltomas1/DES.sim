@@ -136,7 +136,7 @@ def run_DES():
     START = '2022-01-01 00:00:00'
     # END =  365*24*60*60 # one year in seconds
      
-    END =  30*24*60*60 # one year in seconds.
+    END =  365*24*60*60 # one year in seconds.
     
 
     # parameters for pv model
