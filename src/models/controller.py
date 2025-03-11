@@ -67,8 +67,8 @@ class Controller():
         self.T_chp_h = params.get('T_chp_h')
 
         self.config = params.get('supply_config')
-        self.sh_out = params.get('sh_out')
-        self.dhw_out = params.get('dhw_out')
+        self.sh_out = params.get('sh_out')  #Tank which serves as the Output connection for space heating
+        self.dhw_out = params.get('dhw_out')##Tank which serves as the Output connection for hot water demand
 
         self.T_amb = None                   # The ambient air temperature (in °C)
         self.heat_source_T = None           # The temperature of source for the heat pump (in °C)
@@ -421,7 +421,7 @@ class Controller():
         if self.tes1_heat_out_F + self.tes1_hp_out_F + self.tes1_hp_in_F + self.tes1_heat_out2_F > 1e-5:
             raise ValueError("Tank-1 netflow error!")
         
-        logger_controller.debug(f'TES0:  heat_out:{self.tes0_heat_out_F}, heat_in:{self.tes0_heat_in_F}, hp_out:{self.tes0_hp_out_F}, resid : {self.tes0_residual_flow}\n')
+        # logger_controller.debug(f'TES0:  heat_out:{self.tes0_heat_out_F}, heat_in:{self.tes0_heat_in_F}, hp_out:{self.tes0_hp_out_F}, resid : {self.tes0_residual_flow}\n')
 
     # def calc_heat_supply(self):
     #     """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
@@ -520,15 +520,3 @@ class Controller():
             self.tes0_heat_in_F = sh_F + dhw_F
             self.tes0_heat_in_T = self.heat_rT
 
-        if config == '4-runner':
-            
-
-            self.heat_dT_sh = self.tes1_heat_out2_T - self.heat_rT
-            self.heat_dT_dhw = self.tes2_heat_out_T - self.heat_rT
-            sh_F = self.sh_demand/ (4184 * self.heat_dT_sh)
-            dhw_F = self.dhw_demand/(4184 * self.heat_dT_dhw)
-            self.tes1_heat_out2_F = -sh_F
-            self.tes2_heat_out_F = -dhw_F
-
-            self.tes = sh_F + dhw_F#incomplete
-            self.tes0_heat_in_T = self.heat_rT
