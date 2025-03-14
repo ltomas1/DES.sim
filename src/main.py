@@ -8,6 +8,10 @@ nest_asyncio.apply()
 
 import logging
 from utils.setup_logging import setup_logging
+
+import cProfile
+import pstats
+
 #setup the logger
 setup_logging()
 logger = logging.getLogger("mosaik_logger")
@@ -125,7 +129,14 @@ def run_DES():
         },
         'Boilersim' : {
                 'python' : 'models.gasboiler_mosaik:Boilersimulator'
-        }
+        },
+        # 'PVsim_pvlib' : {
+        #         'python' : 'mosaik_components.pv.photovoltaic_simulator:PVSimulator'
+        # },
+        # 'MeteoSim': {
+        #         # 'python': 'mosaik_csv:CSV'
+        # }
+
 
     }
 
@@ -146,7 +157,7 @@ def run_DES():
     EL = 32.0
     AZ = 0.0
     DNI_DATA = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'data','inputs', 'solar_data_HSO.csv')) # pv
-    # METEO_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'Braunschweig_meteodata_2022_15min.csv') # pvlib
+    # METEO_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data','inputs', 'Braunschweig_meteodata_2022_15min.csv') # pvlib
 
     pv_count = 1
     pv_config = {str(i) : generate_configurations(Scenarios.BUILDING) for i in range(pv_count)}
@@ -163,7 +174,7 @@ def run_DES():
     boilersim = world.start('Boilersim', step_size = STEP_SIZE)
 
 
-    # pv_sim = world.start("PVSim", start_date=START, step_size=STEP_SIZE, pv_data=pv_config,) # pvlib (takes 4:01 minutes for 1 year)
+    # pv_sim_pvlib = world.start("PVsim_pvlib", start_date=START, step_size=STEP_SIZE, pv_data=pv_config,) # pvlib (takes 4:01 minutes for 1 year)
     pv_sim = world.start("PVSim",start_date=START,step_size=STEP_SIZE) # pv
     DNI_sim = world.start("CSV", sim_start=START, datafile=DNI_DATA) # pv
     # meteo_sim = world.start("CSV", sim_start=START, datafile=METEO_DATA) # pvlib (takes 13:16 minutes for 1 year)
@@ -195,7 +206,7 @@ def run_DES():
 
 
 
-    # pv_model = pv_sim.PVSim.create(pv_count) # PVlib
+    # pv_model_pvlib = pv_sim_pvlib.PVSim.create(pv_count) # PVlib
     pv_model = pv_sim.PV.create(1, latitude=LAT, area=AREA,efficiency=EFF, el_tilt=EL, az_tilt=AZ) # pv
     DNI_model = DNI_sim.DNI.create(1) # pv
     # meteo_model = meteo_sim.Braunschweig.create(1) # pvlib
@@ -324,7 +335,7 @@ def run_DES():
 
     # world.connect(
     #                     meteo_model[0],
-    #                     pv_model[0],
+    #                     pv_model_pvlib[0],
     #                     ("GlobalRadiation", "GHI[W/m2]"),
     #                     ("AirPressHourly", "Air[Pa]"),
     #                     ("AirTemperature", "Air[C]"),
@@ -332,7 +343,7 @@ def run_DES():
     #                 )
 
     # world.connect(
-    #                     pv_model[0],
+    #                     pv_model_pvlib[0],
     #                     csv_writer,
     #                     "P[MW]",
     #                 )
@@ -398,4 +409,7 @@ def run_DES():
 
 if __name__ == "__main__":  
     run_DES() 
-    
+
+# cProfile.run('run_DES()', 'profile_output') 
+# p = pstats.Stats('profile_output')
+
