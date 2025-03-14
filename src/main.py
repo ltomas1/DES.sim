@@ -115,6 +115,9 @@ def run_DES():
             'python': 'mosaik_components.heatpump.hotwatertank.hotwatertank_mosaik:HotWaterTankSimulator',
         
         },
+        # 'HotWaterTankSim':{
+        #     "connect": "127.0.0.1:5555",
+        # },
         
         'ControllerSim': {
             'python': 'models.controller_mosaik:ControllerSimulator',
@@ -125,11 +128,12 @@ def run_DES():
         },
         
         'PVSim': {
-                'python': 'mosaik_components.pv.pvsimulator:PVSimulator'
+                'python': 'mosaik_components.pv.pvsimulator:PVSimulator',
         },
         'Boilersim' : {
-                'python' : 'models.gasboiler_mosaik:Boilersimulator'
+                'python' : 'models.gasboiler_mosaik:Boilersimulator',
         },
+
         # 'PVsim_pvlib' : {
         #         'python' : 'mosaik_components.pv.photovoltaic_simulator:PVSimulator'
         # },
