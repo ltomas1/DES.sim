@@ -12,6 +12,8 @@ from utils.setup_logging import setup_logging
 import cProfile
 import pstats
 
+from multiprocessing import Process
+
 #setup the logger
 setup_logging()
 logger = logging.getLogger("mosaik_logger")
@@ -23,6 +25,7 @@ sys.path.append(os.path.join(current_dir, ".."))
 from models import controller_mosaik
 from models import chp_mosaik
 from models import gasboiler_mosaik
+from models import pvlib_model
 #______________________________moved outside method, to be accessible from other scripts(visu.ipynb)
  
 STEP_SIZE = 60*15 # step size 15 minutes
@@ -349,7 +352,7 @@ def run_DES():
     # world.connect(
     #                     pv_model_pvlib[0],
     #                     csv_writer,
-    #                     "P[MW]",
+    #                     "P[MW]", # could change it to watts, make it easier in visu, to switch and compare!
     #                 )
 
     """__________________________________________ CSV ___________________________________________________________________""" 
@@ -411,8 +414,14 @@ def run_DES():
     # plot the data flow
     mosaik.util.plot_dataflow_graph(world, folder='utils/util_figures', show_plot=False)
 
+def pvsim():
+    pvlib_model.sim()
+
 if __name__ == "__main__":  
-    run_DES() 
+    p1 = Process(target = run_DES(), args=())
+    p2 = Process(target = pvsim())
+    p2.start()
+    p1.start()
 
 # cProfile.run('run_DES()', 'profile_output') 
 # p = pstats.Stats('profile_output')

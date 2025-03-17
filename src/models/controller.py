@@ -486,6 +486,8 @@ class Controller():
             self.tes2_heat_out_F = -self.tes0_heat_in_F
 
             self.tes0_heat_in_T = self.heat_rT
+
+            self.dhw_supply, self.sh_supply = 0,0
         
         
         
