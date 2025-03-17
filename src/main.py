@@ -98,7 +98,7 @@ params_ctrl = {
     'operation_mode': 'heating',
     'control_strategy': '5',
     'hr_mode' : 'off',
-    'supply_config' : '3-runner',
+    'supply_config' : '2-runner',
     'sh_out' : 'tes1',
     'dhw_out' : 'tes2'
 }
@@ -152,7 +152,7 @@ def run_DES():
     world = mosaik.World(sim_config)
 
     START = '2022-01-01 00:00:00'
-    END =  365*24*60*60 # one year in seconds.
+    END =  30*24*60*60 # one year in seconds.
     
 
     # parameters for pv model

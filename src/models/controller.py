@@ -471,17 +471,12 @@ class Controller():
 
 
         if config == '2-runner':
-            
-            sh_out = 'tes1'
-            dhw_out = 'tes2'
-
-            # sh_out_T = getattr(self, sh_out+'')
 
             
             self.heat_dT = self.tes2_heat_out_T - self.heat_rT
             self.tes0_heat_in_F = self.heat_demand/ (4184 * self.heat_dT)
             self.tes0_heat_in_F = max(0,self.tes0_heat_in_F)
-            self.heat_supply = self.heat_in_F * 4184 * self.heat_dT
+            self.heat_supply = self.tes0_heat_in_F * 4184 * self.heat_dT
             
             self.tes2_heat_out_F = -self.tes0_heat_in_F
 
