@@ -22,3 +22,6 @@ __pycache__/
 
 # Ignore egg-info folder
 *.egg-info
+
+/src/utils/simulation_results.txt
+/src/utils/debug.csv
