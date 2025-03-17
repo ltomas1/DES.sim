@@ -35,3 +35,33 @@ Product of temp diff and time(in degree*secE-5) : 3.8899948593197413
 Run : 3runner
 Average time below threshold(in min) : 23.591331269349844
 Product of temp diff and time(in degree*secE-5) : 1.5531461571141627
+Run : 3runner
+Average time below threshold(in min) : 23.95125553914328
+Product of temp diff and time(in degree*secE-5) : 9.25947882975956
+Run : 3runner
+Average time below threshold(in min) : 21247.5
+Product of temp diff and time(in degree*secE-5) : 6733.52000469251
+Run : 3runner
+Average time below threshold(in min) : 37.5
+Product of temp diff and time(in degree*secE-5) : 12.837568616103471
+Run : 3runner
+Average time below threshold(in min) : 37.5
+Product of temp diff and time(in degree*secE-5) : 129.89968495840196
+Run : 3runner
+Average time below threshold(in min) : 37.5
+Product of temp diff and time(in degree*secE-5) : 88.49126455424114
+Run : 3runner
+Average time below threshold(in min) : 37.5
+Product of temp diff and time(in degree*secE-5) : 463.99934347370396
+Run : 3runner
+Average time below threshold(in min) : 37.49357326478149
+Product of temp diff and time(in degree*secE-5) : 1174.2330519952432
+Run : 3runner
+Average time below threshold(in min) : 37.49357326478149
+Product of temp diff and time(in degree*secE-5) : 1174.2330519952432
+Run : 3runner
+Average time below threshold(in min) : 37.49357326478149
+Product of temp diff and time(in degree*secE-5) : 1174.2330519952432
+Run : 3runner
+Average time below threshold(in min) : 37.49280460505277
+Product of temp diff and time(in degree*secE-5) : 686.5382163288767

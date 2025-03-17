@@ -281,18 +281,18 @@ class Controller():
                 if self.hp_status == None:
                     self.hp_status = 'off'
                     
-                if self.top_layer_Tank2 < self.T_hp_sp_h: #i.e high heat demand
+                if self.top_layer_Tank2 < self.T_hr_sp: #i.e high heat demand
                     self.chp_status = 'on'
                     
                 
                 if self.chp_status == 'on': #runs until bottom layer of tank 2 reaches the threshold
                     if self.bottom_layer_Tank2 < self.T_chp_h:
-                        self.chp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_Tank2) / self.step_size
+                        self.chp_demand = self.hwt_mass * 4184 * (self.T_hr_sp - self.bottom_layer_Tank2) / self.step_size
                     elif self.chp_uptime >= 15: #15 minute minimum runtime
                         self.chp_demand = 0
                         self.chp_status = 'off'
                     else:
-                        self.chp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_Tank2) / self.step_size
+                        self.chp_demand = self.hwt_mass * 4184 * (self.T_hr_sp - self.bottom_layer_Tank2) / self.step_size
 
                     # logger_controller.debug(f'time : {time} \tbottom layer : {self.bottom_layer_T_chp}, uptime : {self.chp_uptime}, status : {self.chp_status}')
                 else:
@@ -301,19 +301,19 @@ class Controller():
                 
                 #If the CHP is not able to keep up :
                 # Data transfer only at end of step, so this ensures, dt incremented after one step of chp.
-                if self.top_layer_Tank2 < self.T_hp_sp_h and self.chp_uptime > 0: 
+                if self.top_layer_Tank2 < self.T_hr_sp and self.chp_uptime > 0: 
                     self.dt += self.step_size
                 else :
                     self.dt = 0
                 
-                
-                if self.dt > 10 * 60 and self.top_layer_Tank1 < self.T_hp_sp_h:
+                #! what does this mean? why are we looking at the tank1 top temp?
+                if self.dt > 10 * 60 and self.top_layer_Tank1 < self.T_hr_sp:
                      self.boiler_status = 'on'
                     
                 
                 if self.boiler_status == 'on':
                     if self.bottom_layer_Tank2 < self.T_chp_h:
-                        self.boiler_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_Tank2) / self.step_size
+                        self.boiler_demand = self.hwt_mass * 4184 * (self.T_hr_sp - self.bottom_layer_Tank2) / self.step_size
                         # self.boiler_demand =  self.heat_demand             
                     elif self.boiler_uptime >= 15 * 60: #boiler uptime is in seconds
                         self.boiler_demand = 0
