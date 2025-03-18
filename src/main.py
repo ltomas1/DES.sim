@@ -152,7 +152,7 @@ def run_DES():
     world = mosaik.World(sim_config)
 
     START = '2022-01-01 00:00:00'
-    END =  30*24*60*60 # one year in seconds.
+    END =  365*24*60*60 # one year in seconds.
     
 
     # parameters for pv model
@@ -192,7 +192,7 @@ def run_DES():
 
     # Output data storage
     # configure the simulator
-    csv_sim_writer = world.start('CSV_writer', start_date='2022-01-01 00:00:00', date_format='%Y-%m-%d %H:%M:%S',
+    csv_sim_writer = world.start('CSV_writer', start_date= START, date_format='%Y-%m-%d %H:%M:%S',
                                 output_file=OUTPUT_PATH+'/DES_data.csv')
 
     csv_debug_writer = world.start('CSV_writer', start_date='2022-01-01 00:00:00', date_format='%Y-%m-%d %H:%M:%S',
@@ -389,11 +389,6 @@ def run_DES():
 
     """__________________________________________ world run ______________________________________________________________"""
 
-    # # Set execution order so the controller receives up-to-date values
-    # world.set_execution_order([heat_load, hwts0, hwts1, hwts2, ctrls, chp, heatpump, boiler])
-
-    # # Ensure initial data transfer before first step
-    # world.step(0)
     
     
     # To start heatpump as first simulator

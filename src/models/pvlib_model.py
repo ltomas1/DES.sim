@@ -5,13 +5,13 @@ import numpy as np
 def sim():
     coordinates = [(49.1, 8.5, 'Stutensee', 110, 'Etc/GMT-1')]
 
-    sandia_modules = pvlib.pvsystem.retrieve_sam('SandiaMod')
+    modules_db = pvlib.pvsystem.retrieve_sam('SandiaMod')
 
     sapm_inverters = pvlib.pvsystem.retrieve_sam('cecinverter')
 
-    module = sandia_modules['Canadian_Solar_CS5P_220M___2009_']
+    module = modules_db['SunPower_128_Cell_Module__2009__E__'] #replace BAD_CHARS = ' -.()[]:+/",' ; with simply _
 
-    inverter = sapm_inverters['ABB__MICRO_0_25_I_OUTD_US_208__208V_']
+    inverter = sapm_inverters['Advanced_Energy_Industries__AE_1000NX__3159700_XXXX_']
 
     temperature_model_parameters = pvlib.temperature.TEMPERATURE_MODEL_PARAMETERS['sapm']['open_rack_glass_glass']
 
@@ -55,7 +55,8 @@ def sim():
         mount=mount,
         module_parameters=module,
         temperature_model_parameters=temperature_model_parameters,
-
+        modules_per_string=20,
+        strings=7
     )
 
     system = PVSystem(arrays=[array], inverter_parameters=inverter)
@@ -68,3 +69,20 @@ def sim():
 
     weather.to_csv('PVlib_output.csv')
     print('PVlib simulation finished!')
+
+# sim()
+
+# %%
+def _normalize_sam_product_names(names):
+    '''
+    Replace special characters within the product names to make them more
+    suitable for use as Dataframe column names.
+    '''
+    # Contributed by Anton Driesse (@adriesse), PV Performance Labs. July, 2019
+    BAD_CHARS = ' -.()[]:+/",'
+    GOOD_CHARS = '____________'
+
+    mapping = str.maketrans(BAD_CHARS, GOOD_CHARS)
+    names = pd.Series(data=names)
+    norm_names = names.str.translate(mapping)
+    return norm_names
