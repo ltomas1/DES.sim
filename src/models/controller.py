@@ -70,6 +70,8 @@ class Controller():
         self.sh_out = params.get('sh_out')  #Tank which serves as the Output connection for space heating
         self.dhw_out = params.get('dhw_out')##Tank which serves as the Output connection for hot water demand
 
+        self.stepsize = params.get('step_size')
+
         self.T_amb = None                   # The ambient air temperature (in °C)
         self.heat_source_T = None           # The temperature of source for the heat pump (in °C)
         self.T_room = None                  # The temperature of the room (used in cooling mode, in °C)
@@ -128,6 +130,8 @@ class Controller():
         self.boiler_out_F = None
 
         self.dt = 0 #Time for how long top layer of Tank 3 below threshold, i.e chp not able to keep up with demand.
+
+        self.max_flow = None            #The max flow rate permissible in one step.
 
         #TODO write all comments for TES variables 
         self.tes0_heat_out_T = None         # The temperature of the heat_out connection for the tank 0 
@@ -446,6 +450,9 @@ class Controller():
             attrs[i] = max(0, attrs[i])
         return attrs
         
+    def calc_max_flow(self):
+        
+        self.max_flow = (5000/3) / self.stepsize  #kg/s
     
     def calc_heat_supply(self, config):
         """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
@@ -469,7 +476,10 @@ class Controller():
         
         # self.heat_out_F = - self.heat_in_F
 
-
+        #Capping the mass flow rate
+        self.calc_max_flow()
+        
+        
         if config == '2-runner':
 
             
@@ -506,6 +516,9 @@ class Controller():
             dhw_F = max(0,dhw_F)
             # self.tes1_heat_out2_F = -sh_F
             # self.tes2_heat_out_F = -dhw_F
+            sh_F = min(self.max_flow, sh_F)
+            dhw_F = min(self.max_flow, dhw_F)
+
             setattr(self,sh_out+'_F', -sh_F)
             setattr(self,dhw_out+'_F', -dhw_F)
 
