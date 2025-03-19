@@ -1,6 +1,7 @@
 import pvlib
 import pandas as pd
 import numpy as np
+import os
 
 def sim():
     coordinates = [(49.1, 8.5, 'Stutensee', 110, 'Etc/GMT-1')]
@@ -16,7 +17,8 @@ def sim():
     temperature_model_parameters = pvlib.temperature.TEMPERATURE_MODEL_PARAMETERS['sapm']['open_rack_glass_glass']
 
     # df, metadata = pvlib.iotools.read_tmy3(r"C:\INES\GitHub\des_sim\data\inputs\Braunschweig_meteodata_2022_15min.csv")
-    raw = pd.read_csv(r'C:\INES\GitHub\des_sim\data\inputs\Braunschweig_meteodata_2022_15min.csv', sep = ',', skiprows = 1, index_col=0)
+    raw = pd.read_csv(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'data', 'inputs', 'Braunschweig_meteodata_2022_15min.csv'))
+                      , sep = ',', skiprows = 1, index_col=0)
 
     for loc in coordinates:
         latitude, longitude, name, altitude, timezone = loc
