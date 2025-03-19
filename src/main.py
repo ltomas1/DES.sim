@@ -185,7 +185,7 @@ def run_DES():
     # meteo_sim = world.start("CSV", sim_start=START, datafile=METEO_DATA) # pvlib (takes 13:16 minutes for 1 year)
 
     # Input data csv
-    HEAT_LOAD_DATA = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'data', 'inputs', 'Input_profile3.csv'))
+    HEAT_LOAD_DATA = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'data', 'inputs', 'Input_KFW55_2.csv'))
     # configure the simulator
     csv = world.start('CSV', sim_start=START, datafile=HEAT_LOAD_DATA)
     # Instantiate model
