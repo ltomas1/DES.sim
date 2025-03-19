@@ -98,7 +98,7 @@ params_ctrl = {
     'operation_mode': 'heating',
     'control_strategy': '5',
     'hr_mode' : 'off',
-    'supply_config' : '2-runner',
+    'supply_config' : '3-runner',
     'sh_out' : 'tes1',
     'dhw_out' : 'tes2'
 }
@@ -152,21 +152,19 @@ def run_DES():
     world = mosaik.World(sim_config)
 
     START = '2022-01-01 00:00:00'
-    END =  30*24*60*60 # one year in seconds.
+    END =  365*24*60*60 # one year in seconds.
     
-
     # parameters for pv model
-    LAT = 32.0
-    AREA = 100
-    EFF = 0.5
-    EL = 32.0
-    AZ = 0.0
-    DNI_DATA = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'data','inputs', 'solar_data_HSO.csv')) # pv
+    # LAT = 32.0
+    # AREA = 100
+    # EFF = 0.5
+    # EL = 32.0
+    # AZ = 0.0
+    # DNI_DATA = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'data','inputs', 'solar_data_HSO.csv')) # pv
     # METEO_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data','inputs', 'Braunschweig_meteodata_2022_15min.csv') # pvlib
 
-    pv_count = 1
-    pv_config = {str(i) : generate_configurations(Scenarios.BUILDING) for i in range(pv_count)}
-    tank_count = 2
+    # pv_count = 1
+    # pv_config = {str(i) : generate_configurations(Scenarios.BUILDING) for i in range(pv_count)}
 
     # configure the simulator
     heatpumpsim = world.start('HeatPumpSim', step_size=STEP_SIZE)
@@ -180,12 +178,12 @@ def run_DES():
 
 
     # pv_sim_pvlib = world.start("PVsim_pvlib", start_date=START, step_size=STEP_SIZE, pv_data=pv_config,) # pvlib (takes 4:01 minutes for 1 year)
-    pv_sim = world.start("PVSim",start_date=START,step_size=STEP_SIZE) # pv
-    DNI_sim = world.start("CSV", sim_start=START, datafile=DNI_DATA) # pv
+    # pv_sim = world.start("PVSim",start_date=START,step_size=STEP_SIZE) # pv
+    # DNI_sim = world.start("CSV", sim_start=START, datafile=DNI_DATA) # pv
     # meteo_sim = world.start("CSV", sim_start=START, datafile=METEO_DATA) # pvlib (takes 13:16 minutes for 1 year)
 
     # Input data csv
-    HEAT_LOAD_DATA = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'data', 'inputs', 'Input_profile3.csv'))
+    HEAT_LOAD_DATA = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'data', 'inputs', 'Input_kfw55.csv'))
     # configure the simulator
     csv = world.start('CSV', sim_start=START, datafile=HEAT_LOAD_DATA)
     # Instantiate model
@@ -210,10 +208,10 @@ def run_DES():
     boiler = boilersim.GasBoiler.create(1, params = params_boiler)
 
 
-
+    #? delete?
     # pv_model_pvlib = pv_sim_pvlib.PVSim.create(pv_count) # PVlib
-    pv_model = pv_sim.PV.create(1, latitude=LAT, area=AREA,efficiency=EFF, el_tilt=EL, az_tilt=AZ) # pv
-    DNI_model = DNI_sim.DNI.create(1) # pv
+    # pv_model = pv_sim.PV.create(1, latitude=LAT, area=AREA,efficiency=EFF, el_tilt=EL, az_tilt=AZ) # pv
+    # DNI_model = DNI_sim.DNI.create(1) # pv
     # meteo_model = meteo_sim.Braunschweig.create(1) # pvlib
 
     # Instantiate model
@@ -319,22 +317,22 @@ def run_DES():
 
 
     """__________________________________________ PV ___________________________________________________________________""" 
+    #? delete connections?
+    # world.connect(      DNI_model[0],
+    #                     pv_model[0],
+    #                     ("DNI", "DNI[W/m2]"),
+    #                 )
+    # world.connect(
+    #                     pv_model[0],
+    #                     csv_writer,
+    #                     "P[MW]", 
+    #                 )
 
-    world.connect(      DNI_model[0],
-                        pv_model[0],
-                        ("DNI", "DNI[W/m2]"),
-                    )
-    world.connect(
-                        pv_model[0],
-                        csv_writer,
-                        "P[MW]", 
-                    )
-
-    world.connect(
-                        DNI_model[0],
-                        csv_writer,
-                        "DNI", 
-                    )
+    # world.connect(
+    #                     DNI_model[0],
+    #                     csv_writer,
+    #                     "DNI", 
+    #                 )
 
     """__________________________________________ PVlib ___________________________________________________________________""" 
 
@@ -416,11 +414,12 @@ def pvsim():
     pvlib_model.sim()
 
 if __name__ == "__main__":  
-    p1 = Process(target = run_DES(), args=())
-    p2 = Process(target = pvsim())
-    p2.start()
-    p1.start()
-
+    # p1 = Process(target = run_DES(), args=())
+    # p2 = Process(target = pvsim())
+    # p2.start()
+    # p1.start()
+    run_DES()
+    pvsim()
 # cProfile.run('run_DES()', 'profile_output') 
 # p = pstats.Stats('profile_output')
 
