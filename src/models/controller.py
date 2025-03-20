@@ -450,10 +450,6 @@ class Controller():
             attrs[i] = max(0, attrs[i])
         return attrs
         
-    def calc_max_flow(self):
-        
-        self.max_flow = (5000/3) / self.stepsize  #kg/s
-    
     def calc_heat_supply(self, config):
         """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
         heating (SH) circuit"""
@@ -477,7 +473,6 @@ class Controller():
         # self.heat_out_F = - self.heat_in_F
 
         #Capping the mass flow rate
-        self.calc_max_flow()
         self.max_flow = 20
         
         
