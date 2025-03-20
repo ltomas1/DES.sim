@@ -509,8 +509,8 @@ class Controller():
             setattr(self,sh_out+'_F', -sh_F)
             setattr(self,dhw_out+'_F', -dhw_F)
 
-            self.dhw_supply = sh_F * 4184 * self.heat_dT_sh
-            self.sh_supply = dhw_F * 4184 * self.heat_dT_dhw
+            self.sh_supply = sh_F * 4184 * self.heat_dT_sh
+            self.dhw_supply = dhw_F * 4184 * self.heat_dT_dhw
             self.heat_supply = 0 #for now, this will be exclusive to 2-runner model. To make it easier in visu.ipynb(sankey)
             
             
