@@ -478,6 +478,7 @@ class Controller():
 
         #Capping the mass flow rate
         self.calc_max_flow()
+        self.max_flow = 20
         
         
         if config == '2-runner':
