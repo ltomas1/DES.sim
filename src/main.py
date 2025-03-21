@@ -97,10 +97,10 @@ params_ctrl = {
     'heat_rT' : 35,
     'operation_mode': 'heating',
     'control_strategy': '5',
-    'hr_mode' : 'off',
+    'hr_mode' : 'on',
     'supply_config' : '3-runner',
-    'sh_out' : 'tes1',
-    'dhw_out' : 'tes2',
+    'sh_out' : '1',         #0 for first tank, 1 for 2nd tank...
+    'dhw_out' : '2',
     'step_size' : STEP_SIZE
 }
 

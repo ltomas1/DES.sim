@@ -132,6 +132,7 @@ class Controller():
         self.dt = 0 #Time for how long top layer of Tank 3 below threshold, i.e chp not able to keep up with demand.
 
         self.max_flow = None            #The max flow rate permissible in one step.
+        self.P_hr = [0,0,0]             # Power demand from heating rods of the respective tanks. #TODO more robust for flexible number of tanks
 
         #TODO write all comments for TES variables 
         self.tes0_heat_out_T = None         # The temperature of the heat_out connection for the tank 0 
@@ -453,6 +454,27 @@ class Controller():
     def calc_max_flow(self):
         
         self.max_flow = (5000/3) / self.stepsize  #kg/s
+
+    # def calc_hr_P(self, outlets):
+    #     for i in outlets:
+    #         self.P_hr[i] = 
+
+    def calc_hr_P(self, flow, out_temp):
+        """Assuming an ideal heating rod, heats up the outlet connection temp to the setpoint instantaneously and calculates the power req.
+
+        Args:
+            flow (_type_): flow rate of the output|heat supply
+            out_temp (_type_): temperature of the output connection
+
+        Returns:
+            _type_: Returns the heating rod power required and also the updates the output temperature.
+        """
+        
+        P = 0
+        if out_temp < self.T_hr_sp and self.hr_mode == 'on':
+            P = flow * 4184 * (self.T_hr_sp- out_temp)
+            out_temp = self.T_hr_sp
+        return P, out_temp
     
     def calc_heat_supply(self, config):
         """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
@@ -493,6 +515,12 @@ class Controller():
 
             self.tes0_heat_in_T = self.heat_rT
 
+            if self.tes2_heat_out_T < self.T_hr_sp and self.hr_mode=='on':
+                self.P_hr = self.heat_in_F * 4184 * (self.T_hr_sp - self.tes2_heat_out_T)
+                self.tes2_heat_out_T = self.T_hr_sp
+            
+            self.P_hr[2], self.tes2_heat_out_T = self.calc_hr_P(self.heat_in_F, self.tes2_heat_out_T)
+
             self.dhw_supply, self.sh_supply = 0,0
         
         
@@ -500,8 +528,8 @@ class Controller():
         
         if config == '3-runner':
             
-            sh_out = self.sh_out+'_heat_out2'  #self.sh_out = tes1 or tes2, passed as a parameter to controller.
-            dhw_out = self.dhw_out+'_heat_out'
+            sh_out = 'tes'+self.sh_out+'_heat_out2'  #self.sh_out = tes1 or tes2, passed as a parameter to controller.
+            dhw_out = 'tes'+self.dhw_out+'_heat_out'
             
             
             sh_out_T = getattr(self, sh_out+'_T')
@@ -515,8 +543,7 @@ class Controller():
             dhw_F = self.dhw_demand/(4184 * self.heat_dT_dhw)
             sh_F = max(0,sh_F)  #-ve flow set to zero.
             dhw_F = max(0,dhw_F)
-            # self.tes1_heat_out2_F = -sh_F
-            # self.tes2_heat_out_F = -dhw_F
+
             sh_F = min(self.max_flow, sh_F)
             dhw_F = min(self.max_flow, dhw_F)
 
@@ -531,3 +558,10 @@ class Controller():
             self.tes0_heat_in_F = sh_F + dhw_F
             self.tes0_heat_in_T = self.heat_rT
 
+            
+            
+            self.P_hr[int(self.sh_out)], sh_out_T = self.calc_hr_P(sh_F, sh_out_T)
+            self.P_hr[int(self.dhw_out)], dhw_out_T = self.calc_hr_P(dhw_F, dhw_out_T)
+
+            setattr(self, sh_out+'_T', sh_out_T)
+            setattr(self, dhw_out+'_T', dhw_out_T)
