@@ -459,7 +459,7 @@ class Controller():
     #     for i in outlets:
     #         self.P_hr[i] = 
 
-    def calc_hr_P(self, flow, out_temp):
+    def calc_hr_P(self, out_temp, demand):
         """Assuming an ideal heating rod, heats up the outlet connection temp to the setpoint instantaneously and calculates the power req.
 
         Args:
@@ -470,11 +470,27 @@ class Controller():
             _type_: Returns the heating rod power required and also the updates the output temperature.
         """
         
-        P = 0
+        results = {'P': 0
+                   }
+        
         if out_temp < self.T_hr_sp and self.hr_mode == 'on':
-            P = flow * 4184 * (self.T_hr_sp- out_temp)
+            
+            flow = demand / (4184 * (self.T_hr_sp - self.heat_rT))  #Calculating adjusted flow rated with increased temp.
+
+            P = flow * 4184 * (self.T_hr_sp- out_temp) #out_temp is the temperature at outlet flow, which is to be heated by the rods.
             out_temp = self.T_hr_sp
-        return P, out_temp
+            supply = demand # Heat supplied = demand
+
+            results = {'P': P,
+                       'out_temp': out_temp,
+                       'flow': flow,
+                       'supply': supply
+                   }
+
+            return results
+
+        
+        return results
     
     def calc_heat_supply(self, config):
         """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
@@ -487,7 +503,7 @@ class Controller():
         # self.heat_supply = self.heat_in_F * 4184 * self.heat_dT
         
         # if self.heat_out_T < self.T_hr_sp and self.hr_mode=='on':
-        #     self.P_hr = self.heat_in_F * 4184 * (self.T_hr_sp - self.heat_out_T) #FIXME this does nothing in essence
+        #     self.P_hr = self.heat_in_F * 4184 * (self.T_hr_sp - self.heat_out_T)
 
         #     self.heat_in_T = self.heat_rT
 
@@ -502,25 +518,30 @@ class Controller():
         self.calc_max_flow()
         self.max_flow = 20
         
+        #attributes to be updated if Heating rod turned on.
+        updates = [self.P_hr[2], self.tes2_heat_out_T, self.tes0_heat_in_F, self.heat_supply]
+        outputkeys = ['P', 'out_temp', 'flow', 'supply'] #output keys of the heating rod return dict.
         
         if config == '2-runner':
 
             
+
+
             self.heat_dT = self.tes2_heat_out_T - self.heat_rT
             self.tes0_heat_in_F = self.heat_demand/ (4184 * self.heat_dT)
             self.tes0_heat_in_F = max(0,self.tes0_heat_in_F)
             self.heat_supply = self.tes0_heat_in_F * 4184 * self.heat_dT
-            
-            self.tes2_heat_out_F = -self.tes0_heat_in_F
+
 
             self.tes0_heat_in_T = self.heat_rT
 
-            if self.tes2_heat_out_T < self.T_hr_sp and self.hr_mode=='on':
-                self.P_hr = self.heat_in_F * 4184 * (self.T_hr_sp - self.tes2_heat_out_T)
-                self.tes2_heat_out_T = self.T_hr_sp
-            
-            self.P_hr[2], self.tes2_heat_out_T = self.calc_hr_P(self.heat_in_F, self.tes2_heat_out_T)
+            results = self.calc_hr_P(self.tes2_heat_out_T, self.heat_demand)
+            #If heating rods turns on, flow, temp and supply overwritten, else not
+            for i, j in enumerate(outputkeys):
+                updates[i] = results.get(j, updates[i])
 
+            self.tes2_heat_out_F = -self.tes0_heat_in_F
+            
             self.dhw_supply, self.sh_supply = 0,0
         
         
@@ -528,13 +549,10 @@ class Controller():
         
         if config == '3-runner':
             
-            sh_out = 'tes'+self.sh_out+'_heat_out2'  #self.sh_out = tes1 or tes2, passed as a parameter to controller.
-            dhw_out = 'tes'+self.dhw_out+'_heat_out'
-            
-            
+            sh_out = 'tes'+self.sh_out+'_heat_out2'  #self.sh_out = 1 or 2, passed as a parameter to controller.
+            dhw_out = 'tes'+self.dhw_out+'_heat_out'            
             sh_out_T = getattr(self, sh_out+'_T')
             dhw_out_T = getattr(self,dhw_out+'_T')
-
 
             self.heat_dT_sh = sh_out_T - self.heat_rT
             self.heat_dT_dhw = dhw_out_T - self.heat_rT
@@ -543,25 +561,35 @@ class Controller():
             dhw_F = self.dhw_demand/(4184 * self.heat_dT_dhw)
             sh_F = max(0,sh_F)  #-ve flow set to zero.
             dhw_F = max(0,dhw_F)
-
             sh_F = min(self.max_flow, sh_F)
-            dhw_F = min(self.max_flow, dhw_F)
-
-            setattr(self,sh_out+'_F', -sh_F)
-            setattr(self,dhw_out+'_F', -dhw_F)
+            dhw_F = min(self.max_flow, dhw_F)         
+            
 
             self.sh_supply = sh_F * 4184 * self.heat_dT_sh
             self.dhw_supply = dhw_F * 4184 * self.heat_dT_dhw
             self.heat_supply = 0 #for now, this will be exclusive to 2-runner model. To make it easier in visu.ipynb(sankey)
             
+            #If the heating rod is on, the flow rate, temperature and supplied energy is overwritten, else not
+            # results_sh = self.calc_hr_P(sh_out_T, self.sh_demand)
+            results_dhw = self.calc_hr_P(dhw_out_T, self.dhw_demand)
+            
+            updates_sh = [self.P_hr[int(self.sh_out)], sh_out_T, sh_F, self.sh_supply]
+            updates_dhw = [self.P_hr[int(self.dhw_out)], dhw_out_T, dhw_F, self.dhw_supply]
+            
+            #If heating rods turns on, flow, temp and supply overwritten, else not
+            # for i, j in enumerate(outputkeys):
+            #     updates_sh[i] = results_sh.get(j, updates_sh[i])
+
+            for i, j in enumerate(outputkeys):
+                updates_dhw[i] = results_dhw.get(j, updates_dhw[i])
+
+            self.P_hr[int(self.dhw_out)], dhw_out_T, dhw_F, self.dhw_supply = updates_dhw
             
             self.tes0_heat_in_F = sh_F + dhw_F
             self.tes0_heat_in_T = self.heat_rT
 
-            
-            
-            self.P_hr[int(self.sh_out)], sh_out_T = self.calc_hr_P(sh_F, sh_out_T)
-            self.P_hr[int(self.dhw_out)], dhw_out_T = self.calc_hr_P(dhw_F, dhw_out_T)
+            setattr(self,sh_out+'_F', -sh_F)
+            setattr(self,dhw_out+'_F', -dhw_F)
 
             setattr(self, sh_out+'_T', sh_out_T)
             setattr(self, dhw_out+'_T', dhw_out_T)
