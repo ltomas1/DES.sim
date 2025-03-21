@@ -515,7 +515,6 @@ class Controller():
         # self.heat_out_F = - self.heat_in_F
 
         #Capping the mass flow rate
-        self.calc_max_flow()
         self.max_flow = 20
         
         #attributes to be updated if Heating rod turned on.
