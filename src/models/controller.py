@@ -72,6 +72,8 @@ class Controller():
 
         self.stepsize = params.get('step_size')
 
+        self.params_hwt = params.get('params_hwt')
+
         self.T_amb = None                   # The ambient air temperature (in °C)
         self.heat_source_T = None           # The temperature of source for the heat pump (in °C)
         self.T_room = None                  # The temperature of the room (used in cooling mode, in °C)
@@ -165,6 +167,8 @@ class Controller():
         self.tes2_heat_in2_F = None
         self.tes2_heat_in2_T = None
 
+        self.hwt2_hr_1 = 0
+
         
 
 
@@ -197,6 +201,14 @@ class Controller():
 
         # Calculate the mass flows, temperatures and heat from back up heater for the SH circuit
         self.calc_heat_supply(self.config)
+
+        # self.tankLayer_volume = 3.14 * self.params_hwt['height'] * (self.params_hwt['diameter']/2e3)**2  #height is in mm, so H/10^3 * density 1000kg/m3; so density omitted here!
+        self.tankLayer_mass = self.params_hwt['volume'] * 1 / self.params_hwt['n_layers']
+        
+        if self.params_hwt['heating_rods']['hr_1']['mode'] == 'on' and self.top_layer_Tank2 < self.params_hwt['heating_rods']['hr_1']['T_max']:
+            self.hwt2_hr_1 = self.tankLayer_mass * 4184 * (self.params_hwt['heating_rods']['hr_1']['T_max'] - self.top_layer_Tank2)
+
+        self.hwt1_hr_1, self.hwt0_hr_1 = 0,0 
 
         # Control strategies for the operation of heat pump in heating mode
         if self.operation_mode.lower() == 'heating':
