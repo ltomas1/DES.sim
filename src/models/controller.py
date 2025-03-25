@@ -63,7 +63,7 @@ class Controller():
         self.heat_rT = params.get('heat_rT', 20)
         self.operation_mode = params.get('operation_mode', 'heating')
         self.control_strategy = params.get('control_strategy', '1')
-        self.hr_mode = params.get('hr_mode', 'off')
+        self.hr_mode = params.get('hr_mode', 'off').lower()
         self.T_chp_h = params.get('T_chp_h')
 
         self.config = params.get('supply_config')
@@ -71,7 +71,7 @@ class Controller():
         self.dhw_out = params.get('dhw_out')##Tank which serves as the Output connection for hot water demand
 
         self.stepsize = params.get('step_size')
-
+        self.boiler_mode = params.get('boiler_mode').lower()
         self.params_hwt = params.get('params_hwt')
 
         self.T_amb = None                   # The ambient air temperature (in °C)
@@ -324,7 +324,7 @@ class Controller():
                     self.dt = 0
                 
                 #! what does this mean? why are we looking at the tank1 top temp?
-                if self.dt > 10 * 60 and self.top_layer_Tank1 < self.T_hr_sp:
+                if self.dt > 10 * 60 and self.top_layer_Tank1 < self.T_hr_sp and self.boiler_mode == 'on':
                      self.boiler_status = 'on'
                     
                 

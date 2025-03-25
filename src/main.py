@@ -111,6 +111,7 @@ params_ctrl = {
     'supply_config' : '3-runner',
     'sh_out' : '1',         #0 for first tank, 1 for 2nd tank...
     'dhw_out' : '2',
+    'boiler_mode': 'on',
     'step_size' : STEP_SIZE,
     'params_hwt': params_hwt
 }
