@@ -19,7 +19,7 @@ META = {
 #The following attrs appended to the attrs entry in META dict.
 hp_attrs = ['hp_demand', 'hp_out_T', 'T_amb', 'heat_source_T']
 chp_attrs = ['chp_demand', 'chp_out_T', 'chp_status', 'chp_uptime']
-hwt_attrs = ['heat_in_F', 'heat_in_T', 'heat_out_F', 'T_amb_hwt', 'hp_in_T',
+hwt_attrs = ['heat_in_F', 'heat_in_T', 'heat_out_F', 'T_amb_hwt', 'hp_in_T', 'hwt0_hr_1', 'hwt1_hr_1', 'hwt2_hr_1',
              'hp_out_F', 'hp_in_F', 'chp_in_T', 'chp_in_F', 'chp_out_F',
              'tes0_heat_out_T', 'tes0_heat_out_F', 'tes0_heat_in_F', 'tes0_hp_out_F',
              'tes1_heat_out_T', 'tes1_heat_out_F', 'tes1_hp_in_F', 'tes1_hp_out_T', 'tes1_hp_out_F',

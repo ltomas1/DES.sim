@@ -73,18 +73,28 @@ params_hwt = {
             'heat_out2' : {'pos' : 2400},
             'heat_in2' : {'pos' : 200}
         },
+        'heating_rods': {
+            'hr_1' : {
+                'mode' : 'on',
+                'pos' : 2200,
+                'P_th_stages' : [0, 500, 1000, 2000, 10000],
+                'T_max' : 65, # could assign setpoint attr directly here!,
+                'eta' : 1 }}
     }
 
 init_vals_hwt0 = {
-        'layers': {'T': [40.0, 30.0, 20.0]}
+        'layers': {'T': [40.0, 30.0, 20.0]},
+        'hr_1': { 'P_el': 0}
     }
 
 init_vals_hwt1 = {
-        'layers': {'T': [40.0, 30.0, 20.0]}
+        'layers': {'T': [40.0, 30.0, 20.0]},
+        'hr_1': { 'P_el': 0}
     }
 
 init_vals_hwt2 = {
-        'layers': {'T': [80.0, 70.0, 60.0]}
+        'layers': {'T': [80.0, 70.0, 60.0]},
+        'hr_1': { 'P_el': 500}
     }
 
 
@@ -97,11 +107,13 @@ params_ctrl = {
     'heat_rT' : 35,
     'operation_mode': 'heating',
     'control_strategy': '5',
-    'hr_mode' : 'on',
+    'hr_mode' : 'off',
     'supply_config' : '3-runner',
     'sh_out' : '1',         #0 for first tank, 1 for 2nd tank...
     'dhw_out' : '2',
-    'step_size' : STEP_SIZE
+    'boiler_mode': 'on',
+    'step_size' : STEP_SIZE,
+    'params_hwt': params_hwt
 }
 
 def run_DES():
@@ -119,9 +131,6 @@ def run_DES():
             'python': 'mosaik_components.heatpump.hotwatertank.hotwatertank_mosaik:HotWaterTankSimulator',
         
         },
-        # 'HotWaterTankSim':{
-        #     "connect": "127.0.0.1:5555",
-        # },
         
         'ControllerSim': {
             'python': 'models.controller_mosaik:ControllerSimulator',
@@ -237,7 +246,7 @@ def run_DES():
     world.connect(ctrls[0], hwts0[0], ('tes0_heat_out_F', 'heat_out.F'),
                 ('tes0_heat_out_T', 'heat_out.T'),
                 ('tes0_heat_in_F', 'heat_in.F'),
-                ('tes0_heat_in_T', 'heat_in.T'),('tes0_heat_out2_F', 'heat_out2.F'),
+                ('tes0_heat_in_T', 'heat_in.T'),('tes0_heat_out2_F', 'heat_out2.F'),('hwt0_hr_1', 'hr_1.P_th_set')
                 )
 
     world.connect(hwts1[0], ctrls[0], 
@@ -253,15 +262,15 @@ def run_DES():
 
     world.connect(ctrls[0], hwts1[0], ('tes1_hp_out_F', 'hp_out.F'),
                 ('tes1_heat_out_T', 'heat_out.T'), ('tes1_heat_out_F', 'heat_out.F'), ('tes1_heat_out2_F', 'heat_out2.F'),
-                ('tes1_hp_out_T','hp_out.T')
+                ('tes1_hp_out_T','hp_out.T'), ('hwt1_hr_1', 'hr_1.P_th_set')
                 )
 
     world.connect(ctrls[0], hwts2[0], ('tes2_hp_out_T', 'hp_out.T'),
                 ('tes2_hp_out_F', 'hp_out.F'),
                 ('tes2_heat_out_F', 'heat_out.F'),('tes2_heat_out2_F', 'heat_out2.F'),
-                ('T_amb', 'T_env'),
+                ('T_amb', 'T_env'), ('hwt2_hr_1', 'hr_1.P_th_set'),
                 time_shifted=True,
-                initial_data={'tes2_heat_out_F': 0, 'T_amb': 0, 'tes2_hp_out_T':0, 'tes2_hp_out_F':0, 'tes2_heat_out2_F':0
+                initial_data={'tes2_heat_out_F': 0, 'T_amb': 0, 'tes2_hp_out_T':0, 'tes2_hp_out_F':0, 'tes2_heat_out2_F':0, 'hwt2_hr_1':0
                                 },)
 
     world.connect(hwts2[0], ctrls[0], ('heat_out.T', 'tes2_heat_out_T'), ('chp_out.T', 'chp_out_T'),
@@ -378,7 +387,7 @@ def run_DES():
     world.connect(hwts2[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
                 'heat_out.T', 'heat_out.F', 'hp_in.T', 'hp_in.F', 'hp_out.T',
                 'hp_out.F', 'heat_in.T', 'heat_in.F',
-                'T_mean')
+                'T_mean', 'hr_1.P_th')
 
     world.connect(chp[0], csv_writer, 'eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'temp_out',
                    'P_th', 'P_el', 'fuel_m3', 'chp_uptime'

@@ -63,7 +63,7 @@ class Controller():
         self.heat_rT = params.get('heat_rT', 20)
         self.operation_mode = params.get('operation_mode', 'heating')
         self.control_strategy = params.get('control_strategy', '1')
-        self.hr_mode = params.get('hr_mode', 'off')
+        self.hr_mode = params.get('hr_mode', 'off').lower()
         self.T_chp_h = params.get('T_chp_h')
 
         self.config = params.get('supply_config')
@@ -71,6 +71,8 @@ class Controller():
         self.dhw_out = params.get('dhw_out')##Tank which serves as the Output connection for hot water demand
 
         self.stepsize = params.get('step_size')
+        self.boiler_mode = params.get('boiler_mode').lower()
+        self.params_hwt = params.get('params_hwt')
 
         self.T_amb = None                   # The ambient air temperature (in °C)
         self.heat_source_T = None           # The temperature of source for the heat pump (in °C)
@@ -165,6 +167,8 @@ class Controller():
         self.tes2_heat_in2_F = None
         self.tes2_heat_in2_T = None
 
+        self.hwt2_hr_1 = 0
+
         
 
 
@@ -198,77 +202,20 @@ class Controller():
         # Calculate the mass flows, temperatures and heat from back up heater for the SH circuit
         self.calc_heat_supply(self.config)
 
+        # Calculate the heat supply of the heating rods
+        # self.tankLayer_volume = 3.14 * self.params_hwt['height'] * (self.params_hwt['diameter']/2e3)**2  #height is in mm, so H/10^3 * density 1000kg/m3; so density omitted here!
+        self.tankLayer_mass = self.params_hwt['volume'] * 1 / self.params_hwt['n_layers'] #1L = 1Kg
+        
+        # if chaning hr position, change the temp value here as well!
+        if self.params_hwt['heating_rods']['hr_1']['mode'] == 'on' and self.top_layer_Tank2 < self.params_hwt['heating_rods']['hr_1']['T_max']:
+            self.hwt2_hr_1 = self.tankLayer_mass * 4184 * (self.params_hwt['heating_rods']['hr_1']['T_max'] - self.top_layer_Tank2)
+
+        self.hwt1_hr_1, self.hwt0_hr_1 = 0,0 
+
         # Control strategies for the operation of heat pump in heating mode
         if self.operation_mode.lower() == 'heating':
-
-            # Control strategy 1 - start
-            if self.control_strategy == '1':
-                if self.bottom_layer_Tank0 < self.T_hp_sp_l:
-                    self.hp_status = 'on'
-
-                if self.hp_status == 'on':
-                    if self.bottom_layer_Tank0 < self.T_hp_sp_h:
-                        self.hp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_Tank0) / self.step_size
-                    else:
-                        self.hp_demand = 0
-                        self.hp_status = 'off'
-                else:
-                    self.hp_demand = 0
-            # Control strategy 1 - end
-
-            # Control strategy 2 - start
-            elif self.control_strategy == '2':
-                if self.top_layer_Tank1 < self.T_hp_sp_h:
-                    self.hp_status = 'on'
-                #
-                if self.hp_status == 'off':
-                    if self.bottom_layer_Tank0 < self.T_hp_sp_l:
-                        self.hp_status = 'on'
-
-                if self.hp_status == 'on':
-                    if self.bottom_layer_Tank0 < self.T_hp_sp_l:
-                        self.hp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_l - self.bottom_layer_Tank0) / self.step_size
-                    else:
-                        self.hp_demand = 0
-                        self.hp_status = 'off'
-                else:
-                    self.hp_demand = 0
-            # Control strategy 2 - end
-            
-            # Control strategy 3 - start
-            if self.control_strategy == '3':
-                self.boiler_demand = 0
-                
-                if self.bottom_layer_Tank0 < self.T_hp_sp_l: #Turns on only when below threshold of 35 degrees.
-                    self.chp_status = 'off'
-                    self.hp_status = 'on'
-                    
-                if self.hp_status == 'on': # Hp runs until upper threshold achieved.
-                    if self.bottom_layer_Tank0 < self.T_hp_sp_h:
-                        self.hp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_Tank0) / self.step_size
-                    else:
-                        self.hp_demand = 0
-                        self.hp_status = 'off'
-                else:
-                    self.hp_demand = 0
-
-                if self.top_layer_Tank1 < self.T_hp_sp_h: #i.e high heat demand
-                    self.chp_status = 'on'
-                    self.hp_status = 'off'
-                
-                if self.chp_status == 'on': #runs until bottom layer of 3 reaches the threshold
-                    if self.bottom_layer_Tank2 < self.T_hp_sp_h:
-                        self.chp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_Tank2) / self.step_size
-                    else:
-                        self.chp_demand = 0
-                        self.chp_status = 'off'
-                else:
-                    self.hp_demand = 0
-                    self.chp_demand = 0
-            # Control strategy 3 - end
-
             #Datasheet logic control
-            if self.control_strategy == '5':
+            if self.control_strategy == '1':
                                 
                 if self.bottom_layer_Tank0 < self.T_hp_sp_l: #Turns on only when below threshold of 35 degrees.
                     
@@ -312,7 +259,7 @@ class Controller():
                     self.dt = 0
                 
                 #! what does this mean? why are we looking at the tank1 top temp?
-                if self.dt > 10 * 60 and self.top_layer_Tank1 < self.T_hr_sp:
+                if self.dt > 10 * 60 and self.top_layer_Tank1 < self.T_hr_sp and self.boiler_mode == 'on':
                      self.boiler_status = 'on'
                     
                 
@@ -445,19 +392,6 @@ class Controller():
     #         self.heat_in_T = self.heat_rT
     #     self.heat_out_F = - self.heat_in_F
 
-    def neg2zero(attrs) :
-
-        for i in range(len(attrs)):
-            attrs[i] = max(0, attrs[i])
-        return attrs
-        
-    def calc_max_flow(self):
-        
-        self.max_flow = (5000/3) / self.stepsize  #kg/s
-
-    # def calc_hr_P(self, outlets):
-    #     for i in outlets:
-    #         self.P_hr[i] = 
 
     def calc_hr_P(self, out_temp, demand):
         """Assuming an ideal heating rod, heats up the outlet connection temp to the setpoint instantaneously and calculates the power req.
@@ -496,23 +430,6 @@ class Controller():
         """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
         heating (SH) circuit"""
         
-        # self.heat_dT = self.heat_out_T - self.heat_rT
-        # self.heat_in_F = self.heat_demand / (4184 * self.heat_dT)
-        # if self.heat_in_F < 0 :
-        #     self.heat_in_F = 0 # heat out < heat in, i.e not enough temp gradient for heat transfer
-        # self.heat_supply = self.heat_in_F * 4184 * self.heat_dT
-        
-        # if self.heat_out_T < self.T_hr_sp and self.hr_mode=='on':
-        #     self.P_hr = self.heat_in_F * 4184 * (self.T_hr_sp - self.heat_out_T)
-
-        #     self.heat_in_T = self.heat_rT
-
-        # else:
-        #     self.heat_in_T = self.heat_rT
-
-        #     self.P_hr = 0
-        
-        # self.heat_out_F = - self.heat_in_F
 
         #Capping the mass flow rate
         self.max_flow = 20
@@ -523,14 +440,14 @@ class Controller():
         
         if config == '2-runner':
 
-            
-
-
             self.heat_dT = self.tes2_heat_out_T - self.heat_rT
-            self.tes0_heat_in_F = self.heat_demand/ (4184 * self.heat_dT)
+            try:
+                self.tes0_heat_in_F = self.heat_demand/ (4184 * self.heat_dT)
+            except ZeroDivisionError:
+                self.tes0_heat_in_F = 0
+
             self.tes0_heat_in_F = max(0,self.tes0_heat_in_F)
             self.heat_supply = self.tes0_heat_in_F * 4184 * self.heat_dT
-
 
             self.tes0_heat_in_T = self.heat_rT
 
@@ -556,8 +473,16 @@ class Controller():
             self.heat_dT_sh = sh_out_T - self.heat_rT
             self.heat_dT_dhw = dhw_out_T - self.heat_rT
             
-            sh_F = self.sh_demand/ (4184 * self.heat_dT_sh)
-            dhw_F = self.dhw_demand/(4184 * self.heat_dT_dhw)
+            try:
+                sh_F = self.sh_demand/ (4184 * self.heat_dT_sh)
+            except ZeroDivisionError:
+                sh_F = 0
+            try:
+                dhw_F = self.dhw_demand/(4184 * self.heat_dT_dhw)
+            except ZeroDivisionError:
+                dhw_F = 0
+            
+            
             sh_F = max(0,sh_F)  #-ve flow set to zero.
             dhw_F = max(0,dhw_F)
             sh_F = min(self.max_flow, sh_F)
