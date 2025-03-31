@@ -4,6 +4,9 @@ import numpy as np
 import os
 
 def sim():
+    # module library at https://github.com/pvlib/pvlib-python/blob/main/pvlib/data/sam-library-sandia-modules-2015-6-30.csv
+    # local dataset at pvlib/data (see comments of retrieve_sam method for more details!)
+    
     coordinates = [(49.1, 8.5, 'Stutensee', 110, 'Etc/GMT-1')]
 
     modules_db = pvlib.pvsystem.retrieve_sam('SandiaMod')

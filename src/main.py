@@ -106,7 +106,7 @@ params_ctrl = {
     'T_hr_sp': 65,
     'heat_rT' : 35,
     'operation_mode': 'heating',
-    'control_strategy': '5',
+    'control_strategy': '1',
     'hr_mode' : 'off',
     'supply_config' : '3-runner',
     'sh_out' : '1',         #0 for first tank, 1 for 2nd tank...
@@ -376,7 +376,7 @@ def run_DES():
 
     world.connect(hwts0[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
                 'heat_out.T', 'heat_out.F', 'hp_in.T', 'hp_in.F', 'hp_out.T',
-                'hp_out.F', 'heat_in.T', 'heat_in.F',
+                'hp_out.F', 'heat_in.T', 'heat_in.F','heat_out2.F', 'heat_out2.T',
                 'T_mean')
 
     world.connect(hwts1[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
@@ -387,7 +387,7 @@ def run_DES():
     world.connect(hwts2[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
                 'heat_out.T', 'heat_out.F', 'hp_in.T', 'hp_in.F', 'hp_out.T',
                 'hp_out.F', 'heat_in.T', 'heat_in.F',
-                'T_mean', 'hr_1.P_th')
+                'T_mean', 'hr_1.P_th', 'heat_out2.F', 'heat_out2.T')
 
     world.connect(chp[0], csv_writer, 'eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'temp_out',
                    'P_th', 'P_el', 'fuel_m3', 'chp_uptime'

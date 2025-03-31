@@ -467,11 +467,11 @@ class Controller():
             
             sh_out = 'tes'+self.sh_out+'_heat_out2'  #self.sh_out = 1 or 2, passed as a parameter to controller.
             dhw_out = 'tes'+self.dhw_out+'_heat_out'            
-            sh_out_T = getattr(self, sh_out+'_T')
-            dhw_out_T = getattr(self,dhw_out+'_T')
+            self.sh_out_T = getattr(self, sh_out+'_T')
+            self.dhw_out_T = getattr(self,dhw_out+'_T')
 
-            self.heat_dT_sh = sh_out_T - self.heat_rT
-            self.heat_dT_dhw = dhw_out_T - self.heat_rT
+            self.heat_dT_sh = self.sh_out_T - self.heat_rT
+            self.heat_dT_dhw = self.dhw_out_T - self.heat_rT
             
             try:
                 sh_F = self.sh_demand/ (4184 * self.heat_dT_sh)
@@ -495,10 +495,10 @@ class Controller():
             
             #If the heating rod is on, the flow rate, temperature and supplied energy is overwritten, else not
             # results_sh = self.calc_hr_P(sh_out_T, self.sh_demand)
-            results_dhw = self.calc_hr_P(dhw_out_T, self.dhw_demand)
+            results_dhw = self.calc_hr_P(self.dhw_out_T, self.dhw_demand)
             
-            updates_sh = [self.P_hr[int(self.sh_out)], sh_out_T, sh_F, self.sh_supply]
-            updates_dhw = [self.P_hr[int(self.dhw_out)], dhw_out_T, dhw_F, self.dhw_supply]
+            updates_sh = [self.P_hr[int(self.sh_out)], self.sh_out_T, sh_F, self.sh_supply]
+            updates_dhw = [self.P_hr[int(self.dhw_out)], self.dhw_out_T, dhw_F, self.dhw_supply]
             
             #If heating rods turns on, flow, temp and supply overwritten, else not
             # for i, j in enumerate(outputkeys):
@@ -507,7 +507,7 @@ class Controller():
             for i, j in enumerate(outputkeys):
                 updates_dhw[i] = results_dhw.get(j, updates_dhw[i])
 
-            self.P_hr[int(self.dhw_out)], dhw_out_T, dhw_F, self.dhw_supply = updates_dhw
+            self.P_hr[int(self.dhw_out)], self.dhw_out_T, dhw_F, self.dhw_supply = updates_dhw
             
             self.tes0_heat_in_F = sh_F + dhw_F
             self.tes0_heat_in_T = self.heat_rT
@@ -515,5 +515,5 @@ class Controller():
             setattr(self,sh_out+'_F', -sh_F)
             setattr(self,dhw_out+'_F', -dhw_F)
 
-            setattr(self, sh_out+'_T', sh_out_T)
-            setattr(self, dhw_out+'_T', dhw_out_T)
+            setattr(self, sh_out+'_T', self.sh_out_T)
+            setattr(self, dhw_out+'_T', self.dhw_out_T)
