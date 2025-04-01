@@ -54,11 +54,11 @@ class Controller():
         """
     def __init__(self, params):
 
-        self.T_hp_sp_h = params.get('T_hp_sp_h')
-        self.T_hp_sp_l = params.get('T_hp_sp_l')
+        self.T_hp_sp_winter = params.get('T_hp_sp_winter')
+        self.T_hp_sp_surplus = params.get('T_hp_sp_surplus')
         self.T_hr_sp_hwt = params.get('T_hr_sp_hwt', None)
         # self.T_hr_sp_chp = params.get('T_hr_sp_chp', None)
-        self.T_hr_sp = params.get('T_hr_sp', None)
+        self.T_dhw_sp = params.get('T_dhw_sp', None)
         # self.heat_dT = params.get('heat_dT', 7)
         self.heat_rT = params.get('heat_rT', 20)
         self.operation_mode = params.get('operation_mode', 'heating')
@@ -217,13 +217,13 @@ class Controller():
             #Datasheet logic control
             if self.control_strategy == '1':
                                 
-                if self.bottom_layer_Tank0 < self.T_hp_sp_l: #Turns on only when below threshold of 35 degrees.
+                if self.bottom_layer_Tank0 < self.T_hp_sp_surplus: #Turns on only when below threshold of 35 degrees.
                     
                     self.hp_status = 'on'
                     
                 if self.hp_status == 'on': # Hp runs until upper threshold achieved.
-                    if self.bottom_layer_Tank0 < self.T_hp_sp_h:
-                        self.hp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_h - self.bottom_layer_Tank0) / self.step_size
+                    if self.bottom_layer_Tank0 < self.T_hp_sp_winter:
+                        self.hp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_winter - self.bottom_layer_Tank0) / self.step_size
                     else:
                         self.hp_demand = 0
                         self.hp_status = 'off'
@@ -233,18 +233,18 @@ class Controller():
                 if self.hp_status == None:
                     self.hp_status = 'off'
                     
-                if self.top_layer_Tank2 < self.T_hr_sp: #i.e high heat demand
+                if self.top_layer_Tank2 < self.T_dhw_sp: #i.e high heat demand
                     self.chp_status = 'on'
                     
                 
                 if self.chp_status == 'on': #runs until bottom layer of tank 2 reaches the threshold
                     if self.bottom_layer_Tank2 < self.T_chp_h:
-                        self.chp_demand = self.hwt_mass * 4184 * (self.T_hr_sp - self.bottom_layer_Tank2) / self.step_size
+                        self.chp_demand = self.hwt_mass * 4184 * (self.T_dhw_sp - self.bottom_layer_Tank2) / self.step_size
                     elif self.chp_uptime >= 15: #15 minute minimum runtime
                         self.chp_demand = 0
                         self.chp_status = 'off'
                     else:
-                        self.chp_demand = self.hwt_mass * 4184 * (self.T_hr_sp - self.bottom_layer_Tank2) / self.step_size
+                        self.chp_demand = self.hwt_mass * 4184 * (self.T_dhw_sp - self.bottom_layer_Tank2) / self.step_size
 
                     # logger_controller.debug(f'time : {time} \tbottom layer : {self.bottom_layer_T_chp}, uptime : {self.chp_uptime}, status : {self.chp_status}')
                 else:
@@ -253,19 +253,19 @@ class Controller():
                 
                 #If the CHP is not able to keep up :
                 # Data transfer only at end of step, so this ensures, dt incremented after one step of chp.
-                if self.top_layer_Tank2 < self.T_hr_sp and self.chp_uptime > 0: 
+                if self.top_layer_Tank2 < self.T_dhw_sp and self.chp_uptime > 0: 
                     self.dt += self.step_size
                 else :
                     self.dt = 0
                 
                 #! what does this mean? why are we looking at the tank1 top temp?
-                if self.dt > 10 * 60 and self.top_layer_Tank1 < self.T_hr_sp and self.boiler_mode == 'on':
+                if self.dt > 10 * 60 and self.top_layer_Tank2 < self.T_dhw_sp and self.boiler_mode == 'on':
                      self.boiler_status = 'on'
                     
                 
                 if self.boiler_status == 'on':
                     if self.bottom_layer_Tank2 < self.T_chp_h:
-                        self.boiler_demand = self.hwt_mass * 4184 * (self.T_hr_sp - self.bottom_layer_Tank2) / self.step_size
+                        self.boiler_demand = self.hwt_mass * 4184 * (self.T_dhw_sp - self.bottom_layer_Tank2) / (self.step_size * 2) # heat up the entire tank to T_hr_sp in 2 time steps
                         # self.boiler_demand =  self.heat_demand             
                     elif self.boiler_uptime >= 15 * 60: #boiler uptime is in seconds
                         self.boiler_demand = 0
@@ -281,14 +281,14 @@ class Controller():
         # Control strategies for the operation of heat pump in cooling mode
         elif self.operation_mode.lower() == 'cooling':
 
-            if (self.T_room > self.T_hp_sp_h) or ((self.bottom_layer_Tank0 - self.T_room) < 5):
+            if (self.T_room > self.T_hp_sp_winter) or ((self.bottom_layer_Tank0 - self.T_room) < 5):
                 self.hp_status = 'on'
 
             if self.bottom_layer_Tank0 > 52:
                 self.hp_status = 'off'
 
             if self.hp_status == 'on':
-                if self.T_room > (self.T_hp_sp_l+0.5):
+                if self.T_room > (self.T_hp_sp_surplus+0.5):
                     self.hp_demand = 10000000
                 else:
                     self.hp_demand = 0
@@ -407,12 +407,12 @@ class Controller():
         results = {'P': 0
                    }
         
-        if out_temp < self.T_hr_sp and self.hr_mode == 'on':
+        if out_temp < self.T_dhw_sp and self.hr_mode == 'on':
             
-            flow = demand / (4184 * (self.T_hr_sp - self.heat_rT))  #Calculating adjusted flow rated with increased temp.
+            flow = demand / (4184 * (self.T_dhw_sp - self.heat_rT))  #Calculating adjusted flow rated with increased temp.
 
-            P = flow * 4184 * (self.T_hr_sp- out_temp) #out_temp is the temperature at outlet flow, which is to be heated by the rods.
-            out_temp = self.T_hr_sp
+            P = flow * 4184 * (self.T_dhw_sp- out_temp) #out_temp is the temperature at outlet flow, which is to be heated by the rods.
+            out_temp = self.T_dhw_sp
             supply = demand # Heat supplied = demand
 
             results = {'P': P,

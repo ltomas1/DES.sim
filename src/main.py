@@ -78,7 +78,7 @@ params_hwt = {
                 'mode' : 'on',
                 'pos' : 2200,
                 'P_th_stages' : [0, 500, 1000, 2000, 10000],
-                'T_max' : 65, # could assign setpoint attr directly here!,
+                'T_max' : 67, # could assign setpoint attr directly here!,
                 'eta' : 1 }}
     }
 
@@ -100,14 +100,15 @@ init_vals_hwt2 = {
 
 # Parameters for controller model
 params_ctrl = {
-    'T_hp_sp_h': 35,
-    'T_chp_h' : 75,
-    'T_hp_sp_l': 35,
-    'T_hr_sp': 65,
+    'T_hp_sp_winter': 50,
+    'T_hp_sp_surplus': 67,
+    'T_chp_h' : 65,
+    'T_dhw_sp': 65,
+    'T_dhw_buffer': 5,
     'heat_rT' : 35,
     'operation_mode': 'heating',
     'control_strategy': '1',
-    'hr_mode' : 'off',
+    # 'hr_mode' : 'off',
     'supply_config' : '3-runner',
     'sh_out' : '1',         #0 for first tank, 1 for 2nd tank...
     'dhw_out' : '2',
@@ -162,7 +163,7 @@ def run_DES():
     world = mosaik.World(sim_config)
 
     START = '2022-01-01 00:00:00'
-    END =  365*24*60*60 # one year in seconds.
+    END =  30*24*60*60 # one year in seconds.
     
     # parameters for pv model
     # LAT = 32.0
