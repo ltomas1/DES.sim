@@ -31,7 +31,7 @@ db_attrs = ['heat_supply', 'heat_demand', 'hp_supply', 'chp_supply', 'sh_demand'
             'P_hr', 'T_room', 'bottom_layer_Tank0','bottom_layer_Tank2', 'top_layer_Tank1', 'top_layer_Tank2', 'hr_mode']
 boiler_attrs = ['boiler_demand', 'boiler_mdot', 'boiler_supply', 'boiler_status', 'dt', 'boiler_uptime']
 
-
+#A dummy class object returns all the attributes to be added in the META dict.
 dummy_params_ctrl = {
     'T_hp_sp_winter': None,
     'T_hp_sp_surplus': None,

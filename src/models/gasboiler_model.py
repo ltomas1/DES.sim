@@ -43,6 +43,9 @@ class Boiler_State():
 
         self.boiler_uptime = 0
 
+    def get_init_attrs(self):
+        return dir(self) #Since slots used here!
+
 
 class BoilerInputs():
     """Inputs variables to the CHP for each time step"""
@@ -75,6 +78,11 @@ class BoilerInputs():
 
         self.temp_out = params.get('Set_Temp')
         """Set point temperature for boiler output"""
+
+        # self.attrs = list(vars(self).keys()) 
+
+    def get_init_attrs(self):
+        return dir(self) #Since slots used here!
 
 
 

@@ -18,6 +18,17 @@ META = {
     },
 }
 
+#A dummy class object returns all the attributes to be added in the META dict.
+dummy_params_boiler = {'eta' : None, 'hv' : None,
+                    'nom_P_th' : None, 
+                    'Set_Temp' : None
+                    }
+
+dummy_obj = GasBoiler(dummy_params_boiler)
+auto_attrs = dummy_obj.inputs.get_init_attrs()
+auto_attrs_2 = dummy_obj.state.get_init_attrs()
+
+META['models']['GasBoiler']['attrs'] = auto_attrs + auto_attrs_2
 
 class Boilersimulator(mosaik_api.Simulator):
     def __init__(self):

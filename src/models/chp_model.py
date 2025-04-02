@@ -31,8 +31,13 @@ class CHP_State():
 
         self.fuel_m3 = 0
         """ Fuel consumption in stand cubic meter"""
+
         self.chp_uptime = 0  #TODO why is this needed here, although, this data is not to be printed to csv, just outputed, how does chp_status work tho?
 
+        self.P_el = 0
+
+    def get_init_attrs(self):
+        return list(vars(self).keys())
 
 class CHPInputs():
     """Inputs variables to the CHP for each time step"""
@@ -69,6 +74,9 @@ class CHPInputs():
 
         # self.temp_out = None
         # """The output temperature flowing out of the CHP (in °C)"""
+
+    def get_init_attrs(self):
+        return dir(self) #Since slots used here!
         
 class CHP:  # Defining the HeatPumpModel class
     """

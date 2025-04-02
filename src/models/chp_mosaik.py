@@ -19,6 +19,21 @@ META = {
 }
 
 
+#A dummy class object returns all the attributes to be added in the META dict.
+dummy_params_chp = {'eff_el': 0.54,
+            'nom_P_th': 92_000,
+            'mdot': 4.0,
+            'startup_coeff' : [-2.63, 3.9, 0.57], #coefficients to model the startup behaviour, in the order : Intercept, x,x^2,x^3...
+            'eta' : 0.5897, # fuel efficiency of chp, from datasheet.
+            'hv' : None
+            }
+
+dummy_obj = CHP(dummy_params_chp)
+auto_attrs = dummy_obj.inputs.get_init_attrs()
+auto_attrs_2 = dummy_obj.state.get_init_attrs()
+
+META['models']['CHP']['attrs'] = auto_attrs + auto_attrs_2
+
 class CHPSimulator(mosaik_api.Simulator):
     def __init__(self):
         super().__init__(META)
