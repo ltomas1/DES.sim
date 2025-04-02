@@ -17,7 +17,7 @@ console_handler.setLevel(logging.INFO)
 logger_controller.addHandler(file_handler_controller)
 #----------------------------------------------------------------------------------------------------------------------------#
 
-
+import pandas as pd
 
 class Controller():
     """
@@ -55,6 +55,7 @@ class Controller():
     def __init__(self, params):
 
         self.T_hp_sp_winter = params.get('T_hp_sp_winter')
+        self.T_hp_sp_summer = params.get('T_hp_sp_summer')
         self.T_hp_sp_surplus = params.get('T_hp_sp_surplus')
         self.T_hr_sp_hwt = params.get('T_hr_sp_hwt', None)
         # self.T_hr_sp_chp = params.get('T_hr_sp_chp', None)
@@ -109,12 +110,16 @@ class Controller():
         # self.chp_on_fraction = None          # The fraction of the time step for which the CHP is on
         self.chp_uptime = None              #Time since startup of chp
         
-        self.bottom_layer_Tank0 = None       # The temperature of the bottom layer of the hot water tank 0 (in °C)
-        self.bottom_layer_Tank2 = None      # The temperature of the bottom layer of the hot water tank 2 (in °C)
-        self.top_layer_Tank1 = None             # The temperature of the top layer of the hot water tank 1 (in °C)
-        self.top_layer_Tank2 = None              # top layer of tank 2
-        self.T_mean_hwt = None              # The mean temperature of the hot water tank (in °C)
-        self.hwt_mass = None                # The total mass of water inside the hot water tank (kg)
+        self.bottom_layer_Tank0 = 0       # The temperature of the bottom layer of the hot water tank 0 (in °C)
+        self.middle_layer_Tank0 = 0        # temp of middle layer of the first hot water tank.
+        self.top_layer_Tank0 = 0
+        self.bottom_layer_Tank2 = 0      # The temperature of the bottom layer of the hot water tank 2 (in °C)
+        self.middle_layer_Tank1 = 0
+        self.top_layer_Tank1 = 0             # The temperature of the top layer of the hot water tank 1 (in °C)
+        self.top_layer_Tank2 = 0              # top layer of tank 2
+        self.middle_layer_Tank2 = 0
+        self.T_mean_hwt = 0              # The mean temperature of the hot water tank (in °C)
+        self.hwt_mass = 0                # The total mass of water inside the hot water tank (kg)
 
         self.hwt_hr_P_th_set = None         # The heat demand for the in built heating rod of the hot water tank (in W)
 
@@ -169,9 +174,16 @@ class Controller():
 
         self.hwt2_hr_1 = 0
 
+        self.timestamp = None
+        self.hp_overdrive = False
+
+        self.attr_list = list(vars(self).keys())
+
         
 
-
+    def get_init_attrs(self):
+        return self.attr_list
+    
     def step(self, time):
         """Perform simulation step with step size step_size"""
 
@@ -198,7 +210,22 @@ class Controller():
         if self.tes0_hp_out_F is None :
             self.tes0_hp_out_F = 0
         
+        self.timestamp = pd.to_datetime(self.timestamp)
+        
+        if self.timestamp.month <= 6 and self.timestamp.month >= 8 :
+            self.season = 'summer'
+        elif self.timestamp.month: #just checking if timestamp exists and month is a valid value.
+            self.season = 'winter'
+        else:
+            self.season = None
 
+        if self.timestamp.hour <= 18 and self.timestamp.hour >= 8:
+            self.isday = True
+        elif self.timestamp.hour:
+            self.isday = False
+        else:
+            self.isday = None
+        
         # Calculate the mass flows, temperatures and heat from back up heater for the SH circuit
         self.calc_heat_supply(self.config)
 
@@ -217,22 +244,67 @@ class Controller():
             #Datasheet logic control
             if self.control_strategy == '1':
                                 
-                if self.bottom_layer_Tank0 < self.T_hp_sp_surplus: #Turns on only when below threshold of 35 degrees.
+                
+                #-------------------Heat pump----------------
+                if self.season == 'winter':
+
+                    if self.middle_layer_Tank1 < self.T_hp_sp_winter: #Turns on only when below threshold of 35 degrees.
+                        
+                        self.hp_status = 'on'
+                        
+                    if self.hp_status == 'on' and self.isday: # Hp runs until upper threshold achieved.
+                        if self.bottom_layer_Tank0 < self.T_hp_sp_winter:
+                            self.hp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_winter - self.bottom_layer_Tank0) / self.step_size
+                        
+                        elif self.hp_overdrive and self.bottom_layer_Tank0 < self.T_hp_sp_surplus:
+                            self.hp_demand =  self.hwt_mass * 4184 * (self.T_hp_sp_surplus - self.bottom_layer_Tank0) / self.step_size
+                        
+                        else:
+                            self.hp_demand = 0
+                            self.hp_status = 'off'
+                    elif self.isday == False:
+                        if self.top_layer_Tank0 < self.T_hp_sp_winter:
+                            self.hp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_winter - self.top_layer_Tank0) / self.step_size
+                        
+                        elif self.hp_overdrive and self.bottom_layer_Tank0 < self.T_hp_sp_surplus:
+                            self.hp_demand =  self.hwt_mass * 4184 * (self.T_hp_sp_surplus - self.bottom_layer_Tank0) / self.step_size
+                        
+                        else:
+                            self.hp_demand = 0
+                            self.hp_status = 'off'      
                     
-                    self.hp_status = 'on'
-                    
-                if self.hp_status == 'on': # Hp runs until upper threshold achieved.
-                    if self.bottom_layer_Tank0 < self.T_hp_sp_winter:
-                        self.hp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_winter - self.bottom_layer_Tank0) / self.step_size
                     else:
                         self.hp_demand = 0
-                        self.hp_status = 'off'
-                else:
-                    self.hp_demand = 0
 
-                if self.hp_status == None:
-                    self.hp_status = 'off'
+                if self.season == 'summer':
+
+                    if self.middle_layer_Tank2 < self.T_hp_sp_summer: #Turns on only when below threshold of 35 degrees.
+                        
+                        self.hp_status = 'on'
+                        
+                    if self.hp_status == 'on' and self.isday: # Hp runs until upper threshold achieved.
+                        if self.bottom_layer_Tank0 < self.T_hp_sp_summer:
+                            self.hp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_summer - self.bottom_layer_Tank0) / self.step_size
+                                                
+                        else:
+                            self.hp_demand = 0
+                            self.hp_status = 'off'
                     
+                    elif self.isday == False:
+                        if self.middle_layer_Tank1 < self.T_hp_sp_summer:
+                            self.hp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_summer - self.middle_layer_Tank1) / self.step_size
+                        
+                        else:
+                            self.hp_demand = 0
+                            self.hp_status = 'off'      
+                    
+                    else:
+                        self.hp_demand = 0
+                
+                if self.hp_status == None:
+                        self.hp_status = 'off'
+                    
+                #--------------------CHP----------------
                 if self.top_layer_Tank2 < self.T_dhw_sp: #i.e high heat demand
                     self.chp_status = 'on'
                     
@@ -251,6 +323,7 @@ class Controller():
                     
                     self.chp_demand = 0
                 
+                #-----------------Boiler------------------
                 #If the CHP is not able to keep up :
                 # Data transfer only at end of step, so this ensures, dt incremented after one step of chp.
                 if self.top_layer_Tank2 < self.T_dhw_sp and self.chp_uptime > 0: 
@@ -517,3 +590,5 @@ class Controller():
 
             setattr(self, sh_out+'_T', self.sh_out_T)
             setattr(self, dhw_out+'_T', self.dhw_out_T)
+
+    

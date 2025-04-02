@@ -32,6 +32,27 @@ db_attrs = ['heat_supply', 'heat_demand', 'hp_supply', 'chp_supply', 'sh_demand'
 boiler_attrs = ['boiler_demand', 'boiler_mdot', 'boiler_supply', 'boiler_status', 'dt', 'boiler_uptime']
 
 
+dummy_params_ctrl = {
+    'T_hp_sp_winter': None,
+    'T_hp_sp_surplus': None,
+    'T_chp_h' : None,
+    'T_dhw_sp': None,
+    'T_dhw_buffer': None,
+    'heat_rT' : None,
+    'operation_mode': 'heating',
+    'control_strategy': '1',
+    # 'hr_mode' : 'off',
+    'supply_config' : '3-runner',
+    'sh_out' : 'None',         #0 for first tank, 1 for 2nd tank...
+    'dhw_out' : 'None',
+    'boiler_mode': 'on',
+    'step_size' : None,
+    'params_hwt': None
+}
+
+dummy_obj = Controller(dummy_params_ctrl)
+auto_attrs = dummy_obj.get_init_attrs()
+
 class ControllerSimulator(mosaik_api.Simulator):
     def __init__(self):
         super().__init__(META)
@@ -55,7 +76,7 @@ class ControllerSimulator(mosaik_api.Simulator):
         self.step_size = step_size
         if same_time_loop:
             self.meta['type'] = 'event-based'
-        self.meta['models']['Controller']['attrs'] += hp_attrs + chp_attrs + hwt_attrs + db_attrs + boiler_attrs
+        self.meta['models']['Controller']['attrs'] += hp_attrs + chp_attrs + hwt_attrs + db_attrs + boiler_attrs + auto_attrs
         return self.meta
 
     def create(self, num, model, params=None):

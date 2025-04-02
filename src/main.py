@@ -101,6 +101,7 @@ init_vals_hwt2 = {
 # Parameters for controller model
 params_ctrl = {
     'T_hp_sp_winter': 50,
+    'T_hp_sp_summer': 67,
     'T_hp_sp_surplus': 67,
     'T_chp_h' : 65,
     'T_dhw_sp': 65,
@@ -163,7 +164,7 @@ def run_DES():
     world = mosaik.World(sim_config)
 
     START = '2022-01-01 00:00:00'
-    END =  30*24*60*60 # one year in seconds.
+    END =  365*24*60*60 # one year in seconds.
     
     # parameters for pv model
     # LAT = 32.0
@@ -231,7 +232,8 @@ def run_DES():
 
     # Connect entities
 
-    world.connect(heat_load[0], ctrls[0], 'T_amb', ('Heat Demand [kW]', 'heat_demand'), ('Domestic hot water (kW)' ,  'dhw_demand'), ('Space heating (kW)', 'sh_demand'))
+    world.connect(heat_load[0], ctrls[0], 'T_amb', ('Heat Demand [kW]', 'heat_demand'), ('Domestic hot water (kW)' ,  'dhw_demand'), ('Space heating (kW)', 'sh_demand')
+                  , ('Timestamp', 'timestamp'))
     world.connect(ctrls[0], csv_debug, 'tes0_heat_out_F', 'tes0_heat_in_F', 'tes0_hp_out_F',
                 'hp_in_F', 'tes1_hp_out_F'
                 )
@@ -239,8 +241,8 @@ def run_DES():
     """__________________________________________ hwts ___________________________________________________________________""" 
 
     world.connect(hwts0[0], ctrls[0], ('heat_out.T', 'tes0_heat_out_T'), 
-                ('hp_out.T', 'hp_out_T'), ('sensor_00.T', 'bottom_layer_Tank0'), ('heat_out2.T','tes0_heat_out2_T'),
-                ('heat_out2.F', 'tes0_heat_out2_F'),
+                ('hp_out.T', 'hp_out_T'), ('sensor_00.T', 'bottom_layer_Tank0'), ('heat_out2.T','tes0_heat_out2_T'), ('sensor_01.T', 'middle_layer_Tank0'),
+                ('heat_out2.F', 'tes0_heat_out2_F'), ('sensor_02.T', 'top_layer_Tank0'),
                 time_shifted=True, initial_data={'heat_out.T':0, 'hp_out.T':0, 'sensor_00.T':0, 'heat_out2.T' : 0, 'heat_out2.F':0}
                 )
 
@@ -255,7 +257,7 @@ def run_DES():
                 ('T_mean', 'T_mean_hwt'), ('mass', 'hwt_mass'),
                 ('sensor_02.T', 'top_layer_Tank1'),
                 ('hp_out.T', 'tes1_hp_out_T'), ('heat_out2.T','tes1_heat_out2_T'),
-                ('heat_out2.F', 'tes1_heat_out2_F'),
+                ('heat_out2.F', 'tes1_heat_out2_F'), ('sensor_01.T', 'middle_layer_Tank1'),
                 time_shifted=True, initial_data={
                     'heat_out.T':0, 'heat_out2.T':0,'T_mean':0, 'mass':0, 
                     'sensor_02.T':0, 'hp_out.T':0}
@@ -276,7 +278,7 @@ def run_DES():
 
     world.connect(hwts2[0], ctrls[0], ('heat_out.T', 'tes2_heat_out_T'), ('chp_out.T', 'chp_out_T'),
                 ('heat_out.F', 'tes2_heat_out_F'), ('sensor_00.T', 'bottom_layer_Tank2'), ('sensor_02.T', 'top_layer_Tank2'), ('heat_out2.T','tes2_heat_out2_T'),
-                ('heat_out2.F', 'tes2_heat_out2_F'))
+                ('heat_out2.F', 'tes2_heat_out2_F'), ('sensor_01.T', 'middle_layer_Tank2'))
  
  
     """__________________________________________Boiler_______________________________________________________________________"""
