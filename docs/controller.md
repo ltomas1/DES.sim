@@ -28,6 +28,6 @@ The CHP is turned on when the top layer of the third storage tank is below the u
 The Gas boiler is turned on if the temperature of the top layer of third storage tank is below *T_sp_h* for more than *10 mins* **(dt)**.   The gas boiler runs in conjuction with the CHP until the bottom layer of the third tanks is above the upper threshold temperature, *T_sp_h*.
  
 
-![Flowchart](<Controller logic.png>)
+![Flowchart](<Controller logic_2.png>)
 
 

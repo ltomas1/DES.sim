@@ -212,7 +212,7 @@ class Controller():
         
         self.timestamp = pd.to_datetime(self.timestamp)
         
-        if self.timestamp.month <= 6 and self.timestamp.month >= 8 :
+        if self.timestamp.month <= 8 and self.timestamp.month >= 6 :
             self.season = 'summer'
         elif self.timestamp.month: #just checking if timestamp exists and month is a valid value.
             self.season = 'winter'
