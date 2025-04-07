@@ -159,12 +159,24 @@ def run_DES():
 
     }
 
-
     # Create World
     world = mosaik.World(sim_config)
-
     START = '2022-01-01 00:00:00'
-    END =  365*24*60*60 # one year in seconds.
+    END =  365*24*60*60 # one year in seconds.    
+    # -----------------------------------------pv---------------------------------------
+
+    pvlib_model.sim()
+    pv_results = os.path.abspath(os.path.join(os.path.dirname( __file__ ),'PVlib_output.csv')) 
+    pv_csv = world.start('CSV', sim_start = START, datafile = pv_results)
+
+    pv_mod = pv_csv.Data.create(1)
+
+
+    
+    #----------------------------------------pv_end---------------------------------------
+    
+
+
     
     # parameters for pv model
     # LAT = 32.0
@@ -195,7 +207,7 @@ def run_DES():
     # meteo_sim = world.start("CSV", sim_start=START, datafile=METEO_DATA) # pvlib (takes 13:16 minutes for 1 year)
 
     # Input data csv
-    HEAT_LOAD_DATA = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'data', 'inputs', 'Input_kfw55_2.csv'))
+    HEAT_LOAD_DATA = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'data', 'inputs', 'Input_kfw55_2_el.csv'))
     # configure the simulator
     csv = world.start('CSV', sim_start=START, datafile=HEAT_LOAD_DATA)
     # Instantiate model
@@ -233,7 +245,9 @@ def run_DES():
     # Connect entities
 
     world.connect(heat_load[0], ctrls[0], 'T_amb', ('Heat Demand [kW]', 'heat_demand'), ('Domestic hot water (kW)' ,  'dhw_demand'), ('Space heating (kW)', 'sh_demand')
-                  , ('Timestamp', 'timestamp'))
+                  , ('Timestamp', 'timestamp'), ('offset_Electricy demand[kW]', 'pred_el_demand'))
+    world.connect(pv_mod[0], ctrls[0], ('Power[w]', 'pv_gen'))
+
     world.connect(ctrls[0], csv_debug, 'tes0_heat_out_F', 'tes0_heat_in_F', 'tes0_hp_out_F',
                 'hp_in_F', 'tes1_hp_out_F'
                 )
@@ -301,7 +315,7 @@ def run_DES():
     world.connect(chp[0], hwts2[0], ('temp_out', 'chp_in.T'), ('mdot','chp_in.F'), ('mdot_neg', 'chp_out.F'),
                     time_shifted=True, initial_data={'temp_out': 20, 'mdot':0, 'mdot_neg':0})
 
-    world.connect(chp[0], ctrls[0], ('P_th', 'chp_supply'), ('chp_uptime', 'chp_uptime'),
+    world.connect(chp[0], ctrls[0], ('P_th', 'chp_supply'), ('chp_uptime', 'chp_uptime'), ('P_el', 'chp_el'),
                 ('mdot', 'chp_mdot')) 
 
     world.connect(ctrls[0], chp[0], ('chp_demand', 'Q_Demand'), ('chp_status' , 'chp_status'),
@@ -311,7 +325,7 @@ def run_DES():
 
     """__________________________________________ heat pump ___________________________________________________________________""" 
 
-    world.connect(heatpump[0], ctrls[0], ('Q_Supplied', 'hp_supply'), ('on_fraction', 'hp_on_fraction'),
+    world.connect(heatpump[0], ctrls[0], ('Q_Supplied', 'hp_supply'), ('on_fraction', 'hp_on_fraction'), ('P_Required', 'HP_P_Required'),
                 ('cond_m', 'hp_cond_m'))
 
     world.connect(ctrls[0], heatpump[0], ('hp_demand', 'Q_Demand'),
@@ -374,7 +388,7 @@ def run_DES():
     world.connect(ctrls[0], csv_writer, 'heat_demand', 'heat_supply', 'hp_demand', 'hp_supply',
                 'chp_demand', 'chp_supply', 'sh_supply', 'dhw_supply',
                 'heat_in_F', 'heat_in_T', 'heat_out_F', 'heat_out_T', 
-                'chp_in_F', 'chp_in_T', 'chp_out_F', 'chp_out_T',
+                'chp_in_F', 'chp_in_T', 'chp_out_F', 'chp_out_T', 'pv_gen',
                 'hp_out_F', 'hp_out_T', 'P_hr', 'dt', 'boiler_demand', 'chp_uptime')
 
     world.connect(hwts0[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
@@ -427,7 +441,7 @@ if __name__ == "__main__":
     # p2.start()
     # p1.start()
     run_DES()
-    pvsim()
+    # pvsim()
 # cProfile.run('run_DES()', 'profile_output') 
 # p = pstats.Stats('profile_output')
 
