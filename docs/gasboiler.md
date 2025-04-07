@@ -1,6 +1,6 @@
 # Gas Boiler
-The CHP model builds on top of the mosaik heat pump model. The base file *chp_mosaik.py* handles the scheduling and contains the other required mosaik methods.  
-*gasboiler_model.py* details the functioning of the chp model.
+The gas boiler model builds on top of the mosaik heat pump model. The base file *gas boiler_mosaik.py* handles the scheduling and contains the other required mosaik methods.  
+*gasboiler_model.py* details the functioning of the gas boiler model.
 
 # Parameters
 The gas boiler model accepts 5 parameters.
@@ -11,8 +11,8 @@ params_boiler = {'eta' : 0.98, 'hv' : HV,
                      }
 ~~~
 
-- ***eta*** : Thermal efficiency of the CHP plant.
-- ***hv*** : Lower Heating value of the fuel being used in the CHP.
+- ***eta*** : Thermal efficiency of the gas boiler plant.
+- ***hv*** : Lower Heating value of the fuel being used in the gas boiler.
 - ***cp***(*optional*) : The specific heat capacity of medium can also be specified, defaults to 4184 J/kgK.
 - ***nom_P_th*** : The power output of the gas boiler in Watts.
 - ***Set_Temp*** : The setpoint temperature of the boiler output (in degree C).
