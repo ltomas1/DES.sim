@@ -66,6 +66,7 @@ class Controller():
         self.control_strategy = params.get('control_strategy', '1')
         self.hr_mode = params.get('hr_mode', 'off').lower()
         self.T_chp_h = params.get('T_chp_h')
+        self.T_dhw_buffer = params.get('T_dhw_buffer', 5)
 
         self.config = params.get('supply_config')
         self.sh_out = params.get('sh_out')  #Tank which serves as the Output connection for space heating
@@ -305,7 +306,7 @@ class Controller():
                         self.hp_status = 'off'
                     
                 #--------------------CHP----------------
-                if self.top_layer_Tank2 < self.T_dhw_sp: #i.e high heat demand
+                if self.top_layer_Tank2 < self.T_dhw_sp + self.T_dhw_buffer: #i.e high heat demand
                     self.chp_status = 'on'
                     
                 
