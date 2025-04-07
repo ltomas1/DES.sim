@@ -18,6 +18,7 @@ logger_controller.addHandler(file_handler_controller)
 #----------------------------------------------------------------------------------------------------------------------------#
 
 import pandas as pd
+from tqdm import tqdm
 
 class Controller():
     """
@@ -175,8 +176,14 @@ class Controller():
 
         self.hwt2_hr_1 = 0
 
+        self.pv_gen = None
+        self.chp_el = None  #The electricity generation from the chp
+        self.HP_P_Required = None #The power requirement of the heat pump
+
+        self.pred_el_demand = None #The predicted/future electricity demand.
+        
         self.timestamp = None
-        self.hp_overdrive = False
+        self.hp_surplus = False
 
         self.attr_list = list(vars(self).keys())
 
@@ -227,10 +234,19 @@ class Controller():
         else:
             self.isday = None
         
+        # ------------------HP surplus mode def-----------------------------------------
+        
+        self.pv_gen *= 1000  #converting from kW to W
+        
+        # if surplus electricity generation:
+        if (self.pv_gen + self.chp_el - self.pred_el_demand) > 1 : 
+            self.hp_surplus = True
+        #----------------------------------------------------------------------
         # Calculate the mass flows, temperatures and heat from back up heater for the SH circuit
         self.calc_heat_supply(self.config)
 
-        # Calculate the heat supply of the heating rods
+        # --------------------------------------------------Inbuilt heating rods P required------------------
+
         # self.tankLayer_volume = 3.14 * self.params_hwt['height'] * (self.params_hwt['diameter']/2e3)**2  #height is in mm, so H/10^3 * density 1000kg/m3; so density omitted here!
         self.tankLayer_mass = self.params_hwt['volume'] * 1 / self.params_hwt['n_layers'] #1L = 1Kg
         
@@ -240,7 +256,7 @@ class Controller():
 
         self.hwt1_hr_1, self.hwt0_hr_1 = 0,0 
 
-        # Control strategies for the operation of heat pump in heating mode
+        # ------------------------------------------Control strategies for the operation of heat pump in heating mode
         if self.operation_mode.lower() == 'heating':
             #Datasheet logic control
             if self.control_strategy == '1':
@@ -257,7 +273,7 @@ class Controller():
                         if self.bottom_layer_Tank0 < self.T_hp_sp_winter:
                             self.hp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_winter - self.bottom_layer_Tank0) / self.step_size
                         
-                        elif self.hp_overdrive and self.bottom_layer_Tank0 < self.T_hp_sp_surplus:
+                        elif self.hp_surplus and self.bottom_layer_Tank0 < self.T_hp_sp_surplus:
                             self.hp_demand =  self.hwt_mass * 4184 * (self.T_hp_sp_surplus - self.bottom_layer_Tank0) / self.step_size
                         
                         else:
@@ -267,8 +283,9 @@ class Controller():
                         if self.top_layer_Tank0 < self.T_hp_sp_winter:
                             self.hp_demand = self.hwt_mass * 4184 * (self.T_hp_sp_winter - self.top_layer_Tank0) / self.step_size
                         
-                        elif self.hp_overdrive and self.bottom_layer_Tank0 < self.T_hp_sp_surplus:
+                        elif self.hp_surplus and self.bottom_layer_Tank0 < self.T_hp_sp_surplus:
                             self.hp_demand =  self.hwt_mass * 4184 * (self.T_hp_sp_surplus - self.bottom_layer_Tank0) / self.step_size
+                            # tqdm.write(f'       In surplus mode! Time :{time}') #Prints without interrupting progress bar.
                         
                         else:
                             self.hp_demand = 0
