@@ -162,7 +162,7 @@ def run_DES():
     # Create World
     world = mosaik.World(sim_config)
     START = '2022-01-01 00:00:00'
-    END =  365*24*60*60 # one year in seconds.    
+    END =  30*24*60*60 # one year in seconds.    
     # -----------------------------------------pv---------------------------------------
 
     pvlib_model.sim()
