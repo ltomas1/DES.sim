@@ -21,24 +21,43 @@ def sim():
 
     temperature_model_parameters = pvlib.temperature.TEMPERATURE_MODEL_PARAMETERS['sapm']['open_rack_glass_glass']
 
-    # df, metadata = pvlib.iotools.read_tmy3(r"C:\INES\GitHub\des_sim\data\inputs\Braunschweig_meteodata_2022_15min.csv")
-    raw = pd.read_csv(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'data', 'inputs', 'Braunschweig_meteodata_2022_15min.csv'))
-                      , sep = ',', skiprows = 1, index_col=0)
-
     for loc in coordinates:
         latitude, longitude, name, altitude, timezone = loc
+    
+    
+    # df, metadata = pvlib.iotools.read_tmy3(r"C:\INES\GitHub\des_sim\data\inputs\Braunschweig_meteodata_2022_15min.csv")
+    # raw = pd.read_csv(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'data', 'inputs', 'Braunschweig_meteodata_2022_15min.csv'))
+    #                   , sep = ',', skiprows = 1, index_col=0)
+
+
+    # weather = pd.DataFrame({
+    #     'ghi' : raw['GlobalRadiation'],
+    #     'dni' : raw['DirectNormalRad'],
+    #     'dhi' : raw['DiffRadiation'],
+    #     'temp_air' : raw['AirTemperature'],
+    #     'wind_speed' : raw['WindSpeed']
+    # })
+    # --------------------------npro weather-----------------------------------------
+    raw = pd.read_excel(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'data', 'inputs', '2025-04-07-Project1-weather.xlsx'))
+                      , skiprows = 12, index_col='Time', usecols=[1,2,3,4,5,6])
 
     weather = pd.DataFrame({
-        'ghi' : raw['GlobalRadiation'],
-        'dni' : raw['DirectNormalRad'],
-        'dhi' : raw['DiffRadiation'],
-        'temp_air' : raw['AirTemperature'],
-        'wind_speed' : raw['WindSpeed']
+        'ghi' : raw['Global horizontal irradiance (W/m²)'],
+        'dni' : raw['Direct normal irradiance (W/m²)'],
+        'dhi' : raw['Horizontal infrared radiation (W/m²)'],
+        'temp_air' : raw['Air temperature (°C)'],
+        'wind_speed' : raw['Wind speed (m/s)']
     })
-    weather.index = pd.to_datetime(raw.index)
+
+    
+    weather.index = pd.to_datetime(raw.index, format = "%d.%m. %H:%M")
     weather.index = weather.index.tz_localize(timezone)
     weather.index.name=None
 
+    weather.index = weather.index.map(lambda x:x.replace(year = 2022))
+
+    weather = weather.resample('15min').interpolate(method='linear')
+    
 
     from pvlib.pvsystem import PVSystem, Array, FixedMount
     from pvlib.modelchain import ModelChain
@@ -78,7 +97,7 @@ def sim():
     weather.to_csv('PVlib_output.csv')
     print('PVlib simulation finished!')
 
-# sim()
+sim()
 
 # %%
 def _normalize_sam_product_names(names):
