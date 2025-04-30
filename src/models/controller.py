@@ -67,6 +67,7 @@ class Controller():
         self.control_strategy = params.get('control_strategy', '1')
         self.hr_mode = params.get('hr_mode', 'off').lower()
         self.T_chp_h = params.get('T_chp_h')
+        self.boiler_delay = params.get('boiler_delay')
         self.T_dhw_buffer = params.get('T_dhw_buffer', 5)
 
         self.config = params.get('supply_config')
@@ -350,7 +351,7 @@ class Controller():
                     self.dt = 0
                 
                 #! what does this mean? why are we looking at the tank1 top temp?
-                if self.dt > 10 * 60 and self.top_layer_Tank2 < self.T_dhw_sp and self.boiler_mode == 'on':
+                if self.dt > self.boiler_delay and self.top_layer_Tank2 < self.T_dhw_sp and self.boiler_mode == 'on':
                      self.boiler_status = 'on'
                     
                 

@@ -14,6 +14,9 @@ import pstats
 
 from multiprocessing import Process
 
+import json
+from datetime import datetime
+
 #setup the logger
 setup_logging()
 logger = logging.getLogger("mosaik_logger")
@@ -100,7 +103,7 @@ init_vals_hwt2 = {
 
 # Parameters for controller model
 params_ctrl = {
-    'T_hp_sp_winter': 50,
+    'T_hp_sp_winter': 51,
     'T_hp_sp_summer': 67,
     'T_hp_sp_surplus': 67,
     'T_chp_h' : 65,
@@ -114,9 +117,46 @@ params_ctrl = {
     'sh_out' : '1',         #0 for first tank, 1 for 2nd tank...
     'dhw_out' : '2',
     'boiler_mode': 'on',
+    'boiler_delay' : 10 * 60, #the time after which the boiler is turned on to assist chp.
     'step_size' : STEP_SIZE,
     'params_hwt': params_hwt
 }
+
+export_json = {
+    'hp' : params_hp,
+    'chp' : params_chp,
+    'boiler' : params_boiler,
+    'ctrl' : params_ctrl,
+    'tank' : params_hwt
+    
+}
+
+def export2json(params_dict):
+    filename = os.path.join(OUTPUT_PATH, 'params.json')
+    with open(filename, 'w') as f:
+        json.dump(params_dict, f)
+
+def generatePrefix(current_params) :
+    filename = os.path.join(OUTPUT_PATH, 'params.json')
+    prefix = ''
+    if not os.path.exists(filename):
+        prefix += '_'
+        return prefix
+ 
+    with open(filename, 'r') as f:
+        old_params = json.load(f)
+
+    for comp, prms in current_params.items():
+        for key, val in prms.items():
+            if old_params[comp][key] != val:
+                if type(val) == float or type(val) == int:               
+                    diff = val - old_params[comp][key] if old_params[comp][key] is not None else val
+                    prefix += f"{key}+{diff}_"
+
+                else :
+                    prefix += str(key) + '~' + str(val)+ '_'
+
+    return prefix
 
 def run_DES():
     sim_config = {
@@ -162,7 +202,7 @@ def run_DES():
     # Create World
     world = mosaik.World(sim_config)
     START = '2022-01-01 00:00:00'
-    END =  365*24*60*60 # one year in seconds.    
+    END =  2*24*60*60 # one year in seconds.    
     # -----------------------------------------pv---------------------------------------
 
     pvlib_model.sim()
@@ -213,9 +253,11 @@ def run_DES():
     # Instantiate model
 
     # Output data storage
+    prefix = generatePrefix(export_json)
+    
     # configure the simulator
     csv_sim_writer = world.start('CSV_writer', start_date= START, date_format='%Y-%m-%d %H:%M:%S',
-                                output_file=OUTPUT_PATH+'/DES_data.csv')
+                                output_file=OUTPUT_PATH+f'/{prefix}DES_data.csv')
 
     csv_debug_writer = world.start('CSV_writer', start_date='2022-01-01 00:00:00', date_format='%Y-%m-%d %H:%M:%S',
                                 output_file='utils/debug.csv')
@@ -415,7 +457,6 @@ def run_DES():
     """__________________________________________ world run ______________________________________________________________"""
 
     
-    
     # To start heatpump as first simulator
     world.set_initial_event(heatpump[0].sid)
     
@@ -441,6 +482,7 @@ if __name__ == "__main__":
     # p2.start()
     # p1.start()
     run_DES()
+    export2json(export_json)
     # pvsim()
 # cProfile.run('run_DES()', 'profile_output') 
 # p = pstats.Stats('profile_output')
