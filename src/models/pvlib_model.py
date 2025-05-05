@@ -97,7 +97,8 @@ def sim():
     weather.to_csv('PVlib_output.csv')
     print('PVlib simulation finished!')
 
-sim()
+if __name__ == "__main__":   
+    sim()
 
 # %%
 def _normalize_sam_product_names(names):
