@@ -1,0 +1,161 @@
+{
+    "hp": {
+        "hp_model": "Air_60kW",
+        "heat_source": "Air",
+        "calc_mode": "fast"
+    },
+    "chp": {
+        "eff_el": 0.54,
+        "nom_P_th": 92000,
+        "mdot": 4.0,
+        "startup_coeff": [
+            -2.63,
+            3.9,
+            0.57
+        ],
+        "eta": 0.5897,
+        "hv": 10833.3
+    },
+    "boiler": {
+        "eta": 0.98,
+        "hv": 10833.3,
+        "nom_P_th": [
+            0,
+            74000,
+            148000,
+            222000,
+            296000,
+            370000
+        ],
+        "Set_Temp": 75
+    },
+    "ctrl": {
+        "T_hp_sp_winter": 50,
+        "T_hp_sp_summer": 67,
+        "T_hp_sp_surplus": 67,
+        "T_chp_h": 65,
+        "T_dhw_sp": 65,
+        "T_dhw_buffer": 5,
+        "heat_rT": 35,
+        "operation_mode": "heating",
+        "control_strategy": "1",
+        "supply_config": "3-runner",
+        "sh_out": "1",
+        "dhw_out": "2",
+        "boiler_mode": "on",
+        "boiler_delay": 600,
+        "step_size": 900,
+        "params_hwt": {
+            "height": 2500,
+            "volume": 5000,
+            "T_env": 20.0,
+            "htc_walls": 0.28,
+            "htc_layers": 0.897,
+            "n_layers": 3,
+            "n_sensors": 3,
+            "connections": {
+                "heat_in": {
+                    "pos": 150
+                },
+                "heat_out": {
+                    "pos": 2350
+                },
+                "chp_in": {
+                    "pos": 2300
+                },
+                "chp_out": {
+                    "pos": 50
+                },
+                "hp_in": {
+                    "pos": 2200
+                },
+                "hp_out": {
+                    "pos": 100
+                },
+                "boiler_in": {
+                    "pos": 2400
+                },
+                "boiler_out": {
+                    "pos": 120
+                },
+                "heat_out2": {
+                    "pos": 2400
+                },
+                "heat_in2": {
+                    "pos": 200
+                }
+            },
+            "heating_rods": {
+                "hr_1": {
+                    "mode": "on",
+                    "pos": 2200,
+                    "P_th_stages": [
+                        0,
+                        500,
+                        1000,
+                        2000,
+                        10000
+                    ],
+                    "T_max": 67,
+                    "eta": 1
+                }
+            }
+        }
+    },
+    "tank": {
+        "height": 2500,
+        "volume": 5000,
+        "T_env": 20.0,
+        "htc_walls": 0.28,
+        "htc_layers": 0.897,
+        "n_layers": 3,
+        "n_sensors": 3,
+        "connections": {
+            "heat_in": {
+                "pos": 150
+            },
+            "heat_out": {
+                "pos": 2350
+            },
+            "chp_in": {
+                "pos": 2300
+            },
+            "chp_out": {
+                "pos": 50
+            },
+            "hp_in": {
+                "pos": 2200
+            },
+            "hp_out": {
+                "pos": 100
+            },
+            "boiler_in": {
+                "pos": 2400
+            },
+            "boiler_out": {
+                "pos": 120
+            },
+            "heat_out2": {
+                "pos": 2400
+            },
+            "heat_in2": {
+                "pos": 200
+            }
+        },
+        "heating_rods": {
+            "hr_1": {
+                "mode": "on",
+                "pos": 2200,
+                "P_th_stages": [
+                    0,
+                    500,
+                    1000,
+                    2000,
+                    10000
+                ],
+                "T_max": 67,
+                "eta": 1
+            }
+        }
+    }
+}

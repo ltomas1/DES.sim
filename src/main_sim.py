@@ -7,7 +7,7 @@ import nest_asyncio
 nest_asyncio.apply()
 
 import logging
-from utils.setup_logging import setup_logging
+# from utils.setup_logging import setup_logging
 
 import cProfile
 import pstats
@@ -16,19 +16,20 @@ from multiprocessing import Process
 
 import json
 from datetime import datetime
+import hashlib
 
 #setup the logger
-setup_logging()
+# setup_logging()
 logger = logging.getLogger("mosaik_logger")
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_PATH = os.path.join(current_dir, "..", 'data/outputs')
 sys.path.append(os.path.join(current_dir, ".."))
 
-from models import controller_mosaik
-from models import chp_mosaik
-from models import gasboiler_mosaik
-from models import pvlib_model
+from src.models import controller_mosaik
+from src.models import chp_mosaik
+from src.models import gasboiler_mosaik
+from src.models import pvlib_model
 #______________________________moved outside method, to be accessible from other scripts(visu.ipynb)
  
 STEP_SIZE = 60*15 # step size 15 minutes
@@ -103,7 +104,7 @@ init_vals_hwt2 = {
 
 # Parameters for controller model
 params_ctrl = {
-    'T_hp_sp_winter': 51,
+    'T_hp_sp_winter': 50,
     'T_hp_sp_summer': 67,
     'T_hp_sp_surplus': 67,
     'T_chp_h' : 65,
@@ -134,14 +135,15 @@ export_json = {
 def export2json(params_dict):
     filename = os.path.join(OUTPUT_PATH, 'params.json')
     with open(filename, 'w') as f:
-        json.dump(params_dict, f)
+        json.dump(params_dict, f, indent = 4)
 
 def generatePrefix(current_params) :
+    changes_dict = {}  #this dict will store the keys and their changes, could be exported with a unique key.
     filename = os.path.join(OUTPUT_PATH, 'params.json')
     prefix = ''
     if not os.path.exists(filename):
         prefix += '_'
-        return prefix
+        return prefix, changes_dict
  
     with open(filename, 'r') as f:
         old_params = json.load(f)
@@ -151,14 +153,25 @@ def generatePrefix(current_params) :
             if old_params[comp][key] != val:
                 if type(val) == float or type(val) == int:               
                     diff = val - old_params[comp][key] if old_params[comp][key] is not None else val
-                    prefix += f"{key}+{diff}_"
+                    prefix += f"{comp}.{key}+{diff}_"
+                    changes_dict[f'{comp}.{key}'] = diff
 
                 else :
                     prefix += str(key) + '~' + str(val)+ '_'
+                    changes_dict[f'{comp}.{key}'] = f'{old_params[comp][key]}~{val}'
+    return prefix, hash_encrypt(changes_dict)
 
-    return prefix
+def hash_encrypt(changes):
 
-def run_DES():
+    change_str = json.dumps(changes, sort_keys=True)
+    hash_str = hashlib.sha256(change_str.encode()).hexdigest()[:8]
+
+    # Optionally store the mapping for future lookup
+    with open(os.path.join(OUTPUT_PATH, f'{hash_str}_changes.json'), 'w') as f:
+        json.dump(changes, f, indent=4)
+    return hash_str
+
+def run_DES(params):
     sim_config = {
         'CSV': {
             'python': 'mosaik_csv:CSV',
@@ -199,10 +212,47 @@ def run_DES():
 
     }
 
+    sim_config_dis = {
+    'CSV': {
+        'cmd': 'python C:\\ProgramData\\anaconda3\\envs\\des_sim\\Lib\\site-packages\\mosaik_csv.py %(addr)s'
+    },
+    'CSV_writer': {
+        'cmd': 'python C:\\ProgramData\\anaconda3\\envs\\des_sim\\Lib\\site-packages\\mosaik_csv_writer.py %(addr)s',
+    },
+    'HeatPumpSim': {
+        'cmd': 'python C:\\ProgramData\\anaconda3\\envs\\des_sim\\Lib\\site-packages\\mosaik_components\\heatpump\\Heat_Pump_mosaik.py %(addr)s',
+    },
+    'HotWaterTankSim': {
+        'cmd': 'python C:\\ProgramData\\anaconda3\\envs\\des_sim\\Lib\\site-packages\\mosaik_components\\heatpump\\hotwatertank\\hotwatertank_mosaik.py %(addr)s',
+    },
+    'ControllerSim': {
+        'cmd': 'python models/controller_mosaik.py %(addr)s',
+    },
+    'CHPSim': {
+        'cmd': 'python models/chp_mosaik.py %(addr)s',
+    },
+    'PVSim': {
+        'cmd': 'python C:\\ProgramData\\anaconda3\\envs\\des_sim\\Lib\\site-packages\\mosaik_components\\pv\\pvsimulator.py %(addr)s',
+    },
+    'Boilersim': {
+        'cmd': 'python models/gasboiler_mosaik.py %(addr)s',
+    },
+}
+
+    
+    
+    
+    params_boiler = params['boiler']
+    params_hp = params['hp']
+    params_chp = params['chp']
+    params_ctrl = params['ctrl']
+    params_hwt = params['tank']
+
+
     # Create World
     world = mosaik.World(sim_config)
     START = '2022-01-01 00:00:00'
-    END =  2*24*60*60 # one year in seconds.    
+    END =  30*24*60*60 # one year in seconds.    
     # -----------------------------------------pv---------------------------------------
 
     pvlib_model.sim()
@@ -253,11 +303,11 @@ def run_DES():
     # Instantiate model
 
     # Output data storage
-    prefix = generatePrefix(export_json)
+    prefix, hash_prefix = generatePrefix(params)
     
     # configure the simulator
     csv_sim_writer = world.start('CSV_writer', start_date= START, date_format='%Y-%m-%d %H:%M:%S',
-                                output_file=OUTPUT_PATH+f'/{prefix}DES_data.csv')
+                                output_file=OUTPUT_PATH+f'/{hash_prefix}DES_data.csv')
 
     csv_debug_writer = world.start('CSV_writer', start_date='2022-01-01 00:00:00', date_format='%Y-%m-%d %H:%M:%S',
                                 output_file='utils/debug.csv')
@@ -466,6 +516,8 @@ def run_DES():
     #logger message
     logger.info("Scenario successfully simulated.") #It is possible to have different logger levels depending on how important the information of the logger is.
     # Levels are (debug, info, warning, error)
+
+    export2json(export_json) #Exporting current parameters to a json, to be available to compare in next iteration.
     
     #warning log
     # logger.warning("Result of the simulation is:" +str(result))
@@ -477,12 +529,15 @@ def pvsim():
     pvlib_model.sim()
 
 if __name__ == "__main__":  
-    # p1 = Process(target = run_DES(), args=())
-    # p2 = Process(target = pvsim())
-    # p2.start()
-    # p1.start()
-    run_DES()
-    export2json(export_json)
+   
+    # unpacking parameters from teh input json
+    filename = 'input_params.json'
+    path = os.path.join('..', 'data', 'inputs', filename)
+    with open(path, 'r') as f:
+        params = json.load(f)
+    
+    run_DES(params) #this will be executed only when this file is run directly.
+    
     # pvsim()
 # cProfile.run('run_DES()', 'profile_output') 
 # p = pstats.Stats('profile_output')
