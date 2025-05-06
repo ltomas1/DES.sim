@@ -35,111 +35,112 @@ from src.models import pvlib_model
 STEP_SIZE = 60*15 # step size 15 minutes
 HV = 10833.3 #Heating value of natural gas in Wh/m^3; standard cubic meter
 
-# Heat pump
-params_hp = {'hp_model': 'Air_60kW',
-                'heat_source': 'Air',
-                'calc_mode': 'fast'
-                }
+# # Heat pump
+# params_hp = {'hp_model': 'Air_60kW',
+#                 'heat_source': 'Air',
+#                 'calc_mode': 'fast'
+#                 }
 
-# CHP
-params_chp = {'eff_el': 0.54,
-            'nom_P_th': 92_000,
-            'mdot': 4.0,
-            'startup_coeff' : [-2.63, 3.9, 0.57], #coefficients to model the startup behaviour, in the order : Intercept, x,x^2,x^3...
-            'eta' : 0.5897, # fuel efficiency of chp, from datasheet.
-            'hv' : HV
-            }
+# # CHP
+# params_chp = {'eff_el': 0.54,
+#             'nom_P_th': 92_000,
+#             'mdot': 4.0,
+#             'startup_coeff' : [-2.63, 3.9, 0.57], #coefficients to model the startup behaviour, in the order : Intercept, x,x^2,x^3...
+#             'eta' : 0.5897, # fuel efficiency of chp, from datasheet.
+#             'hv' : HV
+#             }
 
-#Gas boiler
-params_boiler = {'eta' : 0.98, 'hv' : HV,
-                    'nom_P_th' : [0, 74000, 148000, 222000, 296000, 370000], #Operating points of boiler, in W
-                    'Set_Temp' : 75
-                    }
+# #Gas boiler
+# params_boiler = {'eta' : 0.98, 'hv' : HV,
+#                     'nom_P_th' : [0, 74000, 148000, 222000, 296000, 370000], #Operating points of boiler, in W
+#                     'Set_Temp' : 75
+#                     }
 
-# hot water tank
-params_hwt = {
-        'height': 2500,
-        'volume': 5000,
-        'T_env': 20.0,
-        'htc_walls': 0.28,
-        'htc_layers': 0.897,
-        'n_layers': 3,
-        'n_sensors': 3,
-        'connections': {
-            'heat_in': {'pos': 150},
-            'heat_out': {'pos': 2350},
-            'chp_in': {'pos': 2300},
-            'chp_out': {'pos': 50},
-            'hp_in': {'pos': 2200},
-            'hp_out': {'pos': 100},
-            'boiler_in' : {'pos' : 2400},
-            'boiler_out' : {'pos' : 120},
-            'heat_out2' : {'pos' : 2400},
-            'heat_in2' : {'pos' : 200}
-        },
-        'heating_rods': {
-            'hr_1' : {
-                'mode' : 'on',
-                'pos' : 2200,
-                'P_th_stages' : [0, 500, 1000, 2000, 10000],
-                'T_max' : 67, # could assign setpoint attr directly here!,
-                'eta' : 1 }}
-    }
+# # hot water tank
+# params_hwt = {
+#         'height': 2500,
+#         'volume': 5000,
+#         'T_env': 20.0,
+#         'htc_walls': 0.28,
+#         'htc_layers': 0.897,
+#         'n_layers': 3,
+#         'n_sensors': 3,
+#         'connections': {
+#             'heat_in': {'pos': 150},
+#             'heat_out': {'pos': 2350},
+#             'chp_in': {'pos': 2300},
+#             'chp_out': {'pos': 50},
+#             'hp_in': {'pos': 2200},
+#             'hp_out': {'pos': 100},
+#             'boiler_in' : {'pos' : 2400},
+#             'boiler_out' : {'pos' : 120},
+#             'heat_out2' : {'pos' : 2400},
+#             'heat_in2' : {'pos' : 200}
+#         },
+#         'heating_rods': {
+#             'hr_1' : {
+#                 'mode' : 'on',
+#                 'pos' : 2200,
+#                 'P_th_stages' : [0, 500, 1000, 2000, 10000],
+#                 'T_max' : 67, # could assign setpoint attr directly here!,
+#                 'eta' : 1 }}
+#     }
 
-init_vals_hwt0 = {
-        'layers': {'T': [40.0, 30.0, 20.0]},
-        'hr_1': { 'P_el': 0}
-    }
+# init_vals_hwt0 = {
+#         'layers': {'T': [40.0, 30.0, 20.0]},
+#         'hr_1': { 'P_el': 0}
+#     }
 
-init_vals_hwt1 = {
-        'layers': {'T': [40.0, 30.0, 20.0]},
-        'hr_1': { 'P_el': 0}
-    }
+# init_vals_hwt1 = {
+#         'layers': {'T': [40.0, 30.0, 20.0]},
+#         'hr_1': { 'P_el': 0}
+#     }
 
-init_vals_hwt2 = {
-        'layers': {'T': [80.0, 70.0, 60.0]},
-        'hr_1': { 'P_el': 500}
-    }
+# init_vals_hwt2 = {
+#         'layers': {'T': [80.0, 70.0, 60.0]},
+#         'hr_1': { 'P_el': 500}
+#     }
 
 
-# Parameters for controller model
-params_ctrl = {
-    'T_hp_sp_winter': 50,
-    'T_hp_sp_summer': 67,
-    'T_hp_sp_surplus': 67,
-    'T_chp_h' : 65,
-    'T_dhw_sp': 65,
-    'T_dhw_buffer': 5,
-    'heat_rT' : 35,
-    'operation_mode': 'heating',
-    'control_strategy': '1',
-    # 'hr_mode' : 'off',
-    'supply_config' : '3-runner',
-    'sh_out' : '1',         #0 for first tank, 1 for 2nd tank...
-    'dhw_out' : '2',
-    'boiler_mode': 'on',
-    'boiler_delay' : 10 * 60, #the time after which the boiler is turned on to assist chp.
-    'step_size' : STEP_SIZE,
-    'params_hwt': params_hwt
-}
+# # Parameters for controller model
+# params_ctrl = {
+#     'T_hp_sp_winter': 50,
+#     'T_hp_sp_summer': 67,
+#     'T_hp_sp_surplus': 67,
+#     'T_chp_h' : 65,
+#     'T_dhw_sp': 65,
+#     'T_dhw_buffer': 5,
+#     'heat_rT' : 35,
+#     'operation_mode': 'heating',
+#     'control_strategy': '1',
+#     # 'hr_mode' : 'off',
+#     'supply_config' : '3-runner',
+#     'sh_out' : '1',         #0 for first tank, 1 for 2nd tank...
+#     'dhw_out' : '2',
+#     'boiler_mode': 'on',
+#     'boiler_delay' : 10 * 60, #the time after which the boiler is turned on to assist chp.
+#     'step_size' : STEP_SIZE,
+#     'params_hwt': params_hwt
+# }
 
-export_json = {
-    'hp' : params_hp,
-    'chp' : params_chp,
-    'boiler' : params_boiler,
-    'ctrl' : params_ctrl,
-    'tank' : params_hwt
+# export_json = {
+#     'hp' : params_hp,
+#     'chp' : params_chp,
+#     'boiler' : params_boiler,
+#     'ctrl' : params_ctrl,
+#     'tank' : params_hwt
     
-}
-
+# }
+ref_param_filename = 'ref_params.json'
+param_export_filename = 'used_params.json' # TODO pass this in des_sim parameter list
 def export2json(params_dict):
-    filename = os.path.join(OUTPUT_PATH, 'params.json')
+    filename = os.path.join(OUTPUT_PATH, 'used_params.json')
     with open(filename, 'w') as f:
         json.dump(params_dict, f, indent = 4)
 
-def generatePrefix(current_params) :
+def generatePrefix(current_params, ref_param_name) :
     changes_dict = {}  #this dict will store the keys and their changes, could be exported with a unique key.
-    filename = os.path.join(OUTPUT_PATH, 'params.json')
+    filename = os.path.join(OUTPUT_PATH, ref_param_name) # TODO could use a fixed reference params.
     prefix = ''
     if not os.path.exists(filename):
         prefix += '_'
@@ -241,18 +242,21 @@ def run_DES(params):
 
     
     
-    
+    # unpacking input params
     params_boiler = params['boiler']
     params_hp = params['hp']
     params_chp = params['chp']
     params_ctrl = params['ctrl']
     params_hwt = params['tank']
+    init_vals_hwt0 = params['init_vals_tank']['init_vals_hwt0']
+    init_vals_hwt1 = params['init_vals_tank']['init_vals_hwt1']
+    init_vals_hwt2 = params['init_vals_tank']['init_vals_hwt2']
 
 
     # Create World
     world = mosaik.World(sim_config)
     START = '2022-01-01 00:00:00'
-    END =  30*24*60*60 # one year in seconds.    
+    END =  365*24*60*60 # one year in seconds.    
     # -----------------------------------------pv---------------------------------------
 
     pvlib_model.sim()
@@ -303,11 +307,11 @@ def run_DES(params):
     # Instantiate model
 
     # Output data storage
-    prefix, hash_prefix = generatePrefix(params)
+    prefix, hash_prefix = generatePrefix(params, ref_param_filename)
     
     # configure the simulator
     csv_sim_writer = world.start('CSV_writer', start_date= START, date_format='%Y-%m-%d %H:%M:%S',
-                                output_file=OUTPUT_PATH+f'/{hash_prefix}DES_data.csv')
+                                output_file=OUTPUT_PATH+f'/{hash_prefix}_DES_data.csv')
 
     csv_debug_writer = world.start('CSV_writer', start_date='2022-01-01 00:00:00', date_format='%Y-%m-%d %H:%M:%S',
                                 output_file='utils/debug.csv')
@@ -514,16 +518,16 @@ def run_DES(params):
     world.run(until=END)
 
     #logger message
-    logger.info("Scenario successfully simulated.") #It is possible to have different logger levels depending on how important the information of the logger is.
+    logger.info(f"Scenario successfully simulated : {hash_prefix}.") #It is possible to have different logger levels depending on how important the information of the logger is.
     # Levels are (debug, info, warning, error)
-
-    export2json(export_json) #Exporting current parameters to a json, to be available to compare in next iteration.
+    print(f'\n output : {hash_prefix, prefix}')
+    export2json(params) #Exporting current parameters to a json, to be available to compare in next iteration.
     
     #warning log
     # logger.warning("Result of the simulation is:" +str(result))
 
     # plot the data flow
-    mosaik.util.plot_dataflow_graph(world, folder='utils/util_figures', show_plot=False)
+    mosaik.util.plot_dataflow_graph(world, folder=os.path.join(current_dir, 'utils/util_figures'), show_plot=False)
 
 def pvsim():
     pvlib_model.sim()

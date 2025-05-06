@@ -157,5 +157,22 @@
                 "eta": 1
             }
         }
+    
+    },
+    "init_vals_tank" : {
+        "init_vals_hwt0" : {
+            "layers": {"T": [40.0, 30.0, 20.0]},
+            "hr_1": { "P_el": 0}
+        },
+            
+        "init_vals_hwt1" : {
+            "layers": {"T": [40.0, 30.0, 20.0]},
+            "hr_1": { "P_el": 0}
+        },
+            
+         "init_vals_hwt2" : {
+            "layers": {"T": [80.0, 70.0, 60.0]},
+            "hr_1": { "P_el": 500}
+        }
     }
 }

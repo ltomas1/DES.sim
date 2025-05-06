@@ -3,6 +3,10 @@ import json
 import subprocess
 import sys
 import multiprocessing
+import multiprocessing.dummy as mpd
+import matplotlib
+matplotlib.use('Agg')
+import copy
 
 cwd = os.path.dirname(os.path.abspath(__file__))
 
@@ -16,13 +20,18 @@ input_path = os.path.join(cwd, '..', 'data', 'inputs', 'input_params.json')
 with open(input_path,'r') as f:
     params = json.load(f)
 
-params1 = params
+params1 = copy.deepcopy(params)
 params1['ctrl']['T_hp_sp_winter'] += 3
 
-params2 = params
+params2 = copy.deepcopy(params)
 params2['ctrl']['heat_rT'] = 25
 
-params_list = [params1, params2]
+params3 = copy.deepcopy(params)
+params3['ctrl']['heat_rT'] = 5
+
+
+
+params_list = [params1, params2, params3]
 
 def run_instance(params):
     run_DES(params)
@@ -31,7 +40,7 @@ if __name__ == "__main__":
     # Optional: Limit number of cores to use
     num_cores = multiprocessing.cpu_count()  # or set manually
 
-    with multiprocessing.Pool(processes=num_cores) as pool:
+    with multiprocessing.Pool(processes=6) as pool:
         pool.map(run_instance, params_list)
 
         #multiprocessing still not ready!!
