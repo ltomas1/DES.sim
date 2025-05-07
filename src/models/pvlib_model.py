@@ -24,22 +24,9 @@ def sim():
     for loc in coordinates:
         latitude, longitude, name, altitude, timezone = loc
     
-    
-    # df, metadata = pvlib.iotools.read_tmy3(r"C:\INES\GitHub\des_sim\data\inputs\Braunschweig_meteodata_2022_15min.csv")
-    # raw = pd.read_csv(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'data', 'inputs', 'Braunschweig_meteodata_2022_15min.csv'))
-    #                   , sep = ',', skiprows = 1, index_col=0)
-
-
-    # weather = pd.DataFrame({
-    #     'ghi' : raw['GlobalRadiation'],
-    #     'dni' : raw['DirectNormalRad'],
-    #     'dhi' : raw['DiffRadiation'],
-    #     'temp_air' : raw['AirTemperature'],
-    #     'wind_speed' : raw['WindSpeed']
-    # })
     # --------------------------npro weather-----------------------------------------
-    raw = pd.read_excel(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'data', 'inputs', '2025-04-07-Project1-weather.xlsx'))
-                      , skiprows = 12, index_col='Time', usecols=[1,2,3,4,5,6])
+    raw = pd.read_csv(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'data', 'inputs', '2025-04-07-Project1-weather.csv')), 
+                      sep=';', index_col='Time', encoding='cp1252')
 
     weather = pd.DataFrame({
         'ghi' : raw['Global horizontal irradiance (W/m²)'],
