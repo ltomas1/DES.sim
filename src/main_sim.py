@@ -308,6 +308,7 @@ def run_DES(params):
 
     # Output data storage
     prefix, hash_prefix = generatePrefix(params, ref_param_filename)
+    hash_prefix = ''
     
     # configure the simulator
     csv_sim_writer = world.start('CSV_writer', start_date= START, date_format='%Y-%m-%d %H:%M:%S',
