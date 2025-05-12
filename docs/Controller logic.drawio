@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.17 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36" version="24.7.17" pages="3">
   <diagram id="6a731a19-8d31-9384-78a2-239565b7b9f0" name="english">
-    <mxGraphModel dx="5266" dy="2869" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" background="none" math="0" shadow="0">
+    <mxGraphModel dx="3375" dy="1545" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" background="none" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -17,7 +17,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="33sUKvsNZROueZb39W2i-75" value="top_layer_Tank2&amp;lt; T_hp_sp_h" style="shape=mxgraph.flowchart.decision;strokeWidth=2;gradientDirection=north;fontStyle=0;html=1;rounded=1;fontSize=21;fontColor=#ffffff;whiteSpace=wrap;fontFamily=Verdana;labelBackgroundColor=none;labelBorderColor=none;" parent="1" vertex="1">
+        <mxCell id="33sUKvsNZROueZb39W2i-75" value="top_layer_Tank2&amp;lt; T_dhw_sp" style="shape=mxgraph.flowchart.decision;strokeWidth=2;gradientDirection=north;fontStyle=0;html=1;rounded=1;fontSize=21;fontColor=#ffffff;whiteSpace=wrap;fontFamily=Verdana;labelBackgroundColor=none;labelBorderColor=none;" parent="1" vertex="1">
           <mxGeometry x="1084.8400000000001" y="523.13" width="278.75" height="137" as="geometry" />
         </mxCell>
         <mxCell id="33sUKvsNZROueZb39W2i-77" value="CHP : ON" style="rounded=1;whiteSpace=wrap;html=1;fontSize=21;fontStyle=0;fontColor=#ffffff;fontFamily=Verdana;labelBackgroundColor=none;labelBorderColor=none;" parent="1" vertex="1">
@@ -55,7 +55,7 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="33sUKvsNZROueZb39W2i-83" value="bottom_layer_Tank2 &amp;gt; T_hp_sp_h&lt;div style=&quot;font-size: 21px;&quot;&gt;AND&lt;/div&gt;&lt;div style=&quot;font-size: 21px;&quot;&gt;UPtime &amp;gt; 15 mins&lt;/div&gt;" style="rhombus;whiteSpace=wrap;html=1;rounded=1;fontSize=21;fontStyle=0;fontColor=#ffffff;fontFamily=Verdana;labelBackgroundColor=none;labelBorderColor=none;" parent="1" vertex="1">
+        <mxCell id="33sUKvsNZROueZb39W2i-83" value="bottom_layer_Tank2 &amp;gt; T_chp_h&lt;div style=&quot;font-size: 21px;&quot;&gt;AND&lt;/div&gt;&lt;div style=&quot;font-size: 21px;&quot;&gt;UPtime &amp;gt; 15 mins&lt;/div&gt;" style="rhombus;whiteSpace=wrap;html=1;rounded=1;fontSize=21;fontStyle=0;fontColor=#ffffff;fontFamily=Verdana;labelBackgroundColor=none;labelBorderColor=none;" parent="1" vertex="1">
           <mxGeometry x="995" y="980" width="458.43" height="305.01" as="geometry" />
         </mxCell>
         <mxCell id="33sUKvsNZROueZb39W2i-95" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=4;fillColor=#fad9d5;strokeColor=#ae4132;exitX=0.502;exitY=0.975;exitDx=0;exitDy=0;exitPerimeter=0;fontFamily=Verdana;fontSize=21;fontColor=#beff0a;labelBackgroundColor=none;labelBorderColor=none;" parent="1" source="33sUKvsNZROueZb39W2i-89" target="33sUKvsNZROueZb39W2i-94" edge="1">
