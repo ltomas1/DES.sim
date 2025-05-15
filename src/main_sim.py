@@ -174,6 +174,10 @@ def hash_encrypt(changes):
 
 def run_DES(params):
     sim_config = {
+        'EnergyTransformer' : {
+            'python' : 'models.EnergyTransformer_frame:TransformerSimulator',
+        },
+        
         'CSV': {
             'python': 'mosaik_csv:CSV',
         },
@@ -251,7 +255,14 @@ def run_DES(params):
     init_vals_hwt0 = params['init_vals_tank']['init_vals_hwt0']
     init_vals_hwt1 = params['init_vals_tank']['init_vals_hwt1']
     init_vals_hwt2 = params['init_vals_tank']['init_vals_hwt2']
-
+    params_chp_uni = {
+        'eid_prefix' : 'CHP_u',
+        'heat_out' : [0, 92000],
+        'elec_share' : 0.5,
+        'startup_coeff' : [-2.63, 3.9, 0.57],
+        'startup_limit' : 11,
+        'set_flow' : 4
+    }
 
     # Create World
     world = mosaik.World(sim_config)
@@ -290,7 +301,8 @@ def run_DES(params):
     hwtsim1 = world.start('HotWaterTankSim', step_size=STEP_SIZE, config=params_hwt)
     hwtsim2 = world.start('HotWaterTankSim', step_size=STEP_SIZE, config=params_hwt)
     ctrlsim = world.start('ControllerSim', step_size=STEP_SIZE)
-    chpsim = world.start('CHPSim', step_size=STEP_SIZE)
+    # chpsim = world.start('CHPSim', step_size=STEP_SIZE)
+    chpsim = world.start('EnergyTransformer', step_size = STEP_SIZE, params = params_chp_uni)
 
     boilersim = world.start('Boilersim', step_size = STEP_SIZE)
 
@@ -312,14 +324,15 @@ def run_DES(params):
     
     # configure the simulator
     csv_sim_writer = world.start('CSV_writer', start_date= START, date_format='%Y-%m-%d %H:%M:%S',
-                                output_file=OUTPUT_PATH+f'/{hash_prefix}_DES_data.csv')
+                                output_file=OUTPUT_PATH+f'/{hash_prefix}try_DES_data.csv')
 
     csv_debug_writer = world.start('CSV_writer', start_date='2022-01-01 00:00:00', date_format='%Y-%m-%d %H:%M:%S',
                                 output_file='utils/debug.csv')
 
     # Instantiate model
     heatpump = heatpumpsim.HeatPump.create(1, params=params_hp)
-    chp = chpsim.CHP.create(1, params=params_chp)
+    chp = chpsim.Transformer.create(1, params=params_chp_uni)
+    # chp = chpsim.CHP.create(1, params=params_chp)
     hwts0 = hwtsim0.HotWaterTank.create(1, params=params_hwt, init_vals=init_vals_hwt0)
     hwts1 = hwtsim1.HotWaterTank.create(1, params=params_hwt, init_vals=init_vals_hwt1)
     hwts2 = hwtsim2.HotWaterTank.create(1, params=params_hwt, init_vals=init_vals_hwt2)
@@ -404,21 +417,34 @@ def run_DES(params):
     world.connect(ctrls[0], boiler[0], ('boiler_demand', 'Q_Demand'), 'boiler_status',
                 time_shifted=True,
                 initial_data={'boiler_demand': 0})
-    
-    
-    """__________________________________________ CHP ________________________________________________________________________"""
 
+
+    """__________________________________________CHP_UNI__________________________________"""  
+    
     world.connect(hwts2[0], chp[0], ('sensor_00.T', 'temp_in'))
     world.connect(chp[0], hwts2[0], ('temp_out', 'chp_in.T'), ('mdot','chp_in.F'), ('mdot_neg', 'chp_out.F'),
                     time_shifted=True, initial_data={'temp_out': 20, 'mdot':0, 'mdot_neg':0})
 
-    world.connect(chp[0], ctrls[0], ('P_th', 'chp_supply'), ('chp_uptime', 'chp_uptime'), ('P_el', 'chp_el'),
+    world.connect(chp[0], ctrls[0], ('P_th', 'chp_supply'), ('uptime', 'chp_uptime'), ('P_el', 'chp_el'),
                 ('mdot', 'chp_mdot')) 
 
-    world.connect(ctrls[0], chp[0], ('chp_demand', 'Q_Demand'), ('chp_status' , 'chp_status'),
+    world.connect(ctrls[0], chp[0], ('chp_demand', 'Q_demand'), ('chp_status' , 'status'),
                 time_shifted=True,
                 initial_data={'chp_demand': 90000}
                 )
+    """__________________________________________ CHP ________________________________________________________________________"""
+
+    # world.connect(hwts2[0], chp[0], ('sensor_00.T', 'temp_in'))
+    # world.connect(chp[0], hwts2[0], ('temp_out', 'chp_in.T'), ('mdot','chp_in.F'), ('mdot_neg', 'chp_out.F'),
+    #                 time_shifted=True, initial_data={'temp_out': 20, 'mdot':0, 'mdot_neg':0})
+
+    # world.connect(chp[0], ctrls[0], ('P_th', 'chp_supply'), ('chp_uptime', 'chp_uptime'), ('P_el', 'chp_el'),
+    #             ('mdot', 'chp_mdot')) 
+
+    # world.connect(ctrls[0], chp[0], ('chp_demand', 'Q_Demand'), ('chp_status' , 'chp_status'),
+    #             time_shifted=True,
+    #             initial_data={'chp_demand': 90000}
+    #             )
 
     """__________________________________________ heat pump ___________________________________________________________________""" 
 
@@ -503,9 +529,12 @@ def run_DES(params):
                 'hp_out.F', 'heat_in.T', 'heat_in.F',
                 'T_mean', 'hr_1.P_th', 'heat_out2.F', 'heat_out2.T')
 
-    world.connect(chp[0], csv_writer, 'eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'temp_out',
-                   'P_th', 'P_el', 'fuel_m3', 'chp_uptime'
-                  )   
+    # world.connect(chp[0], csv_writer, 'eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'temp_out',
+    #                'P_th', 'P_el', 'fuel_m3', 'chp_uptime'
+    #               )  
+    world.connect(chp[0], csv_writer,  'P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_demand', 'temp_out',
+                    'P_el', 'uptime'
+                  )  
     world.connect(boiler[0], csv_writer, 'P_th', 'Q_Demand', 'temp_out', 'fuel_m3', 'mdot')   
 
 

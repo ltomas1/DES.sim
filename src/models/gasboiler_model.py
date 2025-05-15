@@ -155,7 +155,7 @@ class GasBoiler:  # Defining the HeatPumpModel class
             # self.temp_out = self.inputs.temp_in
         else :
 
-            self.P_th = min((i for i in self.inputs.nom_P_th if i >= self.inputs.Q_Demand), default=370000)
+            self.P_th = min((i for i in self.inputs.nom_P_th if i >= self.inputs.Q_Demand), default=self.inputs.nom_P_th[-1])
 
         self.lag_status = self.inputs.boiler_status
        
