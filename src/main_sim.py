@@ -256,7 +256,7 @@ def run_DES(params):
     init_vals_hwt1 = params['init_vals_tank']['init_vals_hwt1']
     init_vals_hwt2 = params['init_vals_tank']['init_vals_hwt2']
     params_chp_uni = {
-        'eid_prefix' : 'CHP_u',
+        'eid_prefix' : 'CHP',
         'heat_out' : [0, 92000],
         'elec_share' : 0.5,
         'startup_coeff' : [-2.63, 3.9, 0.57],

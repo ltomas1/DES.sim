@@ -9,6 +9,7 @@ In the current iteration, startup behaviour can be modelled with coefficients on
 #TODO time in secods, uptime, reg coefficients...
 
 #TODO unittests
+#TODO could add models to seperate lists based on prefix, to keep unique entity IDs, else boiler and chp would be in the same list, with increase ID no.
 
 
 import mosaik_api
@@ -30,7 +31,7 @@ class Transformer():
         self.step_size = None
 
         # the inputs/outputs - decide whether a seperate class or not!
-        self.status = False
+        self.status = None
         self.P_th = None
         self.P_el = None
         self.uptime = 0
@@ -45,7 +46,7 @@ class Transformer():
     def step(self, time):
 
 
-        if self.status == 'off' or self.status == None:
+        if self.status == 'off' or self.status is None :
             self.P_th = 0
             self.uptime = 0
             
@@ -66,10 +67,11 @@ class Transformer():
                 for i in range(len(self.startup_coeff)):
                     self.P_th += self.startup_coeff[i] * self.uptime**i #i starts for 0, so will work for intercept as well.
                 
+                self.P_th *= 1000 #Regression model was for KW #TODO rectify this!
                 if self.P_th < 0:  #for the lack of a better model :)
                     self.P_th = 0
-            elif self.step_size/60 > self.startup_time and self.uptime ==0:
-                self.P_th = (0.5 * self.startup_time*self.heat_out_caps[-1] + ((self.step_size-self.startup_time) * self.self.heat_out_caps[-1]))/self.step_size
+            if self.step_size/60 > self.startup_time and self.uptime ==0:
+                self.P_th = (0.5 * (self.startup_time/60)*self.heat_out_caps[-1] + ((self.step_size/60-self.startup_time)/60 * self.heat_out_caps[-1]))/(self.step_size/3600)
 
         self.P_el = self.P_th/self.elec_share        
         
