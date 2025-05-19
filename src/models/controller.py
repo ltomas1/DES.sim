@@ -359,11 +359,12 @@ class Controller():
                     if self.bottom_layer_Tank2 < self.T_chp_h:
                         self.boiler_demand = self.hwt_mass * 4184 * (self.T_dhw_sp - self.bottom_layer_Tank2) / (self.step_size * 2) # heat up the entire tank to T_hr_sp in 2 time steps
                         # self.boiler_demand =  self.heat_demand             
-                    elif self.boiler_uptime >= 15 * 60: #boiler uptime is in seconds
+                    elif self.boiler_uptime >= 15: #The transformer class has uptime in minutes, unlike the gasboiler model
                         self.boiler_demand = 0
                         self.boiler_status = 'off'
                     else :
                         self.boiler_demand =  self.heat_demand
+                        # tqdm.write(f'boiler uptim : {self.boiler_uptime}; in the last condition')
                 else:
                     
                     self.boiler_demand = 0

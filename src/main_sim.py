@@ -263,6 +263,10 @@ def run_DES(params):
         'startup_limit' : 11,
         'set_flow' : 4
     }
+    params_boiler_uni = {'eid_prefix' : 'Boiler',
+        'heat_out' : [0, 74000, 148000, 222000, 296000, 370000], #Operating points of boiler, in W
+                            'set_temp' : 75}
+
 
     # Create World
     world = mosaik.World(sim_config)
@@ -303,8 +307,9 @@ def run_DES(params):
     ctrlsim = world.start('ControllerSim', step_size=STEP_SIZE)
     # chpsim = world.start('CHPSim', step_size=STEP_SIZE)
     chpsim = world.start('EnergyTransformer', step_size = STEP_SIZE, params = params_chp_uni)
+    boilersim = world.start('EnergyTransformer', step_size = STEP_SIZE, params = params_boiler_uni)
 
-    boilersim = world.start('Boilersim', step_size = STEP_SIZE)
+    # boilersim = world.start('Boilersim', step_size = STEP_SIZE)
 
 
     # pv_sim_pvlib = world.start("PVsim_pvlib", start_date=START, step_size=STEP_SIZE, pv_data=pv_config,) # pvlib (takes 4:01 minutes for 1 year)
@@ -339,7 +344,8 @@ def run_DES(params):
     ctrls = ctrlsim.Controller.create(1, params=params_ctrl)
     heat_load = csv.HEATLOAD.create(1)
 
-    boiler = boilersim.GasBoiler.create(1, params = params_boiler)
+    # boiler = boilersim.GasBoiler.create(1, params = params_boiler)
+    boiler = boilersim.Transformer.create(1, params = params_boiler_uni)
 
 
     #? delete?
@@ -407,14 +413,28 @@ def run_DES(params):
  
     """__________________________________________Boiler_______________________________________________________________________"""
 
+    # world.connect(hwts2[0], boiler[0], ('sensor_00.T', 'temp_in'))
+    # world.connect(boiler[0], hwts2[0], ('temp_out', 'boiler_in.T'), ('mdot','boiler_in.F'), ('mdot_neg', 'boiler_out.F'),
+    #                 time_shifted=True, initial_data={'temp_out': 20, 'mdot':0, 'mdot_neg':0})
+    
+    # world.connect(boiler[0], ctrls[0], ('P_th', 'boiler_supply'), ('boiler_uptime','boiler_uptime'),
+    #             ('mdot', 'boiler_mdot'))
+    
+    # world.connect(ctrls[0], boiler[0], ('boiler_demand', 'Q_Demand'), 'boiler_status',
+    #             time_shifted=True,
+    #             initial_data={'boiler_demand': 0})
+    
+
+    """__________________________________________Boiler_UNI_______________________________________________________________________"""
+
     world.connect(hwts2[0], boiler[0], ('sensor_00.T', 'temp_in'))
     world.connect(boiler[0], hwts2[0], ('temp_out', 'boiler_in.T'), ('mdot','boiler_in.F'), ('mdot_neg', 'boiler_out.F'),
                     time_shifted=True, initial_data={'temp_out': 20, 'mdot':0, 'mdot_neg':0})
     
-    world.connect(boiler[0], ctrls[0], ('P_th', 'boiler_supply'), ('boiler_uptime','boiler_uptime'),
+    world.connect(boiler[0], ctrls[0], ('P_th', 'boiler_supply'), ('uptime','boiler_uptime'),
                 ('mdot', 'boiler_mdot'))
     
-    world.connect(ctrls[0], boiler[0], ('boiler_demand', 'Q_Demand'), 'boiler_status',
+    world.connect(ctrls[0], boiler[0], ('boiler_demand', 'Q_demand'), ('boiler_status', 'status'),
                 time_shifted=True,
                 initial_data={'boiler_demand': 0})
 
@@ -535,7 +555,8 @@ def run_DES(params):
     world.connect(chp[0], csv_writer,  'P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_demand', 'temp_out',
                     'P_el', 'uptime'
                   )  
-    world.connect(boiler[0], csv_writer, 'P_th', 'Q_Demand', 'temp_out', 'fuel_m3', 'mdot')   
+    # world.connect(boiler[0], csv_writer, 'P_th', 'Q_Demand', 'temp_out', 'fuel_m3', 'mdot')   
+    world.connect(boiler[0], csv_writer, 'P_th', 'Q_demand', 'temp_out', 'mdot')   
 
 
     """__________________________________________ world run ______________________________________________________________"""

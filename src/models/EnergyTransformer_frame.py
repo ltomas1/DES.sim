@@ -13,6 +13,7 @@ In the current iteration, startup behaviour can be modelled with coefficients on
 
 
 import mosaik_api
+from tqdm import tqdm
 
 class IncompleteConfigError(Exception) : pass
 
@@ -57,29 +58,30 @@ class Transformer():
             #to count time passed after each startup. In the previous line, time_reset is assigned the time of initialisation of startup.
             self.uptime = (time - self.time_reset)/60  #the regression model takes time in minutes.
             
+            
             self.P_th = min((i for i in self.heat_out_caps if i >= self.Q_demand), default=self.heat_out_caps[-1])
-            
-            
-            
-            
-            if len(self.heat_out_caps) <=2 and self.uptime < (self.startup_time):
-                self.P_th = 0
-                for i in range(len(self.startup_coeff)):
-                    self.P_th += self.startup_coeff[i] * self.uptime**i #i starts for 0, so will work for intercept as well.
-                
-                self.P_th *= 1000 #Regression model was for KW #TODO rectify this!
-                if self.P_th < 0:  #for the lack of a better model :)
+                     
+            if self.startup_coeff:            
+                if len(self.heat_out_caps) <=2 and self.uptime < (self.startup_time):
                     self.P_th = 0
-            if self.step_size/60 > self.startup_time and self.uptime ==0:
-                self.P_th = (0.5 * (self.startup_time/60)*self.heat_out_caps[-1] + ((self.step_size/60-self.startup_time)/60 * self.heat_out_caps[-1]))/(self.step_size/3600)
+                    for i in range(len(self.startup_coeff)):
+                        self.P_th += self.startup_coeff[i] * self.uptime**i #i starts for 0, so will work for intercept as well.
+                    
+                    self.P_th *= 1000 #Regression model was for KW #TODO rectify this!
+                    if self.P_th < 0:  #for the lack of a better model :)
+                        self.P_th = 0
+                if self.step_size/60 > self.startup_time and self.uptime ==0:
+                    self.P_th = (0.5 * (self.startup_time/60)*self.heat_out_caps[-1] + ((self.step_size/60-self.startup_time)/60 * self.heat_out_caps[-1]))/(self.step_size/3600)
 
-        self.P_el = self.P_th/self.elec_share        
+        if self.elec_share:
+            self.P_el = self.P_th/self.elec_share        
         
-        
+        # IDEA : Could have the following logic as a base Transformer class; child classes of this class could add functionality like startup and electricity.
         if self.set_temp:
             self.temp_out = self.set_temp
             self.mdot = self.P_th/(self.cp * (self.temp_out - self.temp_in))
             self.mdot = max(0, self.mdot) #To prevent reverse flow!
+            # tqdm.write(f'BOiler mass flow : {self.mdot}, temp_in : {self.temp_in}; temp_out : {self.temp_out}, demand : {self.Q_demand}, uptime : {self.uptime}')
             
         elif self.set_flow:
             self.mdot = self.set_flow
