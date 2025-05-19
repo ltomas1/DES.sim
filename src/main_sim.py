@@ -177,6 +177,12 @@ def run_DES(params):
         'EnergyTransformer' : {
             'python' : 'models.EnergyTransformer_frame:TransformerSimulator',
         },
+        'Boilersim_v2' : {
+            'python' : 'models.boiler_model_v2:TransformerSimulator'
+        },
+        'Chpsim_v2' : {
+            'python' : 'models.chp_model_v2:TransformerSimulator'
+        },
         
         'CSV': {
             'python': 'mosaik_csv:CSV',
@@ -306,8 +312,10 @@ def run_DES(params):
     hwtsim2 = world.start('HotWaterTankSim', step_size=STEP_SIZE, config=params_hwt)
     ctrlsim = world.start('ControllerSim', step_size=STEP_SIZE)
     # chpsim = world.start('CHPSim', step_size=STEP_SIZE)
-    chpsim = world.start('EnergyTransformer', step_size = STEP_SIZE, params = params_chp_uni)
-    boilersim = world.start('EnergyTransformer', step_size = STEP_SIZE, params = params_boiler_uni)
+    # chpsim = world.start('EnergyTransformer', step_size = STEP_SIZE, params = params_chp_uni)
+    chpsim = world.start('Chpsim_v2', step_size = STEP_SIZE, params = params_chp_uni)
+    # boilersim = world.start('EnergyTransformer', step_size = STEP_SIZE, params = params_boiler_uni)
+    boilersim = world.start('Boilersim_v2', step_size = STEP_SIZE, params = params_boiler_uni)
 
     # boilersim = world.start('Boilersim', step_size = STEP_SIZE)
 
