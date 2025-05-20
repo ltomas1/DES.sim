@@ -1,5 +1,6 @@
 # DES Sim
 
 * [Controller](controller.md)
-* [Combined Heat and Power plant](chp.md)
-* [Gas Boiler](gasboiler.md)
+* [EnergyTransformer](EnergyTransformer.md)
+* [Combined Heat and Power plant](CHP_v2.md)
+* [Gas Boiler](GasBoiler_v2.md)
