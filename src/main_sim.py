@@ -267,7 +267,8 @@ def run_DES(params):
         'elec_share' : 0.5,
         'startup_coeff' : [-2.63, 3.9, 0.57],
         'startup_limit' : 11,
-        'set_flow' : 4
+        'set_flow' : 4,
+        'step_size' : STEP_SIZE
     }
     params_boiler_uni = {'eid_prefix' : 'Boiler',
         'heat_out' : [0, 74000, 148000, 222000, 296000, 370000], #Operating points of boiler, in W

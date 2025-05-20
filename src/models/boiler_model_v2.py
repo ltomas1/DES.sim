@@ -7,13 +7,25 @@ class Gboiler(Transformer_base):
         
         super().__init__(params)
         
-        # self.elec_out_cap = params.get('elec_out', None)
-        # self.elec_share = params.get('elec_share', None) 
-        # self.startup_coeff = params.get('startup_coeff') # Future : list of lists, corresponding to each power stage
-        # self.startup_time = params.get('startup_limit')
+
+        self.startup_coeff = params.get('startup_coeff', None) # Future : list of lists, corresponding to each power stage
+        self.startup_time = params.get('startup_limit', None)
+        self.step_size = None
     def step(self, time):
 
         super().step(time)
+
+        if self.startup_coeff:            
+            if len(self.heat_out_caps) <=2 and self.uptime < (self.startup_time):
+                self.P_th = 0
+                for i in range(len(self.startup_coeff)):
+                    self.P_th += self.startup_coeff[i] * self.uptime**i #i starts for 0, so will work for intercept as well.
+                 
+                self.P_th *= 1000 #Regression model was for KW #TODO rectify this!
+                if self.P_th < 0:  #for the lack of a better model :)
+                    self.P_th = 0
+            if self.step_size/60 > self.startup_time and self.uptime ==0:
+                self.P_th = (0.5 * (self.startup_time/60)*self.heat_out_caps[-1] + ((self.step_size/60-self.startup_time)/60 * self.heat_out_caps[-1]))/(self.step_size/3600)
 
 #-------------------------(Not implemented here) Mosaik Back-end-------------------------------
 META = {
