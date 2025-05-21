@@ -16,13 +16,19 @@ import mosaik_api
 from tqdm import tqdm
 import numpy as np
 import warnings
+import numpy as np
+import warnings
 
 class IncompleteConfigError(Exception) : pass
+class OverdefinedConfig(UserWarning) : pass
 class OverdefinedConfig(UserWarning) : pass
 
 class Transformer_base():
     def __init__(self, params):
 
+        self.heat_out_caps = params.get('heat_out', None)# list
+        self.nom_P_th = params.get('nom_P_th', None)
+        self.op_stages = params.get('op_stages', [0,1])
         self.heat_out_caps = params.get('heat_out', None)# list
         self.nom_P_th = params.get('nom_P_th', None)
         self.op_stages = params.get('op_stages', [0,1])
