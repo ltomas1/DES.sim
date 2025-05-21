@@ -14,13 +14,18 @@ In the current iteration, startup behaviour can be modelled with coefficients on
 
 import mosaik_api
 from tqdm import tqdm
+import numpy as np
+import warnings
 
 class IncompleteConfigError(Exception) : pass
+class OverdefinedConfig(UserWarning) : pass
 
 class Transformer_base():
     def __init__(self, params):
 
-        self.heat_out_caps = params.get('heat_out')# list
+        self.heat_out_caps = params.get('heat_out', None)# list
+        self.nom_P_th = params.get('nom_P_th', None)
+        self.op_stages = params.get('op_stages', [0,1])
         self.cp = params.get('cp', 4187)
         self.set_temp = params.get('set_temp', None)
         self.set_flow = params.get('set_flow', None)
@@ -37,6 +42,17 @@ class Transformer_base():
         self.Q_demand = None
         self.mdot_neg = None
         self.mdot = None
+
+
+        if not self.heat_out_caps :
+            self.heat_out_caps = self.nom_P_th * np.asarray(self.op_stages)
+        if self.heat_out_caps and self.nom_P_th and self.op_stages:
+            warnings.warn("nom_P_th and op_stages not required if heat_out_caps defined. Defaulting to the provided heat_out_caps", OverdefinedConfig)
+        if self.nom_P_th is None:
+            if self.heat_out_caps:
+                self.nom_P_th = self.heat_out_caps[-1]
+            else :
+                raise IncompleteConfigError("Either heat_out_caps or nom_P_th has to be defined.")
 
     def step(self, time):
 

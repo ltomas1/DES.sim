@@ -8,17 +8,21 @@ class CHP(Gboiler):
         
         super().__init__(params)
         
-        self.elec_out_cap = params.get('elec_out', None)
-        self.elec_share = params.get('elec_share', None) 
+        self.nom_P_el = params.get('P_el', None)
+        # self.elec_share = params.get('elec_share', None) 
         self.startup_coeff = params.get('startup_coeff') # Future : list of lists, corresponding to each power stage
         self.startup_time = params.get('startup_limit')
         self.step_size = params.get('step_size', None)
+
+        if self.nom_P_el:
+            self.elec_share = self.nom_P_th/self.nom_P_el #More intuitive to have the nominal power defined by the user.
+    
     def step(self, time):
 
         super().step(time)
 
         if self.elec_share:
-            self.P_el = self.P_th/self.elec_share 
+            self.P_el = self.P_th*self.elec_share 
 
     def get_init_attrs(self):
         '''
