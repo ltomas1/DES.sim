@@ -29,6 +29,9 @@ class Transformer_base():
         self.cp = params.get('cp', 4187)
         self.set_temp = params.get('set_temp', None)
         self.set_flow = params.get('set_flow', None)
+        self.nom_eta = params.get('efficiency', None)
+        self.heat_value = params.get('heating_value', 10833.3)
+        self.step_size = params.get('step_size')
 
         # the inputs/outputs - decide whether a seperate class or not!
         self.status = None
@@ -42,6 +45,8 @@ class Transformer_base():
         self.Q_demand = None
         self.mdot_neg = None
         self.mdot = None
+        self.fuel = None
+        self.eta = self.nom_eta # Can be overwritten if startup behaviour is known.
 
 
         if not self.heat_out_caps :
@@ -54,6 +59,10 @@ class Transformer_base():
             else :
                 raise IncompleteConfigError("Either heat_out_caps or nom_P_th has to be defined.")
 
+    def calc_fuel(self):
+        if self.eta:
+            self.fuel = (self.P_th*(self.step_size/3600))/(self.eta * self.heat_value)
+    
     def step(self, time):
 
 
@@ -86,6 +95,7 @@ class Transformer_base():
         else :
             raise IncompleteConfigError("Atleast one 'set_flow' or 'set_temp' needs to be defined!")
 
+        self.calc_fuel()
         self.mdot_neg = -1 * self.mdot
 
         self.lag_status = self.status

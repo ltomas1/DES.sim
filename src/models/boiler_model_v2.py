@@ -10,6 +10,7 @@ class Gboiler(Transformer_base):
 
         self.startup_coeff = params.get('startup_coeff', None) # Future : list of lists, corresponding to each power stage
         self.startup_time = params.get('startup_limit', None)
+        self.startup_eta_coeff = params.get('startup_eta_coeff', None)# coefficients to represent lower eta at startup
         self.step_size = None
     def step(self, time):
 
@@ -26,8 +27,18 @@ class Gboiler(Transformer_base):
                     self.P_th = 0
             if self.step_size/60 > self.startup_time and self.uptime ==0:
                 self.P_th = (0.5 * (self.startup_time/60)*self.heat_out_caps[-1] + ((self.step_size/60-self.startup_time)/60 * self.heat_out_caps[-1]))/(self.step_size/3600)
+        if self.startup_eta_coeff:
+            self.eta = 0
+            for i in range(len(self.startup_eta_coeff)):
+                    self.eta += self.startup_eta_coeff[i] * self.uptime**i
+            if self.step_size/60 > self.startup_time and self.uptime ==0:
+                self.eta = (0.5 * (self.startup_time/60)*self.nom_eta + 
+                             ((self.step_size/60-self.startup_time)/60 * self.nom_eta))/(self.step_size/3600)
+            self.eta = max(0, self.eta)
 
-#-------------------------(Not implemented here) Mosaik Back-end-------------------------------
+            super().calc_fuel()
+
+#-------------------------Mosaik Back-end-------------------------------
 META = {
     'type': 'time-based',
     'models': {

@@ -10,8 +10,6 @@ class CHP(Gboiler):
         
         self.nom_P_el = params.get('P_el', None)
         # self.elec_share = params.get('elec_share', None) 
-        self.startup_coeff = params.get('startup_coeff') # Future : list of lists, corresponding to each power stage
-        self.startup_time = params.get('startup_limit')
         self.step_size = params.get('step_size', None)
 
         if self.nom_P_el:
@@ -31,7 +29,7 @@ class CHP(Gboiler):
         '''
         return list(vars(self).keys())
 
-#-------------------------(Not implemented here) Mosaik Back-end-------------------------------
+#-------------------------Mosaik Back-end-------------------------------
 META = {
     'type': 'time-based',
     'models': {

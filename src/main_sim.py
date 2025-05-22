@@ -264,7 +264,9 @@ def run_DES(params):
     params_chp_uni = {
         'eid_prefix' : 'CHP',
         'heat_out' : [0, 92000],
-        'elec_share' : 0.5,
+        'nom_P_th' : 92000,
+        # 'elec_share' : 0.5,
+        'P_el' : 46000,
         'startup_coeff' : [-2.63, 3.9, 0.57],
         'startup_limit' : 11,
         'set_flow' : 4,
