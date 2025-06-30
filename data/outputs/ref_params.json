@@ -30,20 +30,33 @@
         "Set_Temp": 75
     },
     "params_chp": {
-    "eid_prefix": "CHP",
-    "heat_out": [0, 92000],
-    "elec_share": 0.5,
-    "startup_coeff": [-2.63, 3.9, 0.57],
-    "startup_limit": 11,
-    "set_flow": 4,
-    "step_size": "STEP_SIZE"
-  },
-  "params_boiler": {
-    "eid_prefix": "Boiler",
-    "heat_out": [0, 74000, 148000, 222000, 296000, 370000],
-    "set_temp": 75
-  },
-
+        "eid_prefix": "CHP",
+        "heat_out": [
+            0,
+            92000
+        ],
+        "elec_share": 0.5,
+        "startup_coeff": [
+            -2.63,
+            3.9,
+            0.57
+        ],
+        "startup_limit": 11,
+        "set_flow": 4,
+        "step_size": 900
+    },
+    "params_boiler": {
+        "eid_prefix": "Boiler",
+        "heat_out": [
+            0,
+            74000,
+            148000,
+            222000,
+            296000,
+            370000
+        ],
+        "set_temp": 75
+    },
     "ctrl": {
         "T_hp_sp_winter": 50,
         "T_hp_sp_summer": 67,

@@ -1,5 +1,8 @@
 #Ignore all files in folder except the git ignore file
 *
+#Except :
 !.gitignore
 
+!ref_params.json
+!used_params.json
 #This folder should contain all outputs of the project. 
