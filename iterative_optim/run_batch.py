@@ -21,13 +21,13 @@ with open(input_path,'r') as f:
     params = json.load(f)
 
 params1 = copy.deepcopy(params)
-params1['ctrl']['T_hp_sp_winter'] += 3
+params1['ctrl']['T_dhw_sp'] = 65
 
 params2 = copy.deepcopy(params)
-params2['ctrl']['heat_rT'] = 25
+params2['ctrl']['T_dhw_sp'] = 60
 
 params3 = copy.deepcopy(params)
-params3['ctrl']['heat_rT'] = 5
+params3['ctrl']['T_dhw_sp'] = 55
 
 
 
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     # Optional: Limit number of cores to use
     num_cores = multiprocessing.cpu_count()  # or set manually
 
-    with multiprocessing.Pool(processes=6) as pool:
+    with multiprocessing.Pool(processes=3) as pool:
         pool.map(run_instance, params_list)
 
         #multiprocessing still not ready!!

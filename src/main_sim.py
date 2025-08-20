@@ -130,7 +130,7 @@ def run_DES(params):
     # Create World
     world = mosaik.World(sim_config)
     START = '2022-01-01 00:00:00'
-    END =  365*24*60*60 # one year in seconds
+    END =  5*24*60*60 # one year in seconds
 
     # unpacking input params
     params_boiler = params['boiler']
@@ -138,6 +138,7 @@ def run_DES(params):
     params_chp = params['chp']
     params_ctrl = params['ctrl']
     params_hwt = params['tank']
+    params_ctrl['params_hwt'] = params['tank']
     init_vals_hwt0 = params['init_vals_tank']['init_vals_hwt0']
     init_vals_hwt1 = params['init_vals_tank']['init_vals_hwt1']
     init_vals_hwt2 = params['init_vals_tank']['init_vals_hwt2']    
@@ -192,12 +193,12 @@ def run_DES(params):
     heat_load = csv.HEATLOAD.create(1)
 
     # ------------------Output data storage-----------------------
-    prefix, hash_prefix = generatePrefix(params, ref_param_filename)
+    # prefix, hash_prefix = generatePrefix(params, ref_param_filename)
     # hash_prefix = ''
     
     # configure the simulator
     csv_sim_writer = world.start('CSV_writer', start_date= START, date_format='%Y-%m-%d %H:%M:%S',
-                                output_file=OUTPUT_PATH+f'/{hash_prefix}try_DES_data.csv')
+                                output_file=OUTPUT_PATH+f'try_DES_data.csv')
 
     csv_debug_writer = world.start('CSV_writer', start_date='2022-01-01 00:00:00', date_format='%Y-%m-%d %H:%M:%S',
                                 output_file='utils/debug.csv')
@@ -408,16 +409,16 @@ def run_DES(params):
     world.run(until=END)
 
     #logger message
-    logger.info(f"Scenario successfully simulated : {hash_prefix}.") #It is possible to have different logger levels depending on how important the information of the logger is.
+    # logger.info(f"Scenario successfully simulated : {hash_prefix}.") #It is possible to have different logger levels depending on how important the information of the logger is.
     # Levels are (debug, info, warning, error)
-    print(f'\n output : {hash_prefix, prefix}')
-    export2json(params) #Exporting current parameters to a json, to be available to compare in next iteration.
+    # print(f'\n output : {hash_prefix, prefix}')
+    # export2json(params) #Exporting current parameters to a json, to be available to compare in next iteration.
     
     #warning log
     # logger.warning("Result of the simulation is:" +str(result))
 
     # plot the data flow
-    mosaik.util.plot_dataflow_graph(world, folder=os.path.join(current_dir, 'utils/util_figures'), show_plot=False)
+    # mosaik.util.plot_dataflow_graph(world, folder=os.path.join(current_dir, 'utils/util_figures'), show_plot=False)
 
 def pvsim():
     pvlib_model.sim()

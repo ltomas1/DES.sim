@@ -1,12 +1,12 @@
 {
     "hp": {
-        "hp_model": "Air_60kW",
+        "hp_model": "Air_30kW",
         "heat_source": "Air",
         "calc_mode": "fast"
     },
     "chp": {
         "eff_el": 0.54,
-        "nom_P_th": 92000,
+        "nom_P_th": 0,
         "mdot": 4.0,
         "startup_coeff": [
             -2.63,
@@ -19,7 +19,28 @@
     "boiler": {
         "eta": 0.98,
         "hv": 10833.3,
-        "nom_P_th": [
+        "nom_P_th": 200,
+        "Set_Temp": 75
+    },
+    "params_chp": {
+        "eid_prefix": "CHP",
+        "heat_out": [
+            0,
+            92000
+        ],
+        "elec_share": 0.5,
+        "startup_coeff": [
+            -2.63,
+            3.9,
+            0.57
+        ],
+        "startup_limit": 11,
+        "set_flow": 4,
+        "step_size": "STEP_SIZE"
+    },
+    "params_boiler": {
+        "eid_prefix": "Boiler",
+        "heat_out": [
             0,
             74000,
             148000,
@@ -27,23 +48,8 @@
             296000,
             370000
         ],
-        "Set_Temp": 75
+        "set_temp": 75
     },
-    "params_chp": {
-    "eid_prefix": "CHP",
-    "heat_out": [0, 92000],
-    "elec_share": 0.5,
-    "startup_coeff": [-2.63, 3.9, 0.57],
-    "startup_limit": 11,
-    "set_flow": 4,
-    "step_size": "STEP_SIZE"
-  },
-  "params_boiler": {
-    "eid_prefix": "Boiler",
-    "heat_out": [0, 74000, 148000, 222000, 296000, 370000],
-    "set_temp": 75
-  },
-
     "ctrl": {
         "T_hp_sp_winter": 50,
         "T_hp_sp_summer": 67,
@@ -54,7 +60,7 @@
         "heat_rT": 35,
         "operation_mode": "heating",
         "control_strategy": "1",
-        "supply_config": "3-runner",
+        "supply_config": "2-runner",
         "sh_out": "1",
         "dhw_out": "2",
         "boiler_mode": "on",
@@ -119,7 +125,7 @@
     },
     "tank": {
         "height": 2500,
-        "volume": 5000,
+        "volume": 20000,
         "T_env": 20.0,
         "htc_walls": 0.28,
         "htc_layers": 0.897,
@@ -159,7 +165,7 @@
         },
         "heating_rods": {
             "hr_1": {
-                "mode": "on",
+                "mode": "off",
                 "pos": 2200,
                 "P_th_stages": [
                     0,
