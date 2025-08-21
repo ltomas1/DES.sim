@@ -133,12 +133,11 @@ def run_DES(params):
     END =  365*24*60*60 # one year in seconds
 
     # unpacking input params
-    params_boiler = params['boiler']
+    
     params_hp = params['hp']
-    params_chp = params['chp']
     params_ctrl = params['ctrl']
     params_hwt = params['tank']
-    params_ctrl['tank'] = params['tank'] #TODO Should rename this to 'params_hwt' as this used in ctrl, or rename in the controller. Figure it out later.
+    params_ctrl['tank'] = params['tank'] 
     init_vals_hwt0 = params['init_vals_tank']['init_vals_hwt0']
     init_vals_hwt1 = params['init_vals_tank']['init_vals_hwt1']
     init_vals_hwt2 = params['init_vals_tank']['init_vals_hwt2']    

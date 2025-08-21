@@ -80,7 +80,7 @@ class Controller():
 
         self.stepsize = params.get('step_size')
         self.boiler_mode = params.get('boiler_mode','off').lower()
-        self.params_hwt = params.get('params_hwt')
+        self.params_hwt = params.get('tank')
     
         #ES 04 controller attributes
         self.tank_temps = {
