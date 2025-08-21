@@ -108,9 +108,8 @@ class Controller():
         # Stores the operation status, demand, and actual supplied energy 
         # of all the generators defined in self.gens.
         # Keys look like: "<generator>_status", "<generator>_demand", "<generator>_supply"
-        # Note: "supply" is optional and not used in Stutensee.
         self.generators = {
-            f'{gen}_{suffix}' : 'off' for gen in self.gens for suffix in ['status', 'demand', 'supply'] #Supply is optional, did not use it in Stutensee
+            f'{gen}_{suffix}' : 'off' for gen in self.gens for suffix in ['status', 'demand', 'supply']
         }
         
         # Not working, resolving to nested input param.
@@ -484,20 +483,22 @@ class Controller():
                         self.generators[f'{gen}_status'] = 'on'
                         self.generators[f'{gen}_demand'] = self.hwt_mass * 4184 * (temp_sp_low - self.tank_temps[tank_id][tank_layer]) / self.step_size
 
-                    elif 'turn_on' in add_conditions.keys():
-                        for cond_2, thresh in add_conditions['turn_on'].items():
-                            if getattr(self, cond_2) <= thresh:
-                                self.generators[f'{gen}_status'] = 'on'
-                                self.generators[f'{gen}_demand'] = self.hwt_mass * 4184 * (temp_sp_low - self.tank_temps[tank_id][tank_layer]) / self.step_size
+                    elif add_conditions:
+                        if 'turn_on' in add_conditions.keys():
+                            for cond_2, thresh in add_conditions['turn_on'].items():
+                                if getattr(self, cond_2) <= thresh:
+                                    self.generators[f'{gen}_status'] = 'on'
+                                    self.generators[f'{gen}_demand'] = self.hwt_mass * 4184 * (temp_sp_low - self.tank_temps[tank_id][tank_layer]) / self.step_size
                     
                     elif self.tank_temps[tank_id][tank_layer] >= temp_sp_high:
                         self.generators[gen] = 'off'
-                        self.generator[f'{gen}_demand'] = 0
-                    elif 'turn_off' in  add_conditions.keys():
-                        for cond_2, thresh in add_conditions['turn_off'].items():
-                            if getattr(self, cond_2) >= thresh:
-                                self.generators[f'{gen}_status'] = 'off'
-                                self.generator[f'{gen}_demand'] = 0
+                        self.generators[f'{gen}_demand'] = 0
+                    elif add_conditions:
+                        if 'turn_off' in  add_conditions.keys():
+                            for cond_2, thresh in add_conditions['turn_off'].items():
+                                if getattr(self, cond_2) >= thresh:
+                                    self.generators[f'{gen}_status'] = 'off'
+                                    self.generator[f'{gen}_demand'] = 0
 
 
 

@@ -4,31 +4,6 @@
         "heat_source": "Air",
         "calc_mode": "fast"
     },
-    "chp": {
-        "eff_el": 0.54,
-        "nom_P_th": 92000,
-        "mdot": 4.0,
-        "startup_coeff": [
-            -2.63,
-            3.9,
-            0.57
-        ],
-        "eta": 0.5897,
-        "hv": 10833.3
-    },
-    "boiler": {
-        "eta": 0.98,
-        "hv": 10833.3,
-        "nom_P_th": [
-            0,
-            74000,
-            148000,
-            222000,
-            296000,
-            370000
-        ],
-        "Set_Temp": 75
-    },
     "params_chp": {
         "eid_prefix": "CHP",
         "heat_out": [
@@ -73,7 +48,7 @@
         "boiler_mode": "on",
         "boiler_delay": 600,
         "step_size": 900,
-        "params_hwt": {
+        "tank": {
             "height": 2500,
             "volume": 5000,
             "T_env": 20.0,

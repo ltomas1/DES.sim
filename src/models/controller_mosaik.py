@@ -122,7 +122,7 @@ class ControllerSimulator(mosaik_api.Simulator):
                 if len(src_ids) > 1:
                     raise ValueError('Two many inputs for attribute %s' % attr)
                 for val in src_ids.values():
-                    setattr(self.models[eid], attr, val)
+                    helpers.set_nested_attr(self.models[eid], attr, val)
                     # tqdm.write(f'Setting inputs in controller {attr} : {val}')
             if self.meta['type'] == 'event-based':
                 if not self.step_executed:

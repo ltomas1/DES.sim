@@ -143,7 +143,8 @@ def run_DES(params):
     init_vals_hwt2 = params['init_vals_tank']['init_vals_hwt2']    
     params_chp = params['params_chp']
     params_boiler = params['params_boiler']
-    params_chp['step_size'] = STEP_SIZE   
+    params_chp['step_size'] = STEP_SIZE
+    print(f'Control strategy : {params_ctrl['control_strategy']}')
 
 
     # -----------------------------------------pv-------------------------------------------------------------------------------------
