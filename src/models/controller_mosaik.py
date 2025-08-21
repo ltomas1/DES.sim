@@ -4,6 +4,8 @@ Mosaik interface for controller model
 """
 import mosaik_api
 from models.controller import Controller
+from tqdm import tqdm
+from src.utils import helpers
 
 META = {
     'type': 'time-based',
@@ -47,11 +49,15 @@ dummy_params_ctrl = {
     'dhw_out' : 'None',
     'boiler_mode': 'on',
     'step_size' : None,
-    'params_hwt': None
+    'params_hwt': None,
+    # 'tank': None
 }
 
-dummy_obj = Controller(dummy_params_ctrl)
-auto_attrs = dummy_obj.get_init_attrs()
+# Does not work, resolved to appending attr list in the create method.
+
+# dummy_obj = Controller(dummy_params_ctrl)
+# dummy_obj = Controller()
+# auto_attrs = dummy_obj.get_init_attrs()
 
 class ControllerSimulator(mosaik_api.Simulator):
     def __init__(self):
@@ -67,7 +73,7 @@ class ControllerSimulator(mosaik_api.Simulator):
         self.first_iteration = None
         self.final_iteration = False
 
-    def init(self, sid, time_resolution, step_size, same_time_loop=False):
+    def init(self, sid, time_resolution, step_size, params, same_time_loop=False):
         self.time_resolution = float(time_resolution)
         if self.time_resolution != 1.0:
             print('WARNING: %s got a time_resolution other than 1.0, which \
@@ -76,7 +82,9 @@ class ControllerSimulator(mosaik_api.Simulator):
         self.step_size = step_size
         if same_time_loop:
             self.meta['type'] = 'event-based'
-        self.meta['models']['Controller']['attrs'] += hp_attrs + chp_attrs + hwt_attrs + db_attrs + boiler_attrs + auto_attrs
+        # self.meta['models']['Controller']['attrs'] += hp_attrs + chp_attrs + hwt_attrs + db_attrs + boiler_attrs
+        dummy_obj = Controller(params)
+        self.meta['models']['Controller']['attrs'] = dummy_obj.get_init_attrs()
         return self.meta
 
     def create(self, num, model, params=None):
@@ -87,8 +95,12 @@ class ControllerSimulator(mosaik_api.Simulator):
             eid = '%s%d' % (self.eid_prefix, i)
             if params is not None:
                 self.models[eid] = Controller(params)
+                auto_attrs = self.models[eid].get_init_attrs()
+                self.meta['models']['Controller']['attrs'] = auto_attrs
             else:
                 self.models[eid] = Controller()
+                auto_attrs = self.models[eid].get_init_attrs()
+                self.meta['models']['Controller']['attrs'] = auto_attrs
             entities.append({'eid': eid, 'type': model})
         return entities
 
@@ -111,6 +123,7 @@ class ControllerSimulator(mosaik_api.Simulator):
                     raise ValueError('Two many inputs for attribute %s' % attr)
                 for val in src_ids.values():
                     setattr(self.models[eid], attr, val)
+                    # tqdm.write(f'Setting inputs in controller {attr} : {val}')
             if self.meta['type'] == 'event-based':
                 if not self.step_executed:
                     self.models[eid].step_size = self.step_size
@@ -143,8 +156,12 @@ class ControllerSimulator(mosaik_api.Simulator):
                         else:
                             data[eid][attr] = getattr(self.models[eid], attr)
                 else:
-                    data[eid][attr] = getattr(self.models[eid], attr)
+                    # data[eid][attr] = getattr(self.models[eid], attr)
+                    data[eid][attr] = helpers.get_nested_attr(self.models[eid], attr) #Modified only this, same time loops not yet!
+                    # tqdm.write(f'Getting data from ctrl {attr} : {data[eid][attr]}')
+
         return data
+#models[eid] : eid is a unique ID, and the value of this key is an object our controller class, so all attributes in init seen here.
 
 def main():
     return mosaik_api.start_simulation(ControllerSimulator())
