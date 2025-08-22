@@ -198,5 +198,17 @@
                 "P_el": 500
             }
         }
+    },
+    "pv": {
+        "calc_mode": "simple",
+        "nom_power": 70000,
+        "coordinates": [
+            49.1,
+            8.5,
+            "Stutensee",
+            110,
+            "Etc/GMT-1"
+        ],
+        "irradiation_data": "../data/inputs/'2025-04-07-Project1-weather.csv'"
     }
 }

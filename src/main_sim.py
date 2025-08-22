@@ -144,12 +144,13 @@ def run_DES(params):
     params_chp = params['params_chp']
     params_boiler = params['params_boiler']
     params_chp['step_size'] = STEP_SIZE
-    print(f'Control strategy : {params_ctrl['control_strategy']}')
+    params_pv = params['pv']
+    print(f"Control strategy : {params_ctrl['control_strategy']}")
 
 
     # -----------------------------------------pv-------------------------------------------------------------------------------------
     #Standalone pvmodel-------------------------------------------------
-    pvlib_model.sim()
+    pvlib_model.sim(params_pv)
     pv_results = os.path.abspath(os.path.join(os.path.dirname( __file__ ),'PVlib_output.csv')) 
     pv_csv = world.start('CSV', sim_start = START, datafile = pv_results)
 
