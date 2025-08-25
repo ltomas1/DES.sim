@@ -2,6 +2,7 @@ import pvlib
 import pandas as pd
 import numpy as np
 import os
+import json
 
 def sim(params):
     # module library at https://github.com/pvlib/pvlib-python/blob/main/pvlib/data/sam-library-sandia-modules-2015-6-30.csv
@@ -25,6 +26,8 @@ def sim(params):
         inverter_info = ['cecinverter', 'AEconversion_GMbH__INV500_90US_xxxxx__208V_']
         nSnP = [1,1]
         power_ratio = nom_power/500 #The above config has a Pnom of 500 watts, scaling output according to user requested power.
+    else:
+        print('PV calc_mode not defined! NO PV for you!!!')
         
     
     # coordinates = [(49.1, 8.5, 'Stutensee', 110, 'Etc/GMT-1')]
@@ -45,10 +48,10 @@ def sim(params):
     #     latitude, longitude, name, altitude, timezone = loc
     
     # --------------------------npro weather-----------------------------------------
-    raw = pd.read_csv(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'data', 'inputs', '2025-04-07-Project1-weather.csv')), 
-                      sep=';', index_col='Time', encoding='cp1252')
-    # raw = pd.read_csv(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', data_path)), 
+    # raw = pd.read_csv(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'data', 'inputs', '2025-04-07-Project1-weather.csv')), 
     #                   sep=';', index_col='Time', encoding='cp1252')
+    raw = pd.read_csv(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', data_path)), 
+                      sep=';', index_col='Time', encoding='cp1252')
 
     weather = pd.DataFrame({
         'ghi' : raw['Global horizontal irradiance (W/m²)'],
@@ -107,7 +110,11 @@ def sim(params):
     print('PVlib simulation finished!')
 
 if __name__ == "__main__":   
-    sim()
+    path = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'data','inputs', 'input_params.json'))
+    with open(path, 'r') as f:
+        params = json.load(f)
+
+    sim(params['pv'])
 
 # %%
 def _normalize_sam_product_names(names):
