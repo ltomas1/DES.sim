@@ -46,6 +46,7 @@
         "sh_out": "1",
         "dhw_out": "2",
         "boiler_mode": "on",
+        "Ideal_hr_mode": "off",
         "boiler_delay": 600,
         "step_size": 900,
         "tank": {
@@ -209,6 +210,6 @@
             110,
             "Etc/GMT-1"
         ],
-        "irradiation_data": "../data/inputs/'2025-04-07-Project1-weather.csv'"
+        "irradiation_data": "../data/inputs/2025-04-07-Project1-weather.csv"
     }
 }

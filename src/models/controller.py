@@ -18,6 +18,7 @@ logger_controller.addHandler(file_handler_controller)
 #----------------------------------------------------------------------------------------------------------------------------#
 # %%
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
 import os
 import json
@@ -69,7 +70,7 @@ class Controller():
         self.heat_rT = params.get('heat_rT', 20)
         self.operation_mode = params.get('operation_mode', 'heating')
         self.control_strategy = params.get('control_strategy', '1')
-        self.hr_mode = params.get('hr_mode', 'off').lower()
+        self.hr_mode = params.get('Ideal_hr_mode', 'off').lower()
         self.T_chp_h = params.get('T_chp_h')
         self.boiler_delay = params.get('boiler_delay')
         self.T_dhw_buffer = params.get('T_dhw_buffer', 5)
@@ -144,7 +145,7 @@ class Controller():
 
         self.dhw_supply, self.sh_supply = None, None
 
-        self.heat_supply = None             # The total heat supplied by the heating system for SH & DHW (in W)
+        self.heat_supply = 0             # The total heat supplied by the heating system for SH & DHW (in W)
         # self.generators['hp_demand'] = None               # The heat demand for the heat pump from the hot water tank (in W)
         # self.generators['hp_supply'] = None               # The heat supplied by the heat pump to the hot water tank (in W)
         # self.generators['chp_demand'] = None              # The heat demand for the CHP from the hot water tank (in W)
@@ -200,8 +201,11 @@ class Controller():
 
         self.dt = 0 #Time for how long top layer of Tank 3 below threshold, i.e chp not able to keep up with demand.
 
-        self.max_flow = None            #The max flow rate permissible in one step.
+        self.max_flow = 20            #The max flow rate permissible in one step.
         self.P_hr = [0,0,0]             # Power demand from heating rods of the respective tanks. #TODO more robust for flexible number of tanks
+
+        self.tcvalve1 = TCValve(self.max_flow)
+        self.hr1 = idealHeatRod(self.T_dhw_sp, self.heat_rT)
 
         #TODO write all comments for TES variables 
         # self.tank_connections['tank0']['heat_out_T'] = None         # The temperature of the heat_out connection for the tank 0 
@@ -265,9 +269,6 @@ class Controller():
         self.attr_list.extend(flat_keys)
         # tqdm.write(f'attr_list')
 
-        
-
-        
 
     def get_init_attrs(self):
         return self.attr_list
@@ -585,7 +586,7 @@ class Controller():
         if self.tank_connections['tank0']['heat_in_F'] + self.tank_connections['tank0']['heat_out_F'] + self.tank_connections['tank0']['hp_out_F'] > 1e-5:
             raise ValueError("Tank-0 netflow error!")
         
-        self.tes1_residual_flow = self.tank_connections['tank1']['hp_in_F'] + self.tank_connections['tank1']['hp_out_F'] + self.tank_connections['tank1']['heat_out2_F']
+        self.tes1_residual_flow = self.tank_connections['tank1']['heat_in_F'] + self.tank_connections['tank1']['hp_in_F'] + self.tank_connections['tank1']['hp_out_F'] + self.tank_connections['tank1']['heat_out2_F']
         # logger_controller.debug(f'tes1 residual flow: {self.tes1_residual_flow}')
 
         if self.tes1_residual_flow > 0:
@@ -620,6 +621,7 @@ class Controller():
     #         self.heat_in_T = self.heat_rT
     #     self.heat_out_F = - self.heat_in_F
 
+        # tqdm.write(f"tank 1 heat out2 .F {self.tank_connections['tank1']['heat_out2_F']}")
 
     def calc_hr_P(self, out_temp, demand):
         """Assuming an ideal heating rod, heats up the outlet connection temp to the setpoint instantaneously and calculates the power req.
@@ -636,7 +638,7 @@ class Controller():
                    }
         
         if out_temp < self.T_dhw_sp and self.hr_mode == 'on':
-            
+            #TODO different returm temps for sh and dhw needed.
             flow = demand / (4184 * (self.T_dhw_sp - self.heat_rT))  #Calculating adjusted flow rated with increased temp.
 
             P = flow * 4184 * (self.T_dhw_sp- out_temp) #out_temp is the temperature at outlet flow, which is to be heated by the rods.
@@ -654,13 +656,27 @@ class Controller():
         
         return results
     
+    def supply_temp(self, out_temp, buildingtype):
+        # largely based on npro guidelines.
+        self.heating_curves = {
+            "radiator_low_insulation": {"T_out": [-10, 15], "T_supply": [75, 45], "delta_T": 20},
+            "radiator_high_insulation": {"T_out": [-10, 15], "T_supply": [55, 35], "delta_T": 15},
+            "floor_low_insulation": {"T_out": [-10, 15], "T_supply": [45, 25], "delta_T": 5},
+            "floor_high_insulation": {"T_out": [-10, 15], "T_supply": [35, 20], "delta_T": 5}
+        }
+
+        curve = self.heating_curves[buildingtype]
+        Tsupply = np.interp(out_temp, curve['T_out'], curve['T_supply'])
+        Treturn = Tsupply - curve['delta_T']
+        return Tsupply, Treturn
+
+    # def mixvalve(self, t1, f1, t2, f2):
+
+    
+    
     def calc_heat_supply(self, config):
         """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
         heating (SH) circuit"""
-        
-
-        #Capping the mass flow rate
-        self.max_flow = 20
         
         #attributes to be updated if Heating rod turned on.
         updates = [self.P_hr[2], self.tank_connections['tank2']['heat_out_T'], self.tank_connections['tank0']['heat_in_F'], self.heat_supply]
@@ -691,7 +707,7 @@ class Controller():
         
         
         
-        if config == '3-runner':
+        if config == '3-runnerold':
             
             # sh_out = 'tes'+self.sh_out+'_heat_out2'  #self.sh_out = 1 or 2, passed as a parameter to controller.
             # dhw_out = 'tes'+self.dhw_out+'_heat_out'            
@@ -755,4 +771,167 @@ class Controller():
             # self.tank_connections['tank2']['heat_out_T'] = -self.dhw_out_T
             helpers.set_nested_attr(self, dhw_out+'_T', self.dhw_out_T)
 
+        if config == '3-runner' :
+            
+            # Space heating :
+            sh_out = f"tank_connections.tank{self.sh_out}.heat_out2"
+            sh_out2 = f"tank_connections.tank{self.dhw_out}.heat_out2" #using the dhw tank as the hotter tank!
+             
+            building = 'radiator_high_insulation' #TODO move this to the params
+            Tsup, Tret = self.supply_temp(self.T_amb, building) #from heating curve
+            self.heat_dT_sh = Tsup - Tret
+            
+            try:
+                sh_F = self.sh_demand/ (4184 * self.heat_dT_sh)  #total flow rate
+            except ZeroDivisionError:
+                sh_F = 0 #unlikely in current setup, but if return temp delta not fixed, then maybe
+
+            sh_T = helpers.get_nested_attr(self, sh_out+'_T')   #temp of the colder tank
+            sh2_T = helpers.get_nested_attr(self, sh_out2+'_T') 
+            fhot, fcold = self.tcvalve1.get_flows(sh2_T, sh_T, Tsup, sh_F, Tret) #required flow rates from each of the tanks
+            sh_F = fhot+fcold #flow rate could be changed if cold tank warmer than req. supply temp
+
+            #setting corresponding flow rates
+            helpers.set_nested_attr(self, sh_out+'_F', -fcold)
+            helpers.set_nested_attr(self, sh_out2+'_F', -fhot)
+
+            helpers.set_nested_attr(self, sh_out+'_T', sh_T)
+            helpers.set_nested_attr(self, sh_out2+'_T', sh2_T)
+
+
+            #dhw
+            dhw_out = f"tank_connections.tank{self.dhw_out}.heat_out"
+            self.dhw_out_T = helpers.get_nested_attr(self,dhw_out+'_T')
+            self.heat_dT_dhw = self.dhw_out_T - self.heat_rT
+            try:
+                dhw_F = self.dhw_demand/(4184 * self.heat_dT_dhw)
+            except ZeroDivisionError:
+                dhw_F = 0
+            
+            dhw_F = max(0,dhw_F)
+            dhw_F = min(self.max_flow, dhw_F)
+            self.dhw_supply = dhw_F * 4184 * self.heat_dT_dhw
+
+            # results_dhw = self.calc_hr_P(self.dhw_out_T, self.dhw_demand)
+            if self.hr_mode == 'on':
+                dhw_F, self.P_hr[self.dhw_out] = self.hr1.step(self.dhw_out_T, self.dhw_demand)
+                self.dhw_out_T = self.T_dhw_sp
+                self.dhw_supply = self.dhw_demand
+
+            helpers.set_nested_attr(self, dhw_out+'_F', -dhw_F)
+            helpers.set_nested_attr(self, dhw_out+'_T', self.dhw_out_T)
+
+            self.tank_connections['tank0']['heat_in_F'] = dhw_F + sh_F 
+            self.tank_connections['tank0']['heat_in_T'] = (self.heat_rT*dhw_F + Tret*sh_F)/(dhw_F+sh_F)
+            # tqdm.write(f'calculated  temps : {Tsup}, return {Tret}')
+            # tqdm.write(f'calculated  flows tank2 : {fhot}, tank1 {fcold}')
+
+        if config == '4-runner' :
+            
+
+            # Space heating :
+            sh_out = f"tank_connections.tank{self.sh_out}.heat_out2"
+            sh_out2 = f"tank_connections.tank{self.dhw_out}.heat_out2" #using the dhw tank as the hotter tank!
+             
+            
+            building = 'radiator_high_insulation' #TODO move this to the params
+            Tsup, Tret = self.supply_temp(self.T_amb, building) #from heating curve
+            self.heat_dT_sh = Tsup - Tret
+            
+            try:
+                sh_F = self.sh_demand/ (4184 * self.heat_dT_sh)  #total flow rate
+            except ZeroDivisionError:
+                sh_F = 0 #unlikely in current setup, but if return temp delta not fixed, then maybe
+
+            sh_T = helpers.get_nested_attr(self, sh_out+'_T')   #temp of the colder tank
+            sh2_T = helpers.get_nested_attr(self, sh_out2+'_T') 
+            fhot, fcold = self.tcvalve1.get_flows(sh2_T, sh_T, Tsup, sh_F, Tret) #flow rates from each of the tanks
+            sh_F = fhot+fcold
+
+            #setting corresponding flow rates
+            helpers.set_nested_attr(self, sh_out+'_F', -fcold)
+            helpers.set_nested_attr(self, sh_out2+'_F', -fhot)
+            #Return flow of sh to one fixed tank, to avoid accidental overwriting 
+            self.tank_connections['tank0']['heat_in_F'] = sh_F
+            self.tank_connections['tank0']['heat_in_T'] = Tsup
+
+
+            #dhw
+            dhw_out = f"tank_connections.tank{self.dhw_out}.heat_out"
+            self.dhw_out_T = helpers.get_nested_attr(self,dhw_out+'_T')
+            self.heat_dT_dhw = self.dhw_out_T - self.heat_rT
+            try:
+                dhw_F = self.dhw_demand/(4184 * self.heat_dT_dhw)
+            except ZeroDivisionError:
+                dhw_F = 0
+            
+            dhw_F = max(0,dhw_F)
+            dhw_F = min(self.max_flow, dhw_F)
+            self.dhw_supply = dhw_F * 4184 * self.heat_dT_dhw
+
+            # results_dhw = self.calc_hr_P(self.dhw_out_T, self.dhw_demand)
+            if self.hr_mode == 'on':
+                dhw_F, self.P_hr[self.dhw_out] = self.hr1.step(self.dhw_out_T, self.dhw_demand)
+                self.dhw_out_T = self.T_dhw_sp
+                self.dhw_supply = self.dhw_demand
+                
+            helpers.set_nested_attr(self, dhw_out+'_F', -dhw_F)
+            helpers.set_nested_attr(self, dhw_out+'_T', self.dhw_out_T)
+
+            self.tank_connections['tank1']['heat_in_F'] = dhw_F
+            self.tank_connections['tank1']['heat_in_T'] = self.heat_rT
+            
+
+class TCValve():
+    def __init__(self, max):
+        self.maxflow = max
+
+    def get_flows(self, Thot, Tcold, T, flow, Tret):
         
+        if flow == 0:
+            return 0,0
+        
+        if Tcold > T:
+            # If even the cold tank, warmer than req. supply temp, then all flow from this tank, and flow rate decreased accordingly.
+            f_cold = flow*(T - Tret) / (Tcold - Tret)
+            # f_cold = flow
+            f_hot = 0
+            return f_hot, f_cold
+
+
+        try:
+            if Thot == Tcold:
+                ratio_hot = 1 #all the flow from the hotter tank.
+            else:
+                ratio_hot = (T - Tcold)/(Thot - Tcold)
+            
+            f_hot = flow*ratio_hot
+            f_cold = flow * (1-ratio_hot)
+
+            if f_hot > self.maxflow and f_cold > self.maxflow:
+                f_hot, f_cold = self.maxflow, self.maxflow
+
+            elif f_hot > self.maxflow:
+                f_hot = self.maxflow
+                f_cold = (T*flow - f_hot*Thot)/Tcold
+
+            elif f_cold > self.maxflow:
+                f_cold = self.maxflow
+                f_hot = (T*flow - f_cold*Tcold)/Thot
+        except ZeroDivisionError:
+            f_hot,f_cold = 0
+
+
+        return f_hot, f_cold
+
+        
+class idealHeatRod():
+    def __init__(self, setpoint, returntemp):
+        self.dhw_sp = setpoint
+        self.rT = returntemp
+        self.cp = 4184
+
+    def step(self, temp, demand):
+        if temp < self.dhw_sp:
+            flow = demand/ (self.cp * (self.dhw_sp - self.rT))
+            P = flow * self.cp * (self.dhw_sp - temp)

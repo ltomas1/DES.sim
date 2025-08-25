@@ -210,9 +210,9 @@ def run_DES(params):
 
     # configure other simulators
     heatpumpsim = world.start('HeatPumpSim', step_size=STEP_SIZE)
-    hwtsim0 = world.start('HotWaterTankSim', step_size=STEP_SIZE, config=params_hwt)
-    hwtsim1 = world.start('HotWaterTankSim', step_size=STEP_SIZE, config=params_hwt)
-    hwtsim2 = world.start('HotWaterTankSim', step_size=STEP_SIZE, config=params_hwt)
+    hwtsim0 = world.start('HotWaterTankSim', step_size=STEP_SIZE, config={**params_hwt, "Tanknumber" : 0})
+    hwtsim1 = world.start('HotWaterTankSim', step_size=STEP_SIZE,config={**params_hwt, "Tanknumber" : 1})
+    hwtsim2 = world.start('HotWaterTankSim', step_size=STEP_SIZE, config={**params_hwt, "Tanknumber" : 2})
     ctrlsim = world.start('ControllerSim', step_size=STEP_SIZE, params = params_ctrl)
     chpsim = world.start('Chpsim_v2', step_size = STEP_SIZE, params = params_chp)
     boilersim = world.start('Boilersim_v2', step_size = STEP_SIZE, params = params_boiler)
