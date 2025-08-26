@@ -50,6 +50,7 @@
         "boiler_delay": 600,
         "step_size": 900,
         "tank": {
+            "Tanknumber": "-",
             "height": 2500,
             "volume": 5000,
             "T_env": 20.0,
@@ -107,6 +108,7 @@
         }
     },
     "tank": {
+        "Tanknumber": "-",
         "height": 2500,
         "volume": 5000,
         "T_env": 20.0,

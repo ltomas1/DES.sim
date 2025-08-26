@@ -691,14 +691,16 @@ class Controller():
                 self.tank_connections['tank0']['heat_in_F'] = 0
 
             self.tank_connections['tank0']['heat_in_F'] = max(0,self.tank_connections['tank0']['heat_in_F'])
+            self.tank_connections['tank0']['heat_in_F'] = min(self.max_flow,self.tank_connections['tank0']['heat_in_F'])
+
             self.heat_supply = self.tank_connections['tank0']['heat_in_F'] * 4184 * self.heat_dT
 
-            self.tank_connections['tank0']['heat_in_T'] = self.heat_rT
+            if self.hr_mode == 'on':
+                self.tank_connections['tank0']['heat_in_F'], self.P_hr[2] = self.hr1.step(self.tank_connections['tank2']['heat_out_T'], self.heat_demand)
+                self.tank_connections['tank2']['heat_out_T'] = self.T_dhw_sp
+                self.heat_supply = self.heat_demand
 
-            results = self.calc_hr_P(self.tank_connections['tank2']['heat_out_T'], self.heat_demand)
-            #If heating rods turns on, flow, temp and supply overwritten, else not
-            for i, j in enumerate(outputkeys):
-                updates[i] = results.get(j, updates[i])
+            self.tank_connections['tank0']['heat_in_T'] = self.heat_rT
 
             self.tank_connections['tank2']['heat_out_F'] = -self.tank_connections['tank0']['heat_in_F']
             
@@ -884,10 +886,45 @@ class Controller():
 
 class TCValve():
     def __init__(self, max):
+        """
+    A simplified model of a temperature-controlled 3-way mixing valve.
+
+    The valve mixes flow between two tanks (hot and cold) to achieve a desired 
+    supply temperature `T`, while respecting a maximum flow rate restriction 
+    for each source.
+
+    Parameters
+    ----------
+    max : float
+        The maximum flow rate allowed from either the hot or cold tank [kg/s or L/s].
+        """
         self.maxflow = max
 
     def get_flows(self, Thot, Tcold, T, flow, Tret):
-        
+        """
+        Calculate the required hot and cold flows to achieve the target temperature.
+
+        Parameters
+        ----------
+        Thot : float
+            Temperature of the hot tank [°C].
+        Tcold : float
+            Temperature of the cold tank [°C].
+        T : float
+            Target (mixed) supply temperature [°C].
+        flow : float
+            Total requested flow rate [kg/s or L/s].
+        Tret : float
+            Return temperature of the system [°C]. Used to reduce flow if 
+            the cold tank is warmer than the target temperature.
+
+        Returns
+        -------
+        f_hot : float
+            Flow rate from the hot tank [kg/s or L/s].
+        f_cold : float
+            Flow rate from the cold tank [kg/s or L/s].
+        """
         if flow == 0:
             return 0,0
         
@@ -926,12 +963,48 @@ class TCValve():
 
         
 class idealHeatRod():
+    """
+    Ideal electric heating rod model.
+
+    This class simulates an idealized heating rod that heats water
+    up to a given domestic hot water (DHW) setpoint temperature.
+    The heating rod is assumed to have no losses and infinite ramp rate.
+
+    Can be very useful in quanitify supply deficit.
+    """
     def __init__(self, setpoint, returntemp):
+        """
+        Initialize the heating rod model.
+
+        Parameters
+        ----------
+        setpoint : float
+            Desired hot water setpoint temperature [°C].
+        returntemp : float
+            Reference return water temperature (used for flow calculation) [°C].
+        """
         self.dhw_sp = setpoint
         self.rT = returntemp
         self.cp = 4184
 
     def step(self, temp, demand):
+        """
+        Compute the required power to achieve desired temp and the power required.
+
+        Parameters
+        ----------
+        temp : float
+            Current inlet water temperature [°C].
+        demand : float
+            Required thermal energy demand [J] for this timestep.
+
+        Returns
+        -------
+        flow : float
+            Required mass flow rate [kg/s] to satisfy the demand.
+        P : float
+            Instantaneous heating power [W] supplied by the rod.
+        """
         if temp < self.dhw_sp:
             flow = demand/ (self.cp * (self.dhw_sp - self.rT))
             P = flow * self.cp * (self.dhw_sp - temp)
