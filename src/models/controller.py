@@ -167,7 +167,7 @@ class Controller():
 
         self.max_flow = 20            #The max flow rate permissible in one step.
         self.P_hr = [0,0,0]             # Istantaneous power of the Idealheater #TODO more robust for flexible number of tanks
-
+        self.IdealHrodsum = 0           # The sum of P_hr
         self.tcvalve1 = TCValve(self.max_flow)
         self.hr1 = idealHeatRod(self.T_dhw_sp, self.heat_rT)
 
@@ -257,6 +257,7 @@ class Controller():
         #----------------------------------------------------------------------
         # Calculate the mass flows, temperatures and heat from back up heater for the SH circuit
         self.calc_heat_supply(self.config)
+        self.IdealHrodsum = sum(self.P_hr)
 
         # --------------------------------------------------Inbuilt heating rods P required------------------
 

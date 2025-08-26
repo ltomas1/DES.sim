@@ -130,7 +130,7 @@ def run_DES(params):
     # Create World
     world = mosaik.World(sim_config)
     START = '2022-01-01 00:00:00'
-    END =  365*24*60*60 # one year in seconds
+    END =  2*24*60*60 # one year in seconds
 
     # unpacking input params
     
@@ -380,7 +380,7 @@ def run_DES(params):
                 'generators.chp_demand', 'generators.chp_supply', 'sh_supply', 'dhw_supply',
                 'heat_in_F', 'heat_in_T', 'heat_out_F', 'heat_out_T', 
                 'chp_in_F', 'chp_in_T', 'chp_out_F', 'chp_out_T', 'pv_gen',
-                'hp_out_F', 'hp_out_T', 'P_hr', 'dt', 'generators.boiler_demand', 'chp_uptime')
+                'hp_out_F', 'hp_out_T', 'IdealHrodsum', 'dt', 'generators.boiler_demand', 'chp_uptime')
 
     world.connect(hwts0[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
                 'heat_out.T', 'heat_out.F', 'hp_in.T', 'hp_in.F', 'hp_out.T',
