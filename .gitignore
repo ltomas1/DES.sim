@@ -29,3 +29,4 @@ __pycache__/
 
 src/rough.ipynb
 src/PVlib_output.csv
+src/utils/analysis.ipynb

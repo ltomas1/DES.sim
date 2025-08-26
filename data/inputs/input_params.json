@@ -28,7 +28,7 @@
         "T_dhw_buffer": 5,
         "heat_rT": 35,
         "operation_mode": "heating",
-        "control_strategy": "1",
+        "control_strategy": "2",
         "supply_config": "3-runner",
         "sh_out": "1",
         "dhw_out": "2",

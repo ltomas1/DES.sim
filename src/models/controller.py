@@ -697,6 +697,7 @@ class Controller():
             sh2_T = helpers.get_nested_attr(self, sh_out2+'_T') 
             fhot, fcold = self.tcvalve1.get_flows(sh2_T, sh_T, Tsup, sh_F, Tret) #required flow rates from each of the tanks
             sh_F = fhot+fcold #flow rate could be changed if cold tank warmer than req. supply temp
+            self.sh_supply = sh_F * 4184 * self.heat_dT_sh
 
             #setting corresponding flow rates
             helpers.set_nested_attr(self, sh_out+'_F', -fcold)
@@ -838,6 +839,12 @@ class TCValve():
             f_cold = flow*(T - Tret) / (Tcold - Tret)
             # f_cold = flow
             f_hot = 0
+            return f_hot, f_cold
+        
+        #If both tanks are colder than req. supply temp.
+        if Thot < T and Tcold < T:
+            f_hot = flow*(T - Tret) / (Thot - Tret)
+            f_cold = 0
             return f_hot, f_cold
 
 
