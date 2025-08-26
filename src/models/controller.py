@@ -64,13 +64,11 @@ class Controller():
         self.T_hp_sp_summer = params.get('T_hp_sp_summer')
         self.T_hp_sp_surplus = params.get('T_hp_sp_surplus')
         self.T_hr_sp_hwt = params.get('T_hr_sp_hwt', None)
-        # self.T_hr_sp_chp = params.get('T_hr_sp_chp', None)
         self.T_dhw_sp = params.get('T_dhw_sp', None)
-        # self.heat_dT = params.get('heat_dT', 7)
-        self.heat_rT = params.get('heat_rT', 20)
+        self.heat_rT = params.get('heat_rT', 20) #Specific to the 2-runner setup
         self.operation_mode = params.get('operation_mode', 'heating')
         self.control_strategy = params.get('control_strategy', '1')
-        self.hr_mode = params.get('Ideal_hr_mode', 'off').lower()
+        self.idealheater = params.get('Ideal_hr_mode', 'off').lower()
         self.T_chp_h = params.get('T_chp_h')
         self.boiler_delay = params.get('boiler_delay')
         self.T_dhw_buffer = params.get('T_dhw_buffer', 5)
@@ -113,16 +111,6 @@ class Controller():
             f'{gen}_{suffix}' : 'off' for gen in self.gens for suffix in ['status', 'demand', 'supply']
         }
         
-        # Not working, resolving to nested input param.
-        
-        # filename = 'input_params.json'
-        # base_dir = os.path.dirname(os.path.abspath(__file__)) #strips of the filename controller.py
-        # # path = os.path.join(base_dir, '..','..', 'data', 'inputs', filename)
-        # path = os.path.normpath(os.path.join(base_dir, '..', '..', 'data', 'inputs', filename))
-        # tqdm.write(f'base_dir {base_dir} \nnow in path: {path}')
-        # with open(path, 'r') as f:
-        #     params = json.load(f)
-        
         self.tank_connections = {
             'tank0' : {
                 f'{port}_{suffix}' : 0 for port in params['tank']['connections'].keys() for suffix in ['T', 'F']
@@ -134,7 +122,6 @@ class Controller():
                 f'{port}_{suffix}' : 0 for port in params['tank']['connections'].keys() for suffix in ['T', 'F']
             }
         }
-        # %%
         self.T_amb = None                   # The ambient air temperature (in °C)
         self.heat_source_T = None           # The temperature of source for the heat pump (in °C)
         self.T_room = None                  # The temperature of the room (used in cooling mode, in °C)
@@ -144,12 +131,7 @@ class Controller():
         self.sh_demand = None
 
         self.dhw_supply, self.sh_supply = None, None
-
         self.heat_supply = 0             # The total heat supplied by the heating system for SH & DHW (in W)
-        # self.generators['hp_demand'] = None               # The heat demand for the heat pump from the hot water tank (in W)
-        # self.generators['hp_supply'] = None               # The heat supplied by the heat pump to the hot water tank (in W)
-        # self.generators['chp_demand'] = None              # The heat demand for the CHP from the hot water tank (in W)
-        # self.generators['chp_supply'] = None              # The heat supplied by the CHP to the hot water tank (in W)
 
         self.heat_in_F = None                 # The mass flow of water into the hot water tank from SH circuit (in kg/s)
         self.heat_in_T = None                 # The temperature of water into the hot water tank from SH circuit (in °C)
@@ -169,32 +151,14 @@ class Controller():
         self.chp_out_F = None                # The mass flow of water from the hot water tank into CHP (in kg/s)
         self.chp_out_T = None                # The temperature of water from the hot water tank into CHP (in °C)
         self.chp_mdot = None                # The temperature of water from the hot water tank into CHP (in °C)
-        # self.chp_on_fraction = None          # The fraction of the time step for which the CHP is on
         self.chp_uptime = None              #Time since startup of chp
         
-        # TODO later, will only need this when applying the same to stutensee!
-        # self.tank_temps['tank0']['bottom'] = 0       # The temperature of the bottom layer of the hot water tank 0 (in °C)
-        # self.tank_temps['tank0']['middle'] = 0        # temp of middle layer of the first hot water tank.
-        # self.tank_temps['tank0']['top'] = 0
-        # self.tank_temps['tank2']['bottom'] = 0      # The temperature of the bottom layer of the hot water tank 2 (in °C)
-        # self.tank_temps['tank1']['middle'] = 0
-        # self.tank_temps['tank1']['top'] = 0             # The temperature of the top layer of the hot water tank 1 (in °C)
-        # self.tank_temps['tank2']['top'] = 0              # top layer of tank 2
-        # self.tank_temps['tank2']['middle'] = 0
         self.T_mean_hwt = 0              # The mean temperature of the hot water tank (in °C)
         self.hwt_mass = 0                # The total mass of water inside the hot water tank (kg)
 
         self.hwt_hr_P_th_set = None         # The heat demand for the in built heating rod of the hot water tank (in W)
 
-        # self.generators['hp_status'] = None               # The status of the heat pump, either "on" or "off"
-        # self.generators['chp_status'] = None               # The status of the CHP, either "on" or "off"
-
-        self.P_hr = None                 # The heat supplied by the back up heater (in W)
-
-        # self.generators['boiler_demand'] = None       # Boiler energy demand determined here, in W 
-        # self.generators['boiler_supply'] = None       # Actual supplied boiler energy,
         self.boiler_mdot = None         # Boiler mass flow rate (in kg/s)
-        # self.generators['boiler_status'] = None   
         self.boiler_uptime = None       # The time for which the boiler has been operational (in Seconds)
         self.boiler_in_F = None
         self.boiler_out_F = None
@@ -202,43 +166,12 @@ class Controller():
         self.dt = 0 #Time for how long top layer of Tank 3 below threshold, i.e chp not able to keep up with demand.
 
         self.max_flow = 20            #The max flow rate permissible in one step.
-        self.P_hr = [0,0,0]             # Power demand from heating rods of the respective tanks. #TODO more robust for flexible number of tanks
+        self.P_hr = [0,0,0]             # Istantaneous power of the Idealheater #TODO more robust for flexible number of tanks
 
         self.tcvalve1 = TCValve(self.max_flow)
         self.hr1 = idealHeatRod(self.T_dhw_sp, self.heat_rT)
 
-        #TODO write all comments for TES variables 
-        # self.tank_connections['tank0']['heat_out_T'] = None         # The temperature of the heat_out connection for the tank 0 
-        # self.tank_connections['tank0']['heat_out_F'] = None         
-        # self.tank_connections['tank0']['heat_in_F'] = None
-        # self.tank_connections['tank0']['hp_out_F'] = None
-        # self.tank_connections['tank0']['heat_in2_F'] = None
-        # self.tank_connections['tank0']['heat_in2_T'] = None
-        # self.tank_connections['tank0']['heat_in_T'] = None
-        # self.tank_connections['tank0']['heat_out2_F'] = None
-        # self.tank_connections['tank0']['heat_out2_T'] = None
-
-        # self.tank_connections['tank1']['heat_out_T'] = None
-        # self.tank_connections['tank1']['heat_out_F'] = None
-        # self.tank_connections['tank1']['hp_in_F'] = None
-        # self.tank_connections['tank1']['hp_out_T'] = None
-        # self.tank_connections['tank1']['hp_out_F'] = None
-        # self.tank_connections['tank1']['heat_out2_F'] = 0
-        # self.tank_connections['tank1']['heat_out2_T'] = None
-        # self.tank_connections['tank1']['heat_in2_F'] = None
-        # self.tank_connections['tank1']['heat_in2_T'] = None
-        
-
-        # self.tank_connections['tank2']['heat_out_F'] = None
-        # self.tank_connections['tank2']['heat_out_T'] = None
-        # self.tank_connections['tank2']['hp_out_T'] = None
-        # self.tank_connections['tank2']['hp_out_F'] = None
-        # self.tank_connections['tank2']['heat_out2_F'] = None
-        # self.tank_connections['tank2']['heat_out2_T'] = None
-        # self.tank_connections['tank2']['heat_in2_F'] = None
-        # self.tank_connections['tank2']['heat_in2_T'] = None
-
-        self.hwt2_hr_1 = 0
+        self.hwt2_hr_1 = 0 #Inbuilt heatingrods
         self.hwt1_hr_1 = 0
         self.hwt0_hr_1 = 0
 
@@ -251,6 +184,7 @@ class Controller():
         self.timestamp = None
         self.hp_surplus = False
 
+        #Collecting all the attributes in init, to make it available in attrs list.
         self.attr_list = list(vars(self).keys())
         flat_keys = []
 
@@ -428,7 +362,6 @@ class Controller():
                 else :
                     self.dt = 0
                 
-                #! what does this mean? why are we looking at the tank1 top temp?
                 if self.dt > self.boiler_delay and self.tank_temps['tank2']['top'] < self.T_dhw_sp and self.boiler_mode == 'on':
                      self.generators['boiler_status'] = 'on'
                     
@@ -452,11 +385,8 @@ class Controller():
 
                 logic = {
                     #Comp : [tank, layer, turn_on_temp, turn_off, {additional turn on conditions with attribute name and temp value}, {additional turn off conditions}]
-                    # 'hp_1_sh' : ['tank3', 'top', 55, 60],
-                    # 'hp_1_dhw' : ['tank1', 'top', 62, 65], # TWW
                     'hp_dhw' : ['tank1', 'top', 55, 60, {'turn_off' : {'T_amb' : -5}}], # TWW
                     'hp_sh' : ['tank2', 'top', 55, 60, {'turn_off' : {'T_amb' : -5}}],
-                    # 'hp_2_dhw' : ['tank1', 'top', 62, 65],
                     'boiler' : ['tank2', 'top', 58, 65],
                     'chp' : ['tank2', 'top', 58, 65]
                 }
@@ -471,8 +401,6 @@ class Controller():
                     tank_layer = cond[1]
                     temp_sp_low = cond[2]
                     temp_sp_high = helpers.safe_get(cond, 3, temp_sp_low+5)
-                    # add_turn_on = helpers.safe_get(cond, 4, default = None)
-                    # add_turn_off = helpers.safe_get(cond,5)
                     add_conditions = helpers.safe_get(cond, 4)
 
                     gen = next((base for base in self.gens if gen_.startswith(base)), None)
@@ -602,26 +530,6 @@ class Controller():
         if self.tank_connections['tank1']['heat_out_F'] + self.tank_connections['tank1']['hp_out_F'] + self.tank_connections['tank1']['hp_in_F'] + self.tank_connections['tank1']['heat_out2_F'] > 1e-5:
             raise ValueError("Tank-1 netflow error!")
         
-        # logger_controller.debug(f'TES0:  heat_out:{self.tes0_heat_out_F}, heat_in:{self.tes0_heat_in_F}, hp_out:{self.tes0_hp_out_F}, resid : {self.tes0_residual_flow}\n')
-
-    # def calc_heat_supply(self):
-    #     """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
-    #     heating (SH) circuit"""
-        
-    #     self.heat_dT = self.heat_out_T - self.heat_rT
-    #     self.heat_in_F = self.heat_demand / (4184 * self.heat_dT)
-    #     self.heat_supply = self.heat_in_F * 4184 * self.heat_dT
-    #     if self.heat_out_T >= self.T_hr_sp:
-    #         self.heat_in_T = self.heat_rT
-            
-    #         self.P_hr = 0
-    #     else:
-    #         self.P_hr = self.heat_in_F * 4184 * (self.T_hr_sp - self.heat_out_T)
-            
-    #         self.heat_in_T = self.heat_rT
-    #     self.heat_out_F = - self.heat_in_F
-
-        # tqdm.write(f"tank 1 heat out2 .F {self.tank_connections['tank1']['heat_out2_F']}")
 
     def calc_hr_P(self, out_temp, demand):
         """Assuming an ideal heating rod, heats up the outlet connection temp to the setpoint instantaneously and calculates the power req.
@@ -637,7 +545,7 @@ class Controller():
         results = {'P': 0
                    }
         
-        if out_temp < self.T_dhw_sp and self.hr_mode == 'on':
+        if out_temp < self.T_dhw_sp and self.idealheater == 'on':
             #TODO different returm temps for sh and dhw needed.
             flow = demand / (4184 * (self.T_dhw_sp - self.heat_rT))  #Calculating adjusted flow rated with increased temp.
 
@@ -669,9 +577,6 @@ class Controller():
         Tsupply = np.interp(out_temp, curve['T_out'], curve['T_supply'])
         Treturn = Tsupply - curve['delta_T']
         return Tsupply, Treturn
-
-    # def mixvalve(self, t1, f1, t2, f2):
-
     
     
     def calc_heat_supply(self, config):
@@ -695,7 +600,7 @@ class Controller():
 
             self.heat_supply = self.tank_connections['tank0']['heat_in_F'] * 4184 * self.heat_dT
 
-            if self.hr_mode == 'on':
+            if self.idealheater == 'on':
                 self.tank_connections['tank0']['heat_in_F'], self.P_hr[2] = self.hr1.step(self.tank_connections['tank2']['heat_out_T'], self.heat_demand)
                 self.tank_connections['tank2']['heat_out_T'] = self.T_dhw_sp
                 self.heat_supply = self.heat_demand
@@ -815,7 +720,7 @@ class Controller():
             self.dhw_supply = dhw_F * 4184 * self.heat_dT_dhw
 
             # results_dhw = self.calc_hr_P(self.dhw_out_T, self.dhw_demand)
-            if self.hr_mode == 'on':
+            if self.idealheater == 'on':
                 dhw_F, self.P_hr[self.dhw_out] = self.hr1.step(self.dhw_out_T, self.dhw_demand)
                 self.dhw_out_T = self.T_dhw_sp
                 self.dhw_supply = self.dhw_demand
@@ -872,7 +777,7 @@ class Controller():
             self.dhw_supply = dhw_F * 4184 * self.heat_dT_dhw
 
             # results_dhw = self.calc_hr_P(self.dhw_out_T, self.dhw_demand)
-            if self.hr_mode == 'on':
+            if self.idealheater == 'on':
                 dhw_F, self.P_hr[self.dhw_out] = self.hr1.step(self.dhw_out_T, self.dhw_demand)
                 self.dhw_out_T = self.T_dhw_sp
                 self.dhw_supply = self.dhw_demand
