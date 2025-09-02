@@ -33,7 +33,7 @@
         "sh_out": "1",
         "dhw_out": "2",
         "boiler_mode": "on",
-        "Ideal_hr_mode" :"off",
+        "Ideal_hr_mode": "on", 
         "boiler_delay": 600,
         "step_size": 900
     },
