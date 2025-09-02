@@ -167,10 +167,11 @@ class Controller():
 
         self.max_flow = 20            #The max flow rate permissible in one step.
         self.P_hr = [0,0,0]             # Istantaneous power of the Idealheater #TODO more robust for flexible number of tanks
-        self.IdealHrodsum = 0           # The sum of P_hr
+        self.IdealHrodsum = 0           # The sum of P_hr and space heating idealheater
+        self.P_hr_sh = 0                #Instantatus of Ideal heater only for space heating.
         self.tcvalve1 = TCValve(self.max_flow)
-        self.hr1 = idealHeatRod(self.T_dhw_sp, self.heat_rT)
-
+        self.hr_dhw = idealHeatRod(self.T_dhw_sp, self.heat_rT)
+        self.hr_sh = idealHeatRod()
         self.hwt2_hr_1 = 0 #Inbuilt heatingrods
         self.hwt1_hr_1 = 0
         self.hwt0_hr_1 = 0
@@ -602,7 +603,7 @@ class Controller():
             self.heat_supply = self.tank_connections['tank0']['heat_in_F'] * 4184 * self.heat_dT
 
             if self.idealheater == 'on':
-                self.tank_connections['tank0']['heat_in_F'], self.P_hr[2] = self.hr1.step(self.tank_connections['tank2']['heat_out_T'], self.heat_demand)
+                self.tank_connections['tank0']['heat_in_F'], self.P_hr[2] = self.hr_dhw.step(self.tank_connections['tank2']['heat_out_T'], self.heat_demand)
                 self.tank_connections['tank2']['heat_out_T'] = self.T_dhw_sp
                 self.heat_supply = self.heat_demand
 
@@ -634,12 +635,20 @@ class Controller():
             sh_F = fhot+fcold #flow rate could be changed if cold tank warmer than req. supply temp
             self.sh_supply = sh_F * 4184 * self.heat_dT_sh
 
+            if self.idealheater == 'on':
+                sh_F, self.P_hr_sh = self.hr_sh.step(sh2_T, self.sh_demand, Tsup, Tret)
+                sh2_T = Tsup
+                fhot = sh_F
+                #assume, the hotter tank(dhw tank) will be given more priority.
+                fcold = 0
+                self.sh_supply = self.sh_demand
+
             #setting corresponding flow rates
             helpers.set_nested_attr(self, sh_out+'_F', -fcold)
             helpers.set_nested_attr(self, sh_out2+'_F', -fhot)
 
-            helpers.set_nested_attr(self, sh_out+'_T', sh_T)
-            helpers.set_nested_attr(self, sh_out2+'_T', sh2_T)
+            # helpers.set_nested_attr(self, sh_out+'_T', sh_T)
+            # helpers.set_nested_attr(self, sh_out2+'_T', sh2_T)
 
 
             #dhw
@@ -657,10 +666,12 @@ class Controller():
 
             # results_dhw = self.calc_hr_P(self.dhw_out_T, self.dhw_demand)
             if self.idealheater == 'on':
-                dhw_F, self.P_hr[int(self.dhw_out)] = self.hr1.step(self.dhw_out_T, self.dhw_demand)
+                dhw_F, self.P_hr[int(self.dhw_out)] = self.hr_dhw.step(self.dhw_out_T, self.dhw_demand)
                 self.dhw_out_T = self.T_dhw_sp
                 self.dhw_supply = self.dhw_demand
 
+
+            self.P_hr[int(self.dhw_out)] += self.P_hr_sh
             helpers.set_nested_attr(self, dhw_out+'_F', -dhw_F)
             helpers.set_nested_attr(self, dhw_out+'_T', self.dhw_out_T)
 
@@ -691,6 +702,14 @@ class Controller():
             fhot, fcold = self.tcvalve1.get_flows(sh2_T, sh_T, Tsup, sh_F, Tret) #flow rates from each of the tanks
             sh_F = fhot+fcold
 
+            if self.idealheater == 'on':
+                sh_F, self.P_hr_sh = self.hr_sh.step(sh2_T, self.sh_demand, Tsup, Tret)
+                sh2_T = Tsup
+                fhot = sh_F
+                #assume, the hotter tank(dhw tank) will be given more priority.
+                fcold = 0
+                self.sh_supply = self.sh_demand
+            
             #setting corresponding flow rates
             helpers.set_nested_attr(self, sh_out+'_F', -fcold)
             helpers.set_nested_attr(self, sh_out2+'_F', -fhot)
@@ -714,10 +733,11 @@ class Controller():
 
             # results_dhw = self.calc_hr_P(self.dhw_out_T, self.dhw_demand)
             if self.idealheater == 'on':
-                dhw_F, self.P_hr[self.dhw_out] = self.hr1.step(self.dhw_out_T, self.dhw_demand)
+                dhw_F, self.P_hr[self.dhw_out] = self.hr_dhw.step(self.dhw_out_T, self.dhw_demand)
                 self.dhw_out_T = self.T_dhw_sp
                 self.dhw_supply = self.dhw_demand
-                
+
+            self.P_hr[int(self.dhw_out)] += self.P_hr_sh    
             helpers.set_nested_attr(self, dhw_out+'_F', -dhw_F)
             helpers.set_nested_attr(self, dhw_out+'_T', self.dhw_out_T)
 
@@ -819,31 +839,35 @@ class idealHeatRod():
 
     Can be very useful in quanitify supply deficit.
     """
-    def __init__(self, setpoint, returntemp):
+    def __init__(self, setpoint = None, returntemp = None):
         """
         Initialize the heating rod model.
 
         Parameters
         ----------
-        setpoint : float
-            Desired hot water setpoint temperature [°C].
-        returntemp : float
-            Reference return water temperature (used for flow calculation) [°C].
+        setpoint(optional) : float
+            Desired setpoint temperature [°C]. Fixed value, e.g Drinking Hot watar setpoint
+        returntemp(optional) : float
+            (fixed)Reference return water temperature [°C].
         """
         self.dhw_sp = setpoint
         self.rT = returntemp
         self.cp = 4184
 
-    def step(self, temp, demand):
+    def step(self, temp, demand, sup_setTemp = None, ret_setTemp = None):
         """
         Compute the required power to achieve desired temp and the power required.
 
         Parameters
         ----------
         temp : float
-            Current inlet water temperature [°C].
+            Current outlet water temperature [°C].
         demand : float
             Required thermal energy demand [J] for this timestep.
+        sup_setTemp(optional) : float
+            Determined supply temperature(heating curve). Either passed as argument here, or initialised with object.
+        ret_setTemp(optional) : float
+            Determined return temperature. Either passed as argument here, or initialised with object.
 
         Returns
         -------
@@ -852,11 +876,23 @@ class idealHeatRod():
         P : float
             Instantaneous heating power [W] supplied by the rod.
         """
-        if temp < self.dhw_sp:
-            flow = demand/ (self.cp * (self.dhw_sp - self.rT))
-            P = flow * self.cp * (self.dhw_sp - temp)
+        if sup_setTemp is None or ret_setTemp is None:
+            if self.dhw_sp and self.rT:
+                sup_setTemp = self.dhw_sp
+                ret_setTemp = self.rT
+            else :
+                raise IncompleteConfigError("Determined temp not specified!\nNeeds to be either set at Heater object initialization or passed as argument to this method!! ")
+        
+        # Assuming a 5k tolerance, this case intended for space heating, exact outflow temp is not important.
+        #If outflow temp lower than tolerance, deficit to achieve determined temp calc here.
+        if temp < sup_setTemp - 5:
+            flow = demand/ (self.cp * (sup_setTemp - ret_setTemp))
+            P = flow * self.cp * (sup_setTemp - temp)
         else:
-            flow = demand/ (self.cp * (temp - self.rT))
+            flow = demand/ (self.cp * (temp - ret_setTemp))
             P = 0 
 
         return flow, P 
+
+
+class IncompleteConfigError(Exception) : pass
