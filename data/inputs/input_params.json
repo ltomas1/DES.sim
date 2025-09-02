@@ -1,6 +1,6 @@
 {
     "hp": {
-        "hp_model": "Air_60kW",
+        "hp_model": "Air_30kW",
         "heat_source": "Air",
         "calc_mode": "fast"
     },
@@ -33,14 +33,14 @@
         "sh_out": "1",
         "dhw_out": "2",
         "boiler_mode": "on",
-        "Ideal_hr_mode" :"off",
+        "Ideal_hr_mode": "on", 
         "boiler_delay": 600,
         "step_size": 900
     },
     "tank": {
         "Tanknumber" : "-",
         "height": 2500,
-        "volume": 5000,
+        "volume": 20000,
         "T_env": 20.0,
         "htc_walls": 0.28,
         "htc_layers": 0.897,
@@ -80,7 +80,7 @@
         },
         "heating_rods": {
             "hr_1": {
-                "mode": "on",
+                "mode": "off",
                 "pos": 2200,
                 "P_th_stages": [
                     0,

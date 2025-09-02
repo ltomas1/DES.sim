@@ -657,7 +657,7 @@ class Controller():
 
             # results_dhw = self.calc_hr_P(self.dhw_out_T, self.dhw_demand)
             if self.idealheater == 'on':
-                dhw_F, self.P_hr[self.dhw_out] = self.hr1.step(self.dhw_out_T, self.dhw_demand)
+                dhw_F, self.P_hr[int(self.dhw_out)] = self.hr1.step(self.dhw_out_T, self.dhw_demand)
                 self.dhw_out_T = self.T_dhw_sp
                 self.dhw_supply = self.dhw_demand
 
@@ -855,3 +855,8 @@ class idealHeatRod():
         if temp < self.dhw_sp:
             flow = demand/ (self.cp * (self.dhw_sp - self.rT))
             P = flow * self.cp * (self.dhw_sp - temp)
+        else:
+            flow = demand/ (self.cp * (temp - self.rT))
+            P = 0 
+
+        return flow, P 

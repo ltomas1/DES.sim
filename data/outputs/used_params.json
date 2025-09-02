@@ -1,6 +1,6 @@
 {
     "hp": {
-        "hp_model": "Air_60kW",
+        "hp_model": "Air_30kW",
         "heat_source": "Air",
         "calc_mode": "fast"
     },
