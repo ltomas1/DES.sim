@@ -631,17 +631,19 @@ class Controller():
 
             sh_T = helpers.get_nested_attr(self, sh_out+'_T')   #temp of the colder tank
             sh2_T = helpers.get_nested_attr(self, sh_out2+'_T') 
+            
             fhot, fcold = self.tcvalve1.get_flows(sh2_T, sh_T, Tsup, sh_F, Tret) #required flow rates from each of the tanks
             sh_F = fhot+fcold #flow rate could be changed if cold tank warmer than req. supply temp
             self.sh_supply = sh_F * 4184 * self.heat_dT_sh
 
             if self.idealheater == 'on':
-                sh_F, self.P_hr_sh = self.hr_sh.step(sh2_T, self.sh_demand, Tsup, Tret)
-                sh2_T = Tsup
-                fhot = sh_F
-                #assume, the hotter tank(dhw tank) will be given more priority.
-                fcold = 0
-                self.sh_supply = self.sh_demand
+                new_flow, self.P_hr_sh = self.hr_sh.step(sh2_T, self.sh_demand, Tsup, Tret)
+                if self.P_hr_sh > 0:
+                    sh2_T = Tsup
+                    fhot = new_flow
+                    #assume, the hotter tank(dhw tank) will be given more priority.
+                    fcold = 0
+                    self.sh_supply = self.sh_demand
 
             #setting corresponding flow rates
             helpers.set_nested_attr(self, sh_out+'_F', -fcold)
@@ -666,9 +668,11 @@ class Controller():
 
             # results_dhw = self.calc_hr_P(self.dhw_out_T, self.dhw_demand)
             if self.idealheater == 'on':
-                dhw_F, self.P_hr[int(self.dhw_out)] = self.hr_dhw.step(self.dhw_out_T, self.dhw_demand)
-                self.dhw_out_T = self.T_dhw_sp
-                self.dhw_supply = self.dhw_demand
+                new_flow, self.P_hr[int(self.dhw_out)] = self.hr_dhw.step(self.dhw_out_T, self.dhw_demand)
+                if self.P_hr[int(self.dhw_out)] > 0:
+                    self.dhw_out_T = self.T_dhw_sp
+                    dhw_F = new_flow
+                    self.dhw_supply = self.dhw_demand
 
 
             self.P_hr[int(self.dhw_out)] += self.P_hr_sh

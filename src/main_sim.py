@@ -130,7 +130,7 @@ def run_DES(params):
     # Create World
     world = mosaik.World(sim_config)
     START = '2022-01-01 00:00:00'
-    END =  5*24*60*60 # one year in seconds
+    END =  365*24*60*60 # one year in seconds
 
     # unpacking input params
     
