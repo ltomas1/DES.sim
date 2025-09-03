@@ -614,7 +614,7 @@ class Controller():
             self.dhw_supply, self.sh_supply = 0,0
         
 
-        if config == '3-runner' :
+        if config == '3-runner' or config == '4-runner':
             
             # Space heating :
             sh_out = f"tank_connections.tank{self.sh_out}.heat_out2"
@@ -679,74 +679,19 @@ class Controller():
             helpers.set_nested_attr(self, dhw_out+'_F', -dhw_F)
             helpers.set_nested_attr(self, dhw_out+'_T', self.dhw_out_T)
 
-            self.tank_connections['tank0']['heat_in_F'] = dhw_F + sh_F 
-            self.tank_connections['tank0']['heat_in_T'] = (self.heat_rT*dhw_F + Tret*sh_F)/(dhw_F+sh_F)
+            if config == '3-runner':
+                self.tank_connections['tank0']['heat_in_F'] = dhw_F + sh_F 
+                self.tank_connections['tank0']['heat_in_T'] = (self.heat_rT*dhw_F + Tret*sh_F)/(dhw_F+sh_F)
+
+            elif config == '4-runner':
+                self.tank_connections['tank0']['heat_in_F'] = sh_F
+                self.tank_connections['tank0']['heat_in_T'] = Tret
+
+                self.tank_connections['tank1']['heat_in_F'] = dhw_F
+                self.tank_connections['tank1']['heat_in_T'] = self.heat_rT
             # tqdm.write(f'calculated  temps : {Tsup}, return {Tret}')
             # tqdm.write(f'calculated  flows tank2 : {fhot}, tank1 {fcold}')
 
-        if config == '4-runner' :
-            
-
-            # Space heating :
-            sh_out = f"tank_connections.tank{self.sh_out}.heat_out2"
-            sh_out2 = f"tank_connections.tank{self.dhw_out}.heat_out2" #using the dhw tank as the hotter tank!
-             
-            
-            building = 'radiator_high_insulation' #TODO move this to the params
-            Tsup, Tret = self.supply_temp(self.T_amb, building) #from heating curve
-            self.heat_dT_sh = Tsup - Tret
-            
-            try:
-                sh_F = self.sh_demand/ (4184 * self.heat_dT_sh)  #total flow rate
-            except ZeroDivisionError:
-                sh_F = 0 #unlikely in current setup, but if return temp delta not fixed, then maybe
-
-            sh_T = helpers.get_nested_attr(self, sh_out+'_T')   #temp of the colder tank
-            sh2_T = helpers.get_nested_attr(self, sh_out2+'_T') 
-            fhot, fcold = self.tcvalve1.get_flows(sh2_T, sh_T, Tsup, sh_F, Tret) #flow rates from each of the tanks
-            sh_F = fhot+fcold
-
-            if self.idealheater == 'on':
-                sh_F, self.P_hr_sh = self.hr_sh.step(sh2_T, self.sh_demand, Tsup, Tret)
-                sh2_T = Tsup
-                fhot = sh_F
-                #assume, the hotter tank(dhw tank) will be given more priority.
-                fcold = 0
-                self.sh_supply = self.sh_demand
-            
-            #setting corresponding flow rates
-            helpers.set_nested_attr(self, sh_out+'_F', -fcold)
-            helpers.set_nested_attr(self, sh_out2+'_F', -fhot)
-            #Return flow of sh to one fixed tank, to avoid accidental overwriting 
-            self.tank_connections['tank0']['heat_in_F'] = sh_F
-            self.tank_connections['tank0']['heat_in_T'] = Tsup
-
-
-            #dhw
-            dhw_out = f"tank_connections.tank{self.dhw_out}.heat_out"
-            self.dhw_out_T = helpers.get_nested_attr(self,dhw_out+'_T')
-            self.heat_dT_dhw = self.dhw_out_T - self.heat_rT
-            try:
-                dhw_F = self.dhw_demand/(4184 * self.heat_dT_dhw)
-            except ZeroDivisionError:
-                dhw_F = 0
-            
-            dhw_F = max(0,dhw_F)
-            dhw_F = min(self.max_flow, dhw_F)
-            self.dhw_supply = dhw_F * 4184 * self.heat_dT_dhw
-
-            # results_dhw = self.calc_hr_P(self.dhw_out_T, self.dhw_demand)
-            if self.idealheater == 'on':
-                dhw_F, self.P_hr[self.dhw_out] = self.hr_dhw.step(self.dhw_out_T, self.dhw_demand)
-                self.dhw_out_T = self.T_dhw_sp
-                self.dhw_supply = self.dhw_demand
-
-            self.P_hr[int(self.dhw_out)] += self.P_hr_sh    
-            helpers.set_nested_attr(self, dhw_out+'_F', -dhw_F)
-            helpers.set_nested_attr(self, dhw_out+'_T', self.dhw_out_T)
-
-            self.tank_connections['tank1']['heat_in_F'] = dhw_F
-            self.tank_connections['tank1']['heat_in_T'] = self.heat_rT
             
 
 class TCValve():

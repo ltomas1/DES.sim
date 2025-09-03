@@ -264,7 +264,7 @@ def run_DES(params):
     world.connect(ctrls[0], hwts1[0], 
               ('tank_connections.tank1.hp_out_F', 'hp_out.F'),('tank_connections.tank1.heat_out_T', 'heat_out.T'), 
               ('tank_connections.tank1.heat_out_F', 'heat_out.F'),('tank_connections.tank1.heat_out2_F', 'heat_out2.F'),
-              ('tank_connections.tank1.hp_out_T','hp_out.T'), ('hwt1_hr_1', 'hr_1.P_th_set'))
+              ('tank_connections.tank1.hp_out_T','hp_out.T'), ('hwt1_hr_1', 'hr_1.P_th_set'), ('tank_connections.tank1.heat_in_F', 'heat_in.F'), ('tank_connections.tank1.heat_in_T', 'heat_in.T'))
 
     world.connect(ctrls[0], hwts2[0], 
               ('tank_connections.tank2.hp_out_T', 'hp_out.T'),('tank_connections.tank2.hp_out_F', 'hp_out.F'),
