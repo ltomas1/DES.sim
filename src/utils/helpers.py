@@ -1,6 +1,9 @@
 '''
 This file will have a few helper functions, used accros this repo.
 '''
+import csv
+import os
+
 
 def safe_get(lst, index, default=None):
         """Return lst[index] if it exists, else return default."""
@@ -58,3 +61,39 @@ def set_nested_attr(entity, attr, val):
         entity[attr_parts[-1]] = val
     else:
         setattr(entity, attr_parts[-1], val)
+
+def flatten_attrs(entity, attrs):
+    flat_keys = []
+    for attr in attrs:
+            value = getattr(entity, attr)   # get the actual object
+            if isinstance(value, dict):
+                for key, val in value.items():
+                    if isinstance(val, dict):  # nested dict case
+                        for subkey in val.keys():
+                            flat_keys.append(f"{attr}.{key}.{subkey}")
+                    else:
+                        flat_keys.append(f"{attr}.{key}")
+
+    return flat_keys
+
+debug_log= {}
+
+def debug_trace(time, attrs, entity, filename = 'debug_Log.csv'):
+    global debug_log
+    if not debug_log:
+        debug_log = {}
+        debug_log['time'] = []
+    for attr in attrs:
+        if attr not in debug_log.keys():
+            debug_log[attr] = []
+
+        debug_log['time'].append(time)
+        debug_log[attr].append(get_nested_attr(entity, attr))
+
+    path = os.getcwd()     
+    filepath = os.path.join(os.getcwd(), filename)
+    with open(filepath, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=debug_log.keys())
+        writer.writeheader()
+        for row in zip(*debug_log.values()):
+            writer.writerow(dict(zip(debug_log.keys(), row)))
