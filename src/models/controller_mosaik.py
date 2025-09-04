@@ -85,6 +85,7 @@ class ControllerSimulator(mosaik_api.Simulator):
         # self.meta['models']['Controller']['attrs'] += hp_attrs + chp_attrs + hwt_attrs + db_attrs + boiler_attrs
         dummy_obj = Controller(params)
         self.meta['models']['Controller']['attrs'] = dummy_obj.get_init_attrs()
+        self.debug = params.get('params', 'off').lower()
         return self.meta
 
     def create(self, num, model, params=None):
@@ -159,7 +160,8 @@ class ControllerSimulator(mosaik_api.Simulator):
                     # data[eid][attr] = getattr(self.models[eid], attr)
                     data[eid][attr] = helpers.get_nested_attr(self.models[eid], attr) #Modified only this, same time loops not yet!
                     # tqdm.write(f'Getting data from ctrl {attr} : {data[eid][attr]}')
-
+            if self.debug:
+                helpers.debug_trace(self.time, attrs, self.models[eid], 'Controller_trace.csv')
         return data
 #models[eid] : eid is a unique ID, and the value of this key is an object our controller class, so all attributes in init seen here.
 
