@@ -29,11 +29,27 @@ def get_nested_attr(entity, attr): #Inspired from mosaik HWT model
     """
     attr_parts = attr.split('.')
     val = entity
+    
+    #The following have been added only to allow for the debug ethod in hotwater tank:(
+    if hasattr(entity, 'sensors'): #checking if it's a tank
+        if attr_parts[0] in entity.sensors:
+            return getattr(entity.sensors[attr_parts[0]],
+                    attr_parts[1])
+        elif attr_parts[0] in entity.connections:
+            return float(getattr(entity.connections[attr_parts[0]],
+                    attr_parts[1]))
+        elif attr_parts[0] in entity.heating_rods:
+            return getattr(entity.heating_rods[attr_parts[0]],
+                    attr_parts[1])
+    #-------------------------------------------------
+    #The actual stuff:
     for level in attr_parts:
         try:
             val = val[level] if isinstance(val, dict) else getattr(val, level)
         except (KeyError, AttributeError) as e:
             raise RuntimeError(f'Missing {level} in {val}') from e
+    
+    
     return val
 
 def set_nested_attr(entity, attr, val): 
@@ -76,10 +92,8 @@ def flatten_attrs(entity, attrs):
 
     return flat_keys
 
-debug_log= {}
 
-def debug_trace(time, attrs, entity, filename = 'debug_Log.csv'):
-    global debug_log
+def debug_trace(time, attrs, entity, filename = 'debug_Log.csv', debug_log = {}):
     if not debug_log:
         debug_log = {}
         debug_log['time'] = []
@@ -89,6 +103,7 @@ def debug_trace(time, attrs, entity, filename = 'debug_Log.csv'):
 
         debug_log['time'].append(time)
         debug_log[attr].append(get_nested_attr(entity, attr))
+    # print(debug_log)
 
     path = os.getcwd()     
     filepath = os.path.join(os.getcwd(), filename)
@@ -97,3 +112,5 @@ def debug_trace(time, attrs, entity, filename = 'debug_Log.csv'):
         writer.writeheader()
         for row in zip(*debug_log.values()):
             writer.writerow(dict(zip(debug_log.keys(), row)))
+
+    return debug_log
