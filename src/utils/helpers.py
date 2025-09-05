@@ -93,7 +93,7 @@ def flatten_attrs(entity, attrs):
     return flat_keys
 
 
-def debug_trace(time, attrs, entity, filename = 'debug_Log.csv', debug_log = {}):
+def debug_trace(time, attrs, entity, filename = 'debug_Log.csv', debug_log = {}, print_csv  = False):
     if not debug_log:
         debug_log = {}
         debug_log['time'] = []
@@ -103,14 +103,18 @@ def debug_trace(time, attrs, entity, filename = 'debug_Log.csv', debug_log = {})
 
         debug_log['time'].append(time)
         debug_log[attr].append(get_nested_attr(entity, attr))
+        if not print_csv:
+            print(f'attr: {attr}, val : {get_nested_attr(entity, attr)}')
     # print(debug_log)
 
     path = os.getcwd()     
     filepath = os.path.join(os.getcwd(), filename)
-    with open(filepath, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=debug_log.keys())
-        writer.writeheader()
-        for row in zip(*debug_log.values()):
-            writer.writerow(dict(zip(debug_log.keys(), row)))
+    if print_csv:
+        with open(filepath, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=debug_log.keys())
+            writer.writeheader()
+            for row in zip(*debug_log.values()):
+                writer.writerow(dict(zip(debug_log.keys(), row)))
+
 
     return debug_log
