@@ -145,7 +145,12 @@ def run_DES(params):
     params_boiler = params['params_boiler']
     params_chp['step_size'] = STEP_SIZE
     params_pv = params['pv']
+    params_ctrl['control_strategy'] = '2'
     print(f"Control strategy : {params_ctrl['control_strategy']}")
+    params_ctrl['supply_config'] = '4-runner'
+    params_ctrl['Ideal_hr_mode'] = 'on'
+    # params_hwt['debug'] = 'on'
+
 
 
     # -----------------------------------------pv-------------------------------------------------------------------------------------
