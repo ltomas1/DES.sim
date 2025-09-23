@@ -3,6 +3,8 @@ This file will have a few helper functions, used accros this repo.
 '''
 import csv
 import os
+import numpy as np
+import pandas as pd
 
 
 def safe_get(lst, index, default=None):
@@ -93,18 +95,33 @@ def flatten_attrs(entity, attrs):
     return flat_keys
 
 
-def debug_trace(time, attrs, entity, filename = 'debug_Log.csv', debug_log = {}, print_csv  = False):
+def debug_trace(time, attrs, entity, filename = 'debug_Log.csv', debug_log = {}, print_csv  = True, keyword = '', cycle = 0):
+    model = filename.strip('_trace.csv')
     if not debug_log:
         debug_log = {}
-        debug_log['time'] = []
-    for attr in attrs:
-        if attr not in debug_log.keys():
-            debug_log[attr] = []
+        debug_log[model+'time'] = []
+        debug_log[model+'cycle'] = [] # to keep track of subcycles in event-based sim
+    # inputs received in form of a dict, with attr name and val
+    if isinstance(attrs, dict):
+        for attr, v in attrs.items():
+            for _, val in v.items():
+                if attr+keyword not in debug_log.keys():
+                    debug_log[attr+keyword] = []
+                debug_log[model+'time'].append(time)
+                debug_log[model+'cycle'].append(cycle)
+                debug_log[attr+keyword].append(val)
+    
+    elif isinstance(attrs, list):
+        for attr in attrs:
+            # attr = attr+keyword #to distinguish input and output
+            if attr+keyword not in debug_log.keys():
+                debug_log[attr+keyword] = []
 
-        debug_log['time'].append(time)
-        debug_log[attr].append(get_nested_attr(entity, attr))
-        if not print_csv:
-            print(f'attr: {attr}, val : {get_nested_attr(entity, attr)}')
+            debug_log[model+'time'].append(time)
+            debug_log[model+'cycle'].append(cycle)
+            debug_log[attr+keyword].append(get_nested_attr(entity, attr))
+            if not print_csv:
+                print(f'attr: {attr}, val : {get_nested_attr(entity, attr)}')
     # print(debug_log)
 
     path = os.getcwd()     
@@ -118,3 +135,27 @@ def debug_trace(time, attrs, entity, filename = 'debug_Log.csv', debug_log = {},
 
 
     return debug_log
+
+def calc_energy(vars, step_size): 
+
+    '''
+    
+    Calculate energy in Wh from power in W and time step in seconds.
+    vars: nested List, pandas series or dataframe only!!!
+    step_size: in seconds
+    returns absolute value of energy in Wh
+    '''
+   
+    for i in range(len(vars)):
+        if isinstance(vars[i], (int, float)):
+            vars[i] = 0
+        elif isinstance(vars[i], list):
+            vars[i] = sum(vars[i]) * step_size/3600
+        else :
+            # so, pandas series, or dataframes!!
+            vars[i] = vars[i].sum() * step_size/3600 
+    
+
+    
+    
+    return np.abs(vars)

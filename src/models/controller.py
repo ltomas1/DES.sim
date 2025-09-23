@@ -632,9 +632,9 @@ class Controller():
             sh_T = helpers.get_nested_attr(self, sh_out+'_T')   #temp of the colder tank
             sh2_T = helpers.get_nested_attr(self, sh_out2+'_T') 
             
-            fhot, fcold = self.tcvalve1.get_flows(sh2_T, sh_T, Tsup, sh_F, Tret) #required flow rates from each of the tanks
+            fhot, fcold, Tsup = self.tcvalve1.get_flows(sh2_T, sh_T, Tsup, sh_F, Tret) #required flow rates from each of the tanks
             sh_F = fhot+fcold #flow rate could be changed if cold tank warmer than req. supply temp
-            self.sh_supply = sh_F * 4184 * self.heat_dT_sh
+            self.sh_supply = sh_F * 4184 * (Tsup - Tret)
 
             if self.idealheater == 'on':
                 new_flow, self.P_hr_sh = self.hr_sh.step(sh2_T, self.sh_demand, Tsup, Tret)
@@ -644,6 +644,9 @@ class Controller():
                     #assume, the hotter tank(dhw tank) will be given more priority.
                     fcold = 0
                     self.sh_supply = self.sh_demand
+
+            if (self.sh_supply - self.sh_demand) < -1:
+                tqdm.write(f'Deficit : {self.sh_supply - self.sh_demand}')
 
             #setting corresponding flow rates
             helpers.set_nested_attr(self, sh_out+'_F', -fcold)
@@ -709,6 +712,7 @@ class TCValve():
         The maximum flow rate allowed from either the hot or cold tank [kg/s or L/s].
         """
         self.maxflow = max
+        
 
     def get_flows(self, Thot, Tcold, T, flow, Tret):
         """
@@ -734,48 +738,59 @@ class TCValve():
             Flow rate from the hot tank [kg/s or L/s].
         f_cold : float
             Flow rate from the cold tank [kg/s or L/s].
+        T_sup : float
+            Actual supply temperature achieved after mixing [°C].
         """
         if flow == 0:
-            return 0,0
+            return 0,0,0
         
         if Tcold > T:
             # If even the cold tank, warmer than req. supply temp, then all flow from this tank, and flow rate decreased accordingly.
             f_cold = flow*(T - Tret) / (Tcold - Tret)
+            T_sup = Tcold
             # f_cold = flow
             f_hot = 0
-            return f_hot, f_cold
+            return f_hot, f_cold, T_sup
         
         #If both tanks are colder than req. supply temp.
         if Thot < T and Tcold < T:
             f_hot = flow*(T - Tret) / (Thot - Tret)
+            T_sup = Thot
             f_cold = 0
-            return f_hot, f_cold
+            return f_hot, f_cold, T_sup
 
 
         try:
             if Thot == Tcold:
                 ratio_hot = 1 #all the flow from the hotter tank.
+                T_sup = Thot
             else:
                 ratio_hot = (T - Tcold)/(Thot - Tcold)
-            
+                T_sup  = T
+
             f_hot = flow*ratio_hot
             f_cold = flow * (1-ratio_hot)
 
             if f_hot > self.maxflow and f_cold > self.maxflow:
+                tqdm.write(f'limitting {f_hot, f_cold} to {self.maxflow}')
                 f_hot, f_cold = self.maxflow, self.maxflow
+                
 
             elif f_hot > self.maxflow:
+                tqdm.write(f'limitting {f_hot} to {self.maxflow}')
                 f_hot = self.maxflow
                 f_cold = (T*flow - f_hot*Thot)/Tcold
 
             elif f_cold > self.maxflow:
+                tqdm.write(f'limitting {f_cold} to {self.maxflow}')
                 f_cold = self.maxflow
                 f_hot = (T*flow - f_cold*Tcold)/Thot
         except ZeroDivisionError:
-            f_hot,f_cold = 0
+            f_hot,f_cold = 0,0
 
+        T_sup = (Thot*f_hot + Tcold*f_cold)/(f_hot+f_cold)
 
-        return f_hot, f_cold
+        return f_hot, f_cold, T_sup
 
         
 class idealHeatRod():
