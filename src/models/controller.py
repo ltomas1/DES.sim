@@ -253,8 +253,11 @@ class Controller():
         # ------------------HP surplus mode def-----------------------------------------
         
         # if surplus electricity generation:
-        if (self.pv_gen + self.chp_el - self.pred_el_demand) > 1 : 
-            self.hp_surplus = True
+        if self.pv_gen and self.chp_el and self.pred_el_demand:
+            if (self.pv_gen + self.chp_el - self.pred_el_demand) > 1 : 
+                self.hp_surplus = True
+            else:
+                self.hp_surplus = False
         #----------------------------------------------------------------------
         # Calculate the mass flows, temperatures and heat from back up heater for the SH circuit
         self.calc_heat_supply(self.config)
