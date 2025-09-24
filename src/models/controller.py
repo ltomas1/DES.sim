@@ -687,8 +687,7 @@ class Controller():
 
             if config == '3-runner':
                 self.tank_connections['tank0']['heat_in_F'] = dhw_F + sh_F 
-                self.tank_connections['tank0']['heat_in_T'] = (self.heat_rT*dhw_F + Tret*sh_F)/(dhw_F+sh_F)
-
+                self.tank_connections['tank0']['heat_in_T'] = (self.heat_rT*dhw_F + Tret*sh_F)/(dhw_F+sh_F) if (dhw_F+sh_F) != 0 else 0
             elif config == '4-runner':
                 self.tank_connections['tank0']['heat_in_F'] = sh_F
                 self.tank_connections['tank0']['heat_in_T'] = Tret
