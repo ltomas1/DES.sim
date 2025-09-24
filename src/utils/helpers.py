@@ -145,17 +145,56 @@ def calc_energy(vars, step_size):
     step_size: in seconds
     returns absolute value of energy in Wh
     '''
-   
+    if isinstance(vars, (pd.Series, pd.DataFrame)):
+        return vars.sum() * step_size/3600
     for i in range(len(vars)):
         if isinstance(vars[i], (int, float)):
             vars[i] = 0
         elif isinstance(vars[i], list):
             vars[i] = sum(vars[i]) * step_size/3600
         else :
-            # so, pandas series, or dataframes!!
+            # so, pandas series
             vars[i] = vars[i].sum() * step_size/3600 
     
 
+<<<<<<< HEAD
     
     
     return np.abs(vars)
+=======
+def flatten_keys(obj, attr_list):
+    # Flatten dict attributes
+    flat_keys = []
+    for attr in attr_list:
+        value = getattr(obj, attr)   # get the actual object
+        if isinstance(value, dict):
+                for key, val in value.items():
+                    if isinstance(val, dict):  # nested dict case
+                        for subkey in val.keys():
+                            flat_keys.append(f"{attr}.{key}.{subkey}")
+                    else:
+                        flat_keys.append(f"{attr}.{key}")
+
+
+#wouldn't work
+# def flat_keys(obj, attr_list): 
+#     for n,attr in enumerate(attr_list):
+#         get = get_nested_attr(obj, attr)
+#         if isinstance(get, dict):
+#             for k, _ in get.items():
+#                 attr_list[n] = f"{get}.{k}"
+#             flat_keys(obj, attr_list)
+#     return attr_list
+
+def rename_cols(df):
+    columns = {}
+    for col in df.columns:
+        attr = col.rsplit('-', 1)[1] if '-' in col else col
+        # attr = attr.split('.')[1] if '.' in attr else attr
+        entity = col.split('.', 1)[0].replace('Sim', '')
+        entity = entity.replace('sim_v2', '')
+        # entity = 
+        new_col = f"{entity}_{attr}" 
+        columns[col] = new_col
+    return columns
+>>>>>>> 21644e9 (moved rename_cols to helpers)
