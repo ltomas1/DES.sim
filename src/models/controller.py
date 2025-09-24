@@ -108,7 +108,7 @@ class Controller():
         # of all the generators defined in self.gens.
         # Keys look like: "<generator>_status", "<generator>_demand", "<generator>_supply"
         self.generators = {
-            f'{gen}_{suffix}' : 'off' for gen in self.gens for suffix in ['status', 'demand', 'supply']
+            f'{gen}_{suffix}' : init for gen in self.gens for suffix, init in zip(['status', 'demand', 'supply'], ['off', 0, 0])
         }
         
         self.tank_connections = {
@@ -390,10 +390,8 @@ class Controller():
 
                 logic = {
                     #Comp : [tank, layer, turn_on_temp, turn_off, {additional turn on conditions with attribute name and temp value}, {additional turn off conditions}]
-                    'hp_dhw' : ['tank1', 'top', 55, 60, {'turn_off' : {'T_amb' : -5}}], # TWW
-                    'hp_sh' : ['tank2', 'top', 55, 60, {'turn_off' : {'T_amb' : -5}}],
+                    'hp' : ['tank2', 'top', 55, 60, {'turn_off' : {'T_amb' : -5}}], # TWW
                     'boiler' : ['tank2', 'top', 58, 65],
-                    'chp' : ['tank2', 'top', 58, 65]
                 }
                 # add_conditions = {
                 #     'turn_on' : {'attr' : 'thresh_val'},
