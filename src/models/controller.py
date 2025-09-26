@@ -108,7 +108,7 @@ class Controller():
         # of all the generators defined in self.gens.
         # Keys look like: "<generator>_status", "<generator>_demand", "<generator>_supply"
         self.generators = {
-            f'{gen}_{suffix}' : 'off' for gen in self.gens for suffix in ['status', 'demand', 'supply']
+            f'{gen}_{suffix}' : init for gen in self.gens for suffix, init in zip(['status', 'demand', 'supply'], ['off', 0, 0])
         }
         
         self.tank_connections = {
@@ -253,8 +253,11 @@ class Controller():
         # ------------------HP surplus mode def-----------------------------------------
         
         # if surplus electricity generation:
-        if (self.pv_gen + self.chp_el - self.pred_el_demand) > 1 : 
-            self.hp_surplus = True
+        if self.pv_gen and self.chp_el and self.pred_el_demand:
+            if (self.pv_gen + self.chp_el - self.pred_el_demand) > 1 : 
+                self.hp_surplus = True
+            else:
+                self.hp_surplus = False
         #----------------------------------------------------------------------
         # Calculate the mass flows, temperatures and heat from back up heater for the SH circuit
         self.calc_heat_supply(self.config)
@@ -387,10 +390,8 @@ class Controller():
 
                 logic = {
                     #Comp : [tank, layer, turn_on_temp, turn_off, {additional turn on conditions with attribute name and temp value}, {additional turn off conditions}]
-                    'hp_dhw' : ['tank1', 'top', 55, 60, {'turn_off' : {'T_amb' : -5}}], # TWW
-                    'hp_sh' : ['tank2', 'top', 55, 60, {'turn_off' : {'T_amb' : -5}}],
+                    'hp' : ['tank2', 'top', 55, 60, {'turn_off' : {'T_amb' : -5}}], # TWW
                     'boiler' : ['tank2', 'top', 58, 65],
-                    'chp' : ['tank2', 'top', 58, 65]
                 }
                 # add_conditions = {
                 #     'turn_on' : {'attr' : 'thresh_val'},
@@ -684,8 +685,7 @@ class Controller():
 
             if config == '3-runner':
                 self.tank_connections['tank0']['heat_in_F'] = dhw_F + sh_F 
-                self.tank_connections['tank0']['heat_in_T'] = (self.heat_rT*dhw_F + Tret*sh_F)/(dhw_F+sh_F)
-
+                self.tank_connections['tank0']['heat_in_T'] = (self.heat_rT*dhw_F + Tret*sh_F)/(dhw_F+sh_F) if (dhw_F+sh_F) != 0 else 0
             elif config == '4-runner':
                 self.tank_connections['tank0']['heat_in_F'] = sh_F
                 self.tank_connections['tank0']['heat_in_T'] = Tret
