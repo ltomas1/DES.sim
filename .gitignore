@@ -27,6 +27,5 @@ __pycache__/
 /src/utils/debug.csv
 **/src/utils/visu plots
 
-src/rough.ipynb
-src/PVlib_output.csv
-src/utils/analysis.ipynb
+# Ignore the data/outputs folder
+data/outputs/

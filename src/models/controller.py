@@ -1,22 +1,8 @@
 __doc__ = """
 The controller module contains an updated class for the controller model (:class:`Controller`).
 """
-#Logging setup------------------------------------------------------------------------------------------------------------#
-import logging
-
-logger_controller = logging.getLogger("mosaik_logger")
-logger_controller.setLevel(logging.DEBUG)  # Log everything (DEBUG, INFO, WARNING, ERROR)
-
-# Create a file handler to store logs
-file_handler_controller = logging.FileHandler("controller_mosaik_simulation.log")  # Save to file
-file_handler_controller.setLevel(logging.DEBUG)
-
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-
-logger_controller.addHandler(file_handler_controller)
 #----------------------------------------------------------------------------------------------------------------------------#
-# %%
+
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -24,7 +10,7 @@ import os
 import json
 from collections import defaultdict
 from src.utils import helpers
-# %%
+
 class Controller():
     """
         Simulation model of a controller.

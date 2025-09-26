@@ -157,11 +157,6 @@ def calc_energy(vars, step_size):
             vars[i] = vars[i].sum() * step_size/3600 
     
 
-<<<<<<< HEAD
-    
-    
-    return np.abs(vars)
-=======
 def flatten_keys(obj, attr_list):
     # Flatten dict attributes
     flat_keys = []
@@ -197,4 +192,3 @@ def rename_cols(df):
         new_col = f"{entity}_{attr}" 
         columns[col] = new_col
     return columns
->>>>>>> 21644e9 (moved rename_cols to helpers)
