@@ -5,7 +5,6 @@ import os
 import sys
 import nest_asyncio
 nest_asyncio.apply()
-
 import logging
 # from utils.setup_logging import setup_logging
 
@@ -26,7 +25,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_PATH = os.path.join(current_dir, "..", 'data/outputs')
 sys.path.append(os.path.join(current_dir, ".."))
 
-from src.models import controller_mosaik
+# from src.models import controller_mosaik
 # from src.models import chp_mosaik
 # from src.models import gasboiler_mosaik
 from src.models import pvlib_model
@@ -76,16 +75,16 @@ def hash_encrypt(changes):
         # json.dump(changes, f, indent=4)
     return hash_str
 
-def run_DES(params):
+def run_DES(params, collect=True, plot_graph=False):
     sim_config = {
         'EnergyTransformer' : {
-            'python' : 'models.EnergyTransformer_frame:TransformerSimulator',
+            'python' : 'src.models.EnergyTransformer_frame:TransformerSimulator',
         },
         'Boilersim_v2' : {
-            'python' : 'models.boiler_model_v2:TransformerSimulator'
+            'python' : 'src.models.boiler_model_v2:TransformerSimulator'
         },
         'Chpsim_v2' : {
-            'python' : 'models.chp_model_v2:TransformerSimulator'
+            'python' : 'src.models.chp_model_v2:TransformerSimulator'
         },
         
         'CSV': {
@@ -103,7 +102,7 @@ def run_DES(params):
         },
         
         'ControllerSim': {
-            'python': 'models.controller_mosaik:ControllerSimulator',
+            'python': 'src.models.controller_mosaik:ControllerSimulator',
             
         },
         'CHPSim': {
@@ -116,28 +115,25 @@ def run_DES(params):
         'Boilersim' : {
                 'python' : 'models.gasboiler_mosaik:Boilersimulator',
         },
-
-        # 'PVsim_pvlib' : {
-        #         'python' : 'mosaik_components.pv.photovoltaic_simulator:PVSimulator'
-        # },
-        # 'MeteoSim': {
-        #         # 'python': 'mosaik_csv:CSV'
-        # }
+        'Collector': {
+                'python': 'src.models.collector:Collector',
+        },
 
 
     }
     
     # Create World
-    world = mosaik.World(sim_config)
+    
+    world = mosaik.World(sim_config, mosaik_config={'addr':('127.0.0.1', 0)})
     START = '2022-01-01 00:00:00'
-    END =  365*24*60*60 # one year in seconds
+    END =  5*24*60*60 # one year in seconds
 
     # unpacking input params
     
     params_hp = params['hp']
     params_ctrl = params['ctrl']
     params_hwt = params['tank']
-    params_ctrl['tank'] = params['tank'] 
+    params_ctrl['tank'] = params['tank']
     init_vals_hwt0 = params['init_vals_tank']['init_vals_hwt0']
     init_vals_hwt1 = params['init_vals_tank']['init_vals_hwt1']
     init_vals_hwt2 = params['init_vals_tank']['init_vals_hwt2']    
@@ -145,18 +141,13 @@ def run_DES(params):
     params_boiler = params['params_boiler']
     params_chp['step_size'] = STEP_SIZE
     params_pv = params['pv']
-    params_ctrl['control_strategy'] = '2'
-    print(f"Control strategy : {params_ctrl['control_strategy']}")
-    params_ctrl['supply_config'] = '4-runner'
-    params_ctrl['Ideal_hr_mode'] = 'on'
-    # params_hwt['debug'] = 'on'
 
 
 
     # -----------------------------------------pv-------------------------------------------------------------------------------------
     #Standalone pvmodel-------------------------------------------------
     pvlib_model.sim(params_pv)
-    pv_results = os.path.abspath(os.path.join(os.path.dirname( __file__ ),'PVlib_output.csv')) 
+    pv_results = os.path.join(OUTPUT_PATH,'PVlib_output.csv')
     pv_csv = world.start('CSV', sim_start = START, datafile = pv_results)
 
     pv_mod = pv_csv.Data.create(1)
@@ -200,17 +191,16 @@ def run_DES(params):
 
     # ------------------Output data storage-----------------------
     # prefix, hash_prefix = generatePrefix(params, ref_param_filename)
-    prefix, hash_prefix = '',''
+    # prefix, hash_prefix = '',''
     
     # configure the simulator
     csv_sim_writer = world.start('CSV_writer', start_date= START, date_format='%Y-%m-%d %H:%M:%S',
-                                output_file=OUTPUT_PATH+f'/try_DES_data.csv')
+                                output_file=os.path.join(OUTPUT_PATH, 'DES_data.csv'))
 
-    csv_debug_writer = world.start('CSV_writer', start_date='2022-01-01 00:00:00', date_format='%Y-%m-%d %H:%M:%S',
-                                output_file='utils/debug.csv')
+    collector = world.start('Collector')
     # Instantiate model
     csv_writer = csv_sim_writer.CSVWriter(buff_size=15 * 60 * 60)
-    csv_debug = csv_debug_writer.CSVWriter(buff_size=15 * 60 * 60)
+    col = collector.Collector()
     #-------------------------------------------------------------
 
     # configure other simulators
@@ -237,9 +227,6 @@ def run_DES(params):
                   , ('Timestamp', 'timestamp'), ('offset_Electricy demand[kW]', 'pred_el_demand'))
     world.connect(pv_mod[0], ctrls[0], ('Power[w]', 'pv_gen'))
 
-    world.connect(ctrls[0], csv_debug, 'tank_connections.tank0.heat_out_F', 'tank_connections.tank0.heat_in_F', 
-              'tank_connections.tank0.hp_out_F','hp_in_F', 'tank_connections.tank1.hp_out_F')
-    
     """__________________________________________ hwts ___________________________________________________________________""" 
 
     world.connect(hwts0[0], ctrls[0], ('heat_out.T', 'tank_connections.tank0.heat_out_T'), 
@@ -269,7 +256,8 @@ def run_DES(params):
     world.connect(ctrls[0], hwts1[0], 
               ('tank_connections.tank1.hp_out_F', 'hp_out.F'),('tank_connections.tank1.heat_out_T', 'heat_out.T'), 
               ('tank_connections.tank1.heat_out_F', 'heat_out.F'),('tank_connections.tank1.heat_out2_F', 'heat_out2.F'),
-              ('tank_connections.tank1.hp_out_T','hp_out.T'), ('hwt1_hr_1', 'hr_1.P_th_set'), ('tank_connections.tank1.heat_in_F', 'heat_in.F'), ('tank_connections.tank1.heat_in_T', 'heat_in.T'))
+              ('tank_connections.tank1.hp_out_T','hp_out.T'), ('hwt1_hr_1', 'hr_1.P_th_set'), 
+              ('tank_connections.tank1.heat_in_F', 'heat_in.F'), ('tank_connections.tank1.heat_in_T', 'heat_in.T'))
 
     world.connect(ctrls[0], hwts2[0], 
               ('tank_connections.tank2.hp_out_T', 'hp_out.T'),('tank_connections.tank2.hp_out_F', 'hp_out.F'),
@@ -385,7 +373,7 @@ def run_DES(params):
                 'generators.chp_demand', 'generators.chp_supply', 'sh_supply', 'dhw_supply',
                 'heat_in_F', 'heat_in_T', 'heat_out_F', 'heat_out_T', 
                 'chp_in_F', 'chp_in_T', 'chp_out_F', 'chp_out_T', 'pv_gen',
-                'hp_out_F', 'hp_out_T', 'IdealHrodsum', 'dt', 'generators.boiler_demand', 'chp_uptime')
+                'hp_out_F', 'hp_out_T', 'P_hr', 'dt', 'generators.boiler_demand', 'chp_uptime')
 
     world.connect(hwts0[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
                 'heat_out.T', 'heat_out.F', 'hp_in.T', 'hp_in.F', 'hp_out.T',
@@ -411,16 +399,38 @@ def run_DES(params):
     # world.connect(boiler[0], csv_writer, 'P_th', 'Q_Demand', 'temp_out', 'fuel_m3', 'mdot')   
     world.connect(boiler[0], csv_writer, 'P_th', 'Q_demand', 'temp_out', 'mdot')   
 
-
+    # auto-connect *all* source attributes to collector
+    def connect_all_attrs(world, src_sim, src_entities, collector_ent):
+        for e in src_entities:
+            model = e.type
+            attrs = src_sim.meta['models'][model]['attrs']  # list of attribute names
+            if attrs:
+                world.connect(e, collector_ent, *attrs)     # connect each attr by name
+                
+    connect_all_attrs(world, boilersim, boiler, col)
+    connect_all_attrs(world, chpsim, chp, col)
+    connect_all_attrs(world, ctrlsim, ctrls, col)
+    connect_all_attrs(world, heatpumpsim, heatpump, col)
+    # connect_all_attrs(world, hwtsim0, hwts0, col)
+    # connect_all_attrs(world, hwtsim1, hwts1, col)
+    # connect_all_attrs(world, hwtsim2, hwts2, col)    
+    connect_all_attrs(world, csv, heat_load, col)
+    
     """__________________________________________ world run _______________________________________________________________________________________________________________"""
 
     
     # To start heatpump as first simulator
     world.set_initial_event(heatpump[0].sid)
     
+    data = None
+    if collect == True:
+        data = collector.dump() 
+
     # Run simulation
     world.run(until=END)
 
+    return data
+    
     #logger message
     # logger.info(f"Scenario successfully simulated : {hash_prefix}.") #It is possible to have different logger levels depending on how important the information of the logger is.
     # Levels are (debug, info, warning, error)
@@ -431,7 +441,8 @@ def run_DES(params):
     # logger.warning("Result of the simulation is:" +str(result))
 
     # plot the data flow
-    # mosaik.util.plot_dataflow_graph(world, folder=os.path.join(current_dir, 'utils/util_figures'), show_plot=False)
+    if plot_graph == True:
+        mosaik.util.plot_dataflow_graph(world, folder=os.path.join(current_dir, 'utils/util_figures'), show_plot=False)
 
 def pvsim():
     pvlib_model.sim()

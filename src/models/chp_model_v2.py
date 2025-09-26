@@ -113,7 +113,10 @@ class TransformerSimulator(mosaik_api.Simulator):
                         'attrs']:
                     raise ValueError('Unknown output attribute: %s' % attr)
                 data['time'] = self.time
-                data[eid][attr] = float(getattr(self.models[eid], attr))
+                
+                value = getattr(self.models[eid], attr)
+                if isinstance(value, (float, int)):
+                    data[eid][attr] = float(value)
                     
         return data
 

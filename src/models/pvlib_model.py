@@ -106,7 +106,9 @@ def sim(params):
     weather['Power[w]'] = mc.results.ac * power_ratio
 
     weather.index = weather.index.tz_localize(None)
-    weather.to_csv('PVlib_output.csv')
+    current_dir = os.getcwd()
+
+    weather.to_csv(os.path.join(current_dir, '../data/outputs/PVlib_output.csv'))
     print('PVlib simulation finished!')
 
 if __name__ == "__main__":   
