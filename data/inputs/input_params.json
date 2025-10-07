@@ -6,17 +6,21 @@
     },
     "params_chp": {
     "eid_prefix": "CHP",
-    "heat_out": [0, 92000],
+    "heat_out": [0, 0],
     "elec_share": 0.5,
+    "efficiency": 0.5,
     "startup_coeff": [-2.63, 3.9, 0.57],
     "startup_limit": 11,
     "set_flow": 4,
-    "step_size": "STEP_SIZE"
+    "step_size": "STEP_SIZE",
+    "heating_value": 10833.3
   },
   "params_boiler": {
     "eid_prefix": "Boiler",
-    "heat_out": [0, 74000, 148000, 222000, 296000, 370000],
-    "set_temp": 75
+    "heat_out": [0, 200000],
+    "set_temp": 75,
+    "efficiency": 0.8,
+    "heating_value": 10833.3
   },
 
     "ctrl": {
@@ -28,12 +32,12 @@
         "T_dhw_buffer": 5,
         "heat_rT": 35,
         "operation_mode": "heating",
-        "control_strategy": "2",
+        "control_strategy": "1",
         "supply_config": "4-runner",
         "sh_out": "1",
         "dhw_out": "2",
         "boiler_mode": "on",
-        "Ideal_hr_mode": "off", 
+        "Ideal_hr_mode": "on", 
         "boiler_delay": 600,
         "step_size": 900
     },
@@ -80,7 +84,7 @@
         },
         "heating_rods": {
             "hr_1": {
-                "mode": "off",
+                "mode": "on",
                 "pos": 2200,
                 "P_th_stages": [
                     0,

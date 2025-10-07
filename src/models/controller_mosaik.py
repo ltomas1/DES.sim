@@ -3,7 +3,7 @@ Mosaik interface for controller model
 
 """
 import mosaik_api
-from models.controller import Controller
+from src.models.controller import Controller
 from tqdm import tqdm
 from src.utils import helpers
 
