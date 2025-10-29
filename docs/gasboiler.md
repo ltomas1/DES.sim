@@ -1,26 +1,15 @@
 # Gas Boiler
-The gas boiler model builds on top of the mosaik heat pump model. The base file *gas boiler_mosaik.py* handles the scheduling and contains the other required mosaik methods.  
-*gasboiler_model.py* details the functioning of the gas boiler model.
+This models inherits from the `Transformer_base` class. 
+# Parameter
+- ***startup_coeff*** : (array or List)Series of coefficients representing the startup behaviour.
+- ***startup_time*** : (float) The startup time of the CHP (in minutes). 
+# Structure
+There are two classes : `Gboiler` and `TransformerSimulator`.
+## Gboiler
+This class is a child of the `Transformer_base` class.
+The startup behaviour is modelled using a linear equation, the order of which is determined by the number of coefficient provided in the parameters dictionary.
+## TransformerSimulator
+A child class of `mosaik_api.Simulator` class. Contains the methods requried by mosaik.  
 
-# Parameters
-The gas boiler model accepts 5 parameters.
-~~~python
-params_boiler = {'eta' : 0.98, 'hv' : HV, 
-                 'nom_P_th' : [0, 74000, 148000, 222000, 296000, 370000], #Operating points of boiler, in W
-                 'Set_Temp' : 75
-                     }
-~~~
-
-- ***eta*** : Thermal efficiency of the gas boiler plant.
-- ***hv*** : Lower Heating value of the fuel being used in the gas boiler.
-- ***cp***(*optional*) : The specific heat capacity of medium can also be specified, defaults to 4184 J/kgK.
-- ***nom_P_th*** : The power output of the gas boiler in Watts.
-- ***Set_Temp*** : The setpoint temperature of the boiler output (in degree C).
-
-# Working
-The gas boiler recieves the power demand from the controller, and accordingly selects an operationg point from `nom_P_th`. Accordingly the mass flow rate is calculated. The instantaneous fuel consumption is also calculated as per the provided fuel heating value.
-~~~python
-self.inputs.mdot = self.P_th/((self.temp_out - self.inputs.temp_in) * self.cp)
-self.fuel_m3 = (self.P_th*(self.inputs.step_size/3600))/(self.inputs.fuel_eta * self.inputs.heat_value)
-~~~
-
+# Structure
+![Structure](images/Boiler_uml.png)
