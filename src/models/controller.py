@@ -62,19 +62,22 @@ class Controller():
         """
         
     def __init__(self, params):
+        # Temperature setpoints
         self.T_hp_sp_winter = params.get('T_hp_sp_winter')
         self.T_hp_sp_summer = params.get('T_hp_sp_summer')
         self.T_hp_sp_surplus = params.get('T_hp_sp_surplus')
         self.T_hr_sp_hwt = params.get('T_hr_sp_hwt', None)
         self.T_dhw_sp = params.get('T_dhw_sp', None)
+        self.T_chp_h = params.get('T_chp_h')
         self.heat_rT = params.get('heat_rT', 20) #Specific to the 2-runner setup
+        # Control mode
         self.operation_mode = params.get('operation_mode', 'heating')
         self.control_strategy = params.get('control_strategy', '1')
         self.idealheater = params.get('Ideal_hr_mode', 'off').lower()
-        self.T_chp_h = params.get('T_chp_h')
         self.boiler_delay = params.get('boiler_delay')
         self.T_dhw_buffer = params.get('T_dhw_buffer', 5)
 
+        #supply configuration
         self.config = params.get('supply_config')
         self.sh_out = params.get('sh_out')  #Tank which serves as the Output connection for space heating
         self.sh_out2 = params.get('sh_out2')
@@ -87,18 +90,15 @@ class Controller():
         self.boiler_mode = params.get('boiler_mode','off').lower()
         self.params_hwt = params.get('tank')
 
-        self.req_shTsup = None # ONLY for debugging, to see the required supply temp for SH circuit.
-    
-
-        # Could move these to the params!!
+        
+        # Required inputs (Could move these to the params!!)
         self.gens = ['hp', 'chp', 'boiler']
         self.no_tanks = 3 # the number of tanks in the system
         self.tank_setup = ['tank0.heat_out:tank1.hp_out', 'tank1.heat_out:tank2.hp_out'] # the tank connections in the system
+
         
-        #TODO  moves these to the class docstring.
-        # Stores the operation status, demand, and actual supplied energy 
-        # of all the generators defined in self.gens.
-        # Keys look like: "<generator>_status", "<generator>_demand", "<generator>_supply"
+        # --------------------------------Initialising attributes----------------------------------------------
+        
         self.generators = {
             f'{gen}_{suffix}' : init for gen in self.gens for suffix, init in zip(['status', 'demand', 'supply'], ['off', 0, 0])
         }
@@ -113,6 +113,9 @@ class Controller():
         self.tank_temps = {
             tank : {'top':0, 'middle' : 0, 'bottom':0} for tank in self.tanks
             }
+        
+        # other attrs---------------------
+        self.req_shTsup = None # ONLY for debugging, to see the required supply temp for SH circuit.
 
         self.T_amb = None                   # The ambient air temperature (in °C)
         self.heat_source_T = None           # The temperature of source for the heat pump (in °C)
@@ -121,9 +124,8 @@ class Controller():
         self.heat_demand = None             # The total heat demand from SH & DHW (in W)
         self.dhw_demand = None
         self.sh_demand = None
+        self.dhw_supply, self.sh_supply, self.heat_supply = None, None, None  # The heat supplied for DHW, SH and total (in W)
 
-        self.dhw_supply, self.sh_supply = None, None
-        self.heat_supply = 0             # The total heat supplied by the heating system for SH & DHW (in W)
 
         self.heat_dT = None                   # The temeprature difference between heat_in_T and heat_out_T (in K)
 
@@ -135,19 +137,15 @@ class Controller():
         self.hp_on_fraction = None          # The fraction of the time step for which the heat pump is on
 
         self.chp_uptime = None              #Time since startup of chp
+        self.boiler_uptime = None       # The time for which the boiler has been operational (in Seconds)
+        self.dt = 0 #Time for how long top layer of Tank 3 below threshold, i.e chp not able to keep up with demand.
         
         self.T_mean_hwt = 0              # The mean temperature of the hot water tank (in °C)
         self.hwt_mass = 0                # The total mass of water inside the hot water tank (kg)
 
         self.hwt_hr_P_th_set = None         # The heat demand for the in built heating rod of the hot water tank (in W)
 
-
-        self.boiler_uptime = None       # The time for which the boiler has been operational (in Seconds)
-
-        self.dt = 0 #Time for how long top layer of Tank 3 below threshold, i.e chp not able to keep up with demand.
-
         self.max_flow = 20            #The max flow rate permissible in one step.
-        self.P_hr = [0,0,0]             # Discontinued!!! Istantaneous power of the Idealheater #TODO more robust for flexible number of tanks
         self.IdealHrodsum = 0           # The sum of P_hr and space heating idealheater
         self.P_hr_sh = 0                #Instantatus of Ideal heater only for space heating.
         self.tcvalve1 = TCValve(self.max_flow)
