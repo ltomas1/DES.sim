@@ -273,7 +273,7 @@ def run_DES(params, collect=True, plot_graph=False):
 
     
     world.connect(hwts2[0], ctrls[0], ('heat_out.T', 'tank_connections.tank2.heat_out_T'), 
-              ('chp_out.T', 'chp_out_T'),('heat_out.F', 'tank_connections.tank2.heat_out_F'), 
+              ('heat_out.F', 'tank_connections.tank2.heat_out_F'), 
               ('sensor_00.T', 'tank_temps.tank2.bottom'),('sensor_02.T', 'tank_temps.tank2.top'), 
               ('heat_out2.T','tank_connections.tank2.heat_out2_T'),('heat_out2.F', 'tank_connections.tank2.heat_out2_F'), 
               ('sensor_01.T', 'tank_temps.tank2.middle'))
@@ -286,7 +286,7 @@ def run_DES(params, collect=True, plot_graph=False):
                     time_shifted=True, initial_data={'temp_out': 20, 'mdot':0, 'mdot_neg':0})
     
     world.connect(boiler[0], ctrls[0], ('P_th', 'generators.boiler_supply'), ('uptime','boiler_uptime'),
-                ('mdot', 'boiler_mdot'))
+                )
     
     world.connect(ctrls[0], boiler[0], ('generators.boiler_demand', 'Q_demand'), ('generators.boiler_status', 'status'),
                 time_shifted=True,
@@ -300,7 +300,7 @@ def run_DES(params, collect=True, plot_graph=False):
                     time_shifted=True, initial_data={'temp_out': 20, 'mdot':0, 'mdot_neg':0})
 
     world.connect(chp[0], ctrls[0], ('P_th', 'generators.chp_supply'), ('uptime', 'chp_uptime'), ('P_el', 'chp_el'),
-                ('mdot', 'chp_mdot')) 
+               ) 
 
     world.connect(ctrls[0], chp[0], ('generators.chp_demand', 'Q_demand'), ('generators.chp_status' , 'status'),
                 time_shifted=True,
@@ -370,10 +370,9 @@ def run_DES(params, collect=True, plot_graph=False):
                 'COP', 'cond_m', 'cond_in_T', 'on_fraction','Q_evap')
 
     world.connect(ctrls[0], csv_writer, 'heat_demand', 'heat_supply', 'generators.hp_demand', 'generators.hp_supply',
-                'generators.chp_demand', 'generators.chp_supply', 'sh_supply', 'dhw_supply',
-                'heat_in_F', 'heat_in_T', 'heat_out_F', 'heat_out_T', 
-                'chp_in_F', 'chp_in_T', 'chp_out_F', 'chp_out_T', 'pv_gen',
-                'hp_out_F', 'hp_out_T', 'P_hr', 'dt', 'generators.boiler_demand', 'chp_uptime')
+                'generators.chp_demand', 'generators.chp_supply', 'sh_supply', 'dhw_supply', 
+                 'pv_gen',
+                 'IdealHrodsum', 'dt', 'generators.boiler_demand', 'chp_uptime', 'req_shTsup')
 
     world.connect(hwts0[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
                 'heat_out.T', 'heat_out.F', 'hp_in.T', 'hp_in.F', 'hp_out.T',
