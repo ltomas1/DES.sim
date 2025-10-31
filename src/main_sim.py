@@ -262,14 +262,18 @@ def run_DES(params, collect=True, plot_graph=False):
     world.connect(ctrls[0], hwts2[0], 
               ('tank_connections.tank2.hp_out_T', 'hp_out.T'),('tank_connections.tank2.hp_out_F', 'hp_out.F'),
               ('tank_connections.tank2.heat_out_F', 'heat_out.F'),('tank_connections.tank2.heat_out2_F', 'heat_out2.F'),
-              ('T_amb', 'T_env'), ('hwt2_hr_1', 'hr_1.P_th_set'),
+              ('T_amb', 'T_env'), ('hwt2_hr_1', 'hr_1.P_th_set'),('tank_connections.tank2.heat_in_F', 'heat_in.F'),
+              ('tank_connections.tank2.heat_in_T', 'heat_in.T'),
               time_shifted=True,
               initial_data={'tank_connections.tank2.heat_out_F': 0, 
                             'T_amb': 0, 
                             'tank_connections.tank2.hp_out_T':0, 
                             'tank_connections.tank2.hp_out_F':0, 
                             'tank_connections.tank2.heat_out2_F':0, 
-                            'hwt2_hr_1':0})
+                            'hwt2_hr_1':0,
+                            'tank_connections.tank2.heat_in_T':0,
+                            'tank_connections.tank2.heat_in_F':0
+                            })
 
     
     world.connect(hwts2[0], ctrls[0], ('heat_out.T', 'tank_connections.tank2.heat_out_T'), 
@@ -325,6 +329,7 @@ def run_DES(params, collect=True, plot_graph=False):
 
     world.connect(heatpump[0], hwts1[0], ('cons_T', 'hp_in.T'), ('cond_m', 'hp_in.F'),
                 )
+    world.connect(heatpump[0], ctrls[0], ('cond_m_neg', 'tank_connections.tank0.hp_out_F'), ('cond_m', 'tank_connections.tank1.hp_in_F'),)
 
 
     """__________________________________________ PVsim ___________________________________________________________________""" 
