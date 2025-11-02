@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 import json
+import uuid
 
 def sim(params):
     # module library at https://github.com/pvlib/pvlib-python/blob/main/pvlib/data/sam-library-sandia-modules-2015-6-30.csv
@@ -106,10 +107,13 @@ def sim(params):
     weather['Power[w]'] = mc.results.ac * power_ratio
 
     weather.index = weather.index.tz_localize(None)
-    current_dir = os.getcwd()
-
-    weather.to_csv(os.path.join(current_dir, '../data/outputs/PVlib_output.csv'))
+    unique_id = str(uuid.uuid4())[:8]
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    output_path = os.path.abspath(os.path.join(script_dir, '..', '..', 'data', 'outputs', 'pv', f'PVlib_output{unique_id}.csv'))
+    weather.to_csv(output_path)
     print('PVlib simulation finished!')
+    
+    return output_path
 
 if __name__ == "__main__":   
     path = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'data','inputs', 'input_params.json'))

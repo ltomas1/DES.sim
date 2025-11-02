@@ -15,7 +15,6 @@ The second tank recieves the hot water from the Heat pump, this along with the b
 The third tank recieves flow from the CHP and the gas boiler, both of which form a closed loop with the third tank.  
 
 
-![Storage Schematic](Storage_scheme.png)
 
 
 ## Controller Logic - Heating mode
@@ -30,6 +29,5 @@ The Gas boiler operates with a similar logic, but turning on only when the tempe
 Then the gas boiler runs in conjuction with the CHP until the bottom layer of the third tanks is above the upper threshold temperature.
  
 
-![Flowchart](<Controller logic.png>)
 
 

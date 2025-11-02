@@ -25,9 +25,6 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_PATH = os.path.join(current_dir, "..", 'data/outputs')
 sys.path.append(os.path.join(current_dir, ".."))
 
-# from src.models import controller_mosaik
-# from src.models import chp_mosaik
-# from src.models import gasboiler_mosaik
 from src.models import pvlib_model
 #______________________________moved outside method, to be accessible from other scripts(visu.ipynb)
 #TODO use the param file in visu
@@ -126,7 +123,7 @@ def run_DES(params, collect=True, plot_graph=False):
     
     world = mosaik.World(sim_config, mosaik_config={'addr':('127.0.0.1', 0)})
     START = '2022-01-01 00:00:00'
-    END =  5*24*60*60 # one year in seconds
+    END =  365*24*60*60 # one year in seconds
 
     # unpacking input params
     
@@ -142,12 +139,9 @@ def run_DES(params, collect=True, plot_graph=False):
     params_chp['step_size'] = STEP_SIZE
     params_pv = params['pv']
 
-
-
     # -----------------------------------------pv-------------------------------------------------------------------------------------
     #Standalone pvmodel-------------------------------------------------
-    pvlib_model.sim(params_pv)
-    pv_results = os.path.join(OUTPUT_PATH,'PVlib_output.csv')
+    pv_results = pvlib_model.sim(params_pv)
     pv_csv = world.start('CSV', sim_start = START, datafile = pv_results)
 
     pv_mod = pv_csv.Data.create(1)
@@ -313,7 +307,7 @@ def run_DES(params, collect=True, plot_graph=False):
 
     """__________________________________________ heat pump ___________________________________________________________________""" 
 
-    world.connect(heatpump[0], ctrls[0], ('Q_Supplied', 'generators.hp_supply'), ('on_fraction', 'hp_on_fraction'), ('P_Required', 'HP_P_Required'),
+    world.connect(heatpump[0], ctrls[0], ('Q_Supplied', 'generators.hp_supply'), ('on_fraction', 'hp_on_fraction'),
                 ('cond_m', 'hp_cond_m'))
 
     world.connect(ctrls[0], heatpump[0], ('generators.hp_demand', 'Q_Demand'),
@@ -433,6 +427,10 @@ def run_DES(params, collect=True, plot_graph=False):
     # Run simulation
     world.run(until=END)
 
+    # plot the data flow
+    if plot_graph == True:
+        mosaik.util.plot_dataflow_graph(world, folder=os.path.join(current_dir, 'utils/util_figures'), show_plot=False)
+
     return data
     
     #logger message
@@ -444,12 +442,10 @@ def run_DES(params, collect=True, plot_graph=False):
     #warning log
     # logger.warning("Result of the simulation is:" +str(result))
 
-    # plot the data flow
-    if plot_graph == True:
-        mosaik.util.plot_dataflow_graph(world, folder=os.path.join(current_dir, 'utils/util_figures'), show_plot=False)
+    
 
-def pvsim():
-    pvlib_model.sim()
+# def pvsim():
+#     pvlib_model.sim()
 
 if __name__ == "__main__":  
    
