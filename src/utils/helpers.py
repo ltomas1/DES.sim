@@ -91,6 +91,8 @@ def flatten_attrs(entity, attrs):
                             flat_keys.append(f"{attr}.{key}.{subkey}")
                     else:
                         flat_keys.append(f"{attr}.{key}")
+            else:
+                flat_keys.append(attr)
 
     return flat_keys
 
