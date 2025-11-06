@@ -91,10 +91,9 @@ class Controller():
         self.params_hwt = params.get('tank')
 
         
-        # Required inputs (Could move these to the params!!)
-        self.gens = ['hp', 'chp', 'boiler']
-        self.no_tanks = 3 # the number of tanks in the system
-        self.tank_setup = ['tank0.heat_out:tank1.hp_out', 'tank1.heat_out:tank2.hp_out'] # the tank connections in the system
+        self.gens = params.get('gens')
+        self.no_tanks = params.get('NumberofTanks') # the number of tanks in the system
+        self.tank_setup = params.get('TankbalanceSetup')# the tank connections in the system
 
         
         # --------------------------------Initialising attributes----------------------------------------------
@@ -110,8 +109,9 @@ class Controller():
                 f'{port}_{suffix}' : 0 for port in params['tank']['connections'].keys() for suffix in ['T', 'F']
             }
 
+        self.sensors = [f'sensor_{i}' for i in range(0, params['tank']['n_sensors'])]
         self.tank_temps = {
-            tank : {'top':0, 'middle' : 0, 'bottom':0} for tank in self.tanks
+            tank : {sensor : 0 for sensor in self.sensors} for tank in self.tanks
             }
         
         # other attrs---------------------
@@ -163,6 +163,8 @@ class Controller():
         
         self.timestamp = None
         self.hp_surplus = False
+
+        self.HP3wv_out1_share = 1 # The share of the flow from the mixing valve going to output 1(tank 1)
 
         #Collecting all the attributes in init, to make it available in attrs list.
         self.attr_list = list(vars(self).keys())
@@ -222,6 +224,15 @@ class Controller():
             self.isday = False
         else:
             self.isday = None
+
+
+
+        # ---------------------HP charge tank, 3 way valve--------------------------------------
+        if self.season == 'summer':
+            self.HP3wv_out1_share = 0 # all to tank 2(dhw tank)
+        else:
+            self.HP3wv_out1_share = 1 # to tank tank1 (middle, SH)
+
         
         # ------------------HP surplus mode def-----------------------------------------
         
@@ -241,8 +252,8 @@ class Controller():
         self.tankLayer_mass = self.params_hwt['volume'] * 1 / self.params_hwt['n_layers'] #1L = 1Kg
         
         # if chaning hr position, change the temp value here as well!
-        if self.params_hwt['heating_rods']['hr_1']['mode'] == 'on' and self.tank_temps['tank2']['top'] < self.params_hwt['heating_rods']['hr_1']['T_max']:
-            self.hwt2_hr_1 = self.tankLayer_mass * 4184 * (self.params_hwt['heating_rods']['hr_1']['T_max'] - self.tank_temps['tank2']['top'])
+        if self.params_hwt['heating_rods']['hr_1']['mode'] == 'on' and self.tank_temps['tank2']['sensor_2'] < self.params_hwt['heating_rods']['hr_1']['T_max']:
+            self.hwt2_hr_1 = self.tankLayer_mass * 4184 * (self.params_hwt['heating_rods']['hr_1']['T_max'] - self.tank_temps['tank2']['sensor_2'])
 
         self.hwt1_hr_1, self.hwt0_hr_1 = 0,0 
 
@@ -255,27 +266,26 @@ class Controller():
                 #-------------------Heat pump----------------
                 if self.season == 'winter':
 
-                    if self.tank_temps['tank1']['middle'] < self.T_hp_sp_winter: #Turns on only when below threshold of 35 degrees.
+                    if self.tank_temps['tank1']['sensor_1'] < self.T_hp_sp_winter: #Turns on only when below threshold of 35 degrees.
                         
                         self.generators['hp_status'] = 'on'
                         
                     if self.generators['hp_status'] == 'on' and self.isday: # Hp runs until upper threshold achieved.
-                        if self.tank_temps['tank0']['bottom'] < self.T_hp_sp_winter:
-                            self.generators['hp_demand'] = self.hwt_mass * 4184 * (self.T_hp_sp_winter - self.tank_temps['tank0']['bottom']) / self.step_size
+                        if self.tank_temps['tank0']['sensor_0'] < self.T_hp_sp_winter:
+                            self.generators['hp_demand'] = self.hwt_mass * 4184 * (self.T_hp_sp_winter - self.tank_temps['tank0']['sensor_0']) / self.step_size
                         
-                        elif self.hp_surplus and self.tank_temps['tank0']['bottom'] < self.T_hp_sp_surplus:
-                            self.generators['hp_demand'] =  self.hwt_mass * 4184 * (self.T_hp_sp_surplus - self.tank_temps['tank0']['bottom']) / self.step_size
+                        elif self.hp_surplus and self.tank_temps['tank0']['sensor_0'] < self.T_hp_sp_surplus:
+                            self.generators['hp_demand'] =  self.hwt_mass * 4184 * (self.T_hp_sp_surplus - self.tank_temps['tank0']['sensor_0']) / self.step_size
                         
                         else:
                             self.generators['hp_demand'] = 0
                             self.generators['hp_status'] = 'off'
                     elif self.isday == False:
-                        if self.tank_temps['tank0']['top'] < self.T_hp_sp_winter:
-                            self.generators['hp_demand'] = self.hwt_mass * 4184 * (self.T_hp_sp_winter - self.tank_temps['tank0']['top']) / self.step_size
+                        if self.tank_temps['tank0']['sensor_2'] < self.T_hp_sp_winter:
+                            self.generators['hp_demand'] = self.hwt_mass * 4184 * (self.T_hp_sp_winter - self.tank_temps['tank0']['sensor_0']) / self.step_size
                         
-                        elif self.hp_surplus and self.tank_temps['tank0']['bottom'] < self.T_hp_sp_surplus:
-                            self.generators['hp_demand'] =  self.hwt_mass * 4184 * (self.T_hp_sp_surplus - self.tank_temps['tank0']['bottom']) / self.step_size
-                            # tqdm.write(f'       In surplus mode! Time :{time}') #Prints without interrupting progress bar.
+                        elif self.hp_surplus and self.tank_temps['tank0']['sensor_0'] < self.T_hp_sp_surplus:
+                            self.generators['hp_demand'] =  self.hwt_mass * 4184 * (self.T_hp_sp_surplus - self.tank_temps['tank0']['sensor_0']) / self.step_size
                         
                         else:
                             self.generators['hp_demand'] = 0
@@ -286,21 +296,21 @@ class Controller():
 
                 if self.season == 'summer':
 
-                    if self.tank_temps['tank2']['middle'] < self.T_hp_sp_summer: #Turns on only when below threshold of 35 degrees.
+                    if self.tank_temps['tank2']['sensor_1'] < self.T_hp_sp_summer: #Turns on only when below threshold of 35 degrees.
                         
                         self.generators['hp_status'] = 'on'
                         
                     if self.generators['hp_status'] == 'on' and self.isday: # Hp runs until upper threshold achieved.
-                        if self.tank_temps['tank0']['bottom'] < self.T_hp_sp_summer:
-                            self.generators['hp_demand'] = self.hwt_mass * 4184 * (self.T_hp_sp_summer - self.tank_temps['tank0']['bottom']) / self.step_size
+                        if self.tank_temps['tank0']['sensor_0'] < self.T_hp_sp_summer:
+                            self.generators['hp_demand'] = self.hwt_mass * 4184 * (self.T_hp_sp_summer - self.tank_temps['tank0']['sensor_0']) / self.step_size
                                                 
                         else:
                             self.generators['hp_demand'] = 0
                             self.generators['hp_status'] = 'off'
                     
                     elif self.isday == False:
-                        if self.tank_temps['tank1']['middle'] < self.T_hp_sp_summer:
-                            self.generators['hp_demand'] = self.hwt_mass * 4184 * (self.T_hp_sp_summer - self.tank_temps['tank1']['middle']) / self.step_size
+                        if self.tank_temps['tank1']['sensor_1'] < self.T_hp_sp_summer:
+                            self.generators['hp_demand'] = self.hwt_mass * 4184 * (self.T_hp_sp_summer - self.tank_temps['tank1']['sensor_1']) / self.step_size
                         
                         else:
                             self.generators['hp_demand'] = 0
@@ -313,40 +323,41 @@ class Controller():
                         self.generators['hp_status'] = 'off'
                     
                 #--------------------CHP----------------
-                if self.tank_temps['tank2']['top'] < self.T_dhw_sp + self.T_dhw_buffer: #i.e high heat demand
-                    self.generators['chp_status'] = 'on'
+                # if self.tank_temps['tank2']['sensor_2'] < self.T_dhw_sp + self.T_dhw_buffer: #i.e high heat demand
+                #     self.generators['chp_status'] = 'on'
                     
                 
-                if self.generators['chp_status'] == 'on': #runs until bottom layer of tank 2 reaches the threshold
-                    if self.tank_temps['tank2']['bottom'] < self.T_chp_h:
-                        self.generators['chp_demand'] = self.hwt_mass * 4184 * (self.T_dhw_sp - self.tank_temps['tank2']['bottom']) / self.step_size
-                    elif self.chp_uptime >= 15: #15 minute minimum runtime
-                        self.generators['chp_demand'] = 0
-                        self.generators['chp_status'] = 'off'
-                    else:
-                        self.generators['chp_demand'] = self.hwt_mass * 4184 * (self.T_dhw_sp - self.tank_temps['tank2']['bottom']) / self.step_size
+                # if self.generators['chp_status'] == 'on': #runs until bottom layer of tank 2 reaches the threshold
+                #     if self.tank_temps['tank2']['sensor_0'] < self.T_chp_h:
+                #         self.generators['chp_demand'] = self.hwt_mass * 4184 * (self.T_dhw_sp - self.tank_temps['tank2']['sensor_0']) / self.step_size
+                #     elif self.chp_uptime >= 15: #15 minute minimum runtime
+                #         self.generators['chp_demand'] = 0
+                #         self.generators['chp_status'] = 'off'
+                #     else:
+                #         self.generators['chp_demand'] = self.hwt_mass * 4184 * (self.T_dhw_sp - self.tank_temps['tank2']['sensor_0']) / self.step_size
 
-                    # logger_controller.debug(f'time : {time} \tbottom layer : {self.bottom_layer_T_chp}, uptime : {self.chp_uptime}, status : {self.chp_status}')
-                else:
+                #     # logger_controller.debug(f'time : {time} \tsensor_0 layer : {self.sensor_0_layer_T_chp}, uptime : {self.chp_uptime}, status : {self.chp_status}')
+                # else:
                     
-                    self.generators['chp_demand'] = 0
+                #     self.generators['chp_demand'] = 0
 
+                self.chp_uptime = 900
                 
                 #-----------------Boiler------------------
                 #If the CHP is not able to keep up :
                 # Data transfer only at end of step, so this ensures, dt incremented after one step of chp.
-                if self.tank_temps['tank2']['top'] < self.T_dhw_sp and self.chp_uptime > 0: 
+                if self.tank_temps['tank2']['sensor_2'] < self.T_dhw_sp and self.chp_uptime > 0: 
                     self.dt += self.step_size
                 else :
                     self.dt = 0
                 
-                if self.dt > self.boiler_delay and self.tank_temps['tank2']['top'] < self.T_dhw_sp and self.boiler_mode == 'on':
+                if self.dt > self.boiler_delay and self.tank_temps['tank2']['sensor_2'] < self.T_dhw_sp and self.boiler_mode == 'on':
                      self.generators['boiler_status'] = 'on'
                     
                 
                 if self.generators['boiler_status'] == 'on':
-                    if self.tank_temps['tank2']['bottom'] < self.T_chp_h:
-                        self.generators['boiler_demand'] = self.hwt_mass * 4184 * (self.T_dhw_sp - self.tank_temps['tank2']['bottom']) / (self.step_size * 2) # heat up the entire tank to T_hr_sp in 2 time steps
+                    if self.tank_temps['tank2']['sensor_0'] < self.T_chp_h:
+                        self.generators['boiler_demand'] = self.hwt_mass * 4184 * (self.T_dhw_sp - self.tank_temps['tank2']['sensor_0']) / (self.step_size * 2) # heat up the entire tank to T_hr_sp in 2 time steps
                         # self.boiler_demand =  self.heat_demand             
                     elif self.boiler_uptime >= 15: #The transformer class has uptime in minutes, unlike the gasboiler model
                         self.generators['boiler_demand'] = 0
@@ -388,7 +399,7 @@ class Controller():
                     'boiler' : {
                         'turn_on' : {
                             'tank' : 'tank2',
-                            'layer' : 'top',
+                            'layer' : 'sensor_2',
                             'turn_on_temp' : 60
                         },
                         'turn_off' :{
@@ -398,12 +409,12 @@ class Controller():
                     'hp' : {
                         'turn_on' : {
                             'tank' : 'tank1',
-                            'layer' : 'middle',
+                            'layer' : 'sensor_1',
                             'turn_on_temp' : 50
                         },
                         # 'turn_off' :{ 
                         #     'tank' : 'tank1',
-                        #     'layer' : 'middle',
+                        #     'layer' : 'sensor_1',
                         #     'turn_off_temp' : 60
                         # },
                         'add_conditions' : {
@@ -482,10 +493,10 @@ class Controller():
         # Control strategies for the operation of heat pump in cooling mode
         elif self.operation_mode.lower() == 'cooling':
 
-            if (self.T_room > self.T_hp_sp_winter) or ((self.tank_temps['tank0']['bottom'] - self.T_room) < 5):
+            if (self.T_room > self.T_hp_sp_winter) or ((self.tank_temps['tank0']['sensor_0'] - self.T_room) < 5):
                 self.generators['hp_status'] = 'on'
 
-            if self.tank_temps['tank0']['bottom'] > 52:
+            if self.tank_temps['tank0']['sensor_0'] > 52:
                 self.generators['hp_status'] = 'off'
 
             if self.generators['hp_status'] == 'on':
@@ -513,23 +524,24 @@ class Controller():
                 self.hwt_hr_P_th_set = 0
         
         # ----------------- Tank balancing flows -----------------------
-        for link in self.tank_setup:
-            src, dst = link.split(':')
-            src_tank, src_port = src.split('.')
-            dst_tank, dst_port = dst.split('.')
-            self.tank_connections[src_tank][f'{src_port}_F'] = 0
-            self.residual_flow = sum([flow for port, flow in self.tank_connections[src_tank].items() if '_F' in port ])
-            
-            if self.residual_flow > 0:
-                # Flow from src to dst
-                self.tank_connections[dst_tank][f'{dst_port}_T'] = self.tank_connections[src_tank][f'{src_port}_T']
-                self.tank_connections[dst_tank][f'{dst_port}_F'] = self.residual_flow #inflow
-                self.tank_connections[src_tank][f'{src_port}_F'] = -self.residual_flow #outflow
-            else:
-                # Flow from dst to src
-                self.tank_connections[src_tank][f'{src_port}_T'] = self.tank_connections[dst_tank][f'{dst_port}_T']
-                self.tank_connections[src_tank][f'{src_port}_F'] = -self.residual_flow #inflow
-                self.tank_connections[dst_tank][f'{dst_port}_F'] = self.residual_flow #outflow
+        if self.no_tanks > 1:
+            for link in self.tank_setup:
+                src, dst = link.split(':')
+                src_tank, src_port = src.split('.')
+                dst_tank, dst_port = dst.split('.')
+                self.tank_connections[src_tank][f'{src_port}_F'] = 0
+                self.residual_flow = sum([flow for port, flow in self.tank_connections[src_tank].items() if '_F' in port ])
+                
+                if self.residual_flow > 0:
+                    # Flow from src to dst
+                    self.tank_connections[dst_tank][f'{dst_port}_T'] = self.tank_connections[src_tank][f'{src_port}_T']
+                    self.tank_connections[dst_tank][f'{dst_port}_F'] = self.residual_flow #inflow
+                    self.tank_connections[src_tank][f'{src_port}_F'] = -self.residual_flow #outflow
+                else:
+                    # Flow from dst to src
+                    self.tank_connections[src_tank][f'{src_port}_T'] = self.tank_connections[dst_tank][f'{dst_port}_T']
+                    self.tank_connections[src_tank][f'{src_port}_F'] = -self.residual_flow #inflow
+                    self.tank_connections[dst_tank][f'{dst_port}_F'] = self.residual_flow #outflow
 
         for tank, vals in self.tank_connections.items():
             self.netflow = sum([flow for port, flow in vals.items() if '_F' in port ])
