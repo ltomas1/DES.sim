@@ -192,3 +192,39 @@ def rename_cols(df):
         new_col = f"{entity}_{attr}" 
         columns[col] = new_col
     return columns
+
+def tqd_write(msg, debug = False):
+    '''
+    write a message to the tqdm output if debug is True; better than checking if it's true each time.
+    debug can be overwritten, as per need
+    '''
+    if debug:
+        tqdm.write(msg)
+
+
+def collect_data(entity = '', data={}, finalize=False):
+    '''
+    Collect data from entity attributes over time.
+    attrs: dict with attr names as keys and lists as values to store data
+    finalize: if True, convert the dictionary to a dataframe and saves as csv
+    '''
+    if not hasattr(collect_data, 'storage'):
+        collect_data.storage = {} # Function attribute, persistent across calls
+
+    if len(data) > 0:
+        for attr in data.keys():
+            col_name = f'{entity}.{attr}'
+            if col_name not in collect_data.storage:
+                collect_data.storage[col_name] = []
+            collect_data.storage[col_name].append(data[attr])
+    
+
+
+    if finalize:
+        for k,v in collect_data.storage.items():
+            tqdm.write(f'{k}, {len(v)}')
+        data = pd.DataFrame(collect_data.storage)
+        filename = f'additional_sim_data.csv'
+        data.to_csv(filename)
+        tqdm.write(f'Data saved to {filename}')
+        collect_data.storage = {}  # Reset storage after saving
