@@ -128,9 +128,9 @@ def run_DES(params, collect=True, plot_graph=False):
     # unpacking input params
     
     params_hp = params['hp']
-    params_ctrl = params['ctrl']
+    # params_ctrl = params['ctrl']  # for the other laters, so that used params can be used in visu
     params_hwt = params['tank']
-    params_ctrl['tank'] = params['tank']
+    params['ctrl']['tank'] = params['tank']
     init_vals_hwt0 = params['init_vals_tank']['init_vals_hwt0']
     init_vals_hwt1 = params['init_vals_tank']['init_vals_hwt1']
     init_vals_hwt2 = params['init_vals_tank']['init_vals_hwt2']    
@@ -138,6 +138,20 @@ def run_DES(params, collect=True, plot_graph=False):
     params_boiler = params['params_boiler']
     params_chp['step_size'] = STEP_SIZE
     params_pv = params['pv']
+
+    params['ctrl'] = {
+        **params['ctrl'],
+        'sh_out' : 'tank1.heat_out2',
+        'sh_out2' : 'tank2.heat_out2',
+        'dhw_out' : 'tank2.heat_out',
+        'sh_ret' : 'tank0.heat_in',
+        'dhw_ret' : 'tank2.heat_in',
+        'supply_config' : '4-runner',
+        'control_strategy' : '2',
+        'gens' : ['hp', 'chp', 'boiler'],
+        'NumberofTanks' : 3,
+        'TankbalanceSetup' : ['tank0.heat_out:tank1.hp_out', 'tank1.heat_out:tank2.hp_out']
+    }
 
     # -----------------------------------------pv-------------------------------------------------------------------------------------
     #Standalone pvmodel-------------------------------------------------
@@ -202,7 +216,7 @@ def run_DES(params, collect=True, plot_graph=False):
     hwtsim0 = world.start('HotWaterTankSim', step_size=STEP_SIZE, config={**params_hwt, "Tanknumber" : 0})
     hwtsim1 = world.start('HotWaterTankSim', step_size=STEP_SIZE,config={**params_hwt, "Tanknumber" : 1})
     hwtsim2 = world.start('HotWaterTankSim', step_size=STEP_SIZE, config={**params_hwt, "Tanknumber" : 2})
-    ctrlsim = world.start('ControllerSim', step_size=STEP_SIZE, params = params_ctrl)
+    ctrlsim = world.start('ControllerSim', step_size=STEP_SIZE, params = params['ctrl'])
     chpsim = world.start('Chpsim_v2', step_size = STEP_SIZE, params = params_chp)
     boilersim = world.start('Boilersim_v2', step_size = STEP_SIZE, params = params_boiler)
     
@@ -212,7 +226,7 @@ def run_DES(params, collect=True, plot_graph=False):
     hwts0 = hwtsim0.HotWaterTank.create(1, params=params_hwt, init_vals=init_vals_hwt0)
     hwts1 = hwtsim1.HotWaterTank.create(1, params=params_hwt, init_vals=init_vals_hwt1)
     hwts2 = hwtsim2.HotWaterTank.create(1, params=params_hwt, init_vals=init_vals_hwt2)
-    ctrls = ctrlsim.Controller.create(1, params=params_ctrl)
+    ctrls = ctrlsim.Controller.create(1, params=params['ctrl'])
     boiler = boilersim.Transformer.create(1, params = params_boiler)
 
     # -------------------------------------------------------------Connect entities----------------------------------------------------------------------------
@@ -224,9 +238,9 @@ def run_DES(params, collect=True, plot_graph=False):
     """__________________________________________ hwts ___________________________________________________________________""" 
 
     world.connect(hwts0[0], ctrls[0], ('heat_out.T', 'tank_connections.tank0.heat_out_T'), 
-              ('hp_out.T', 'hp_out_T'),('sensor_00.T', 'tank_temps.tank0.bottom'), ('heat_out2.T','tank_connections.tank0.heat_out2_T'), 
-              ('sensor_01.T', 'tank_temps.tank0.middle'),('heat_out2.F', 'tank_connections.tank0.heat_out2_F'), 
-              ('sensor_02.T', 'tank_temps.tank0.top'),time_shifted=True, 
+              ('hp_out.T', 'hp_out_T'),('sensor_00.T', 'tank_temps.tank0.sensor_0'), ('heat_out2.T','tank_connections.tank0.heat_out2_T'), 
+              ('sensor_01.T', 'tank_temps.tank0.sensor_1'),('heat_out2.F', 'tank_connections.tank0.heat_out2_F'), 
+              ('sensor_02.T', 'tank_temps.tank0.sensor_2'),time_shifted=True, 
               initial_data={'heat_out.T':0, 'hp_out.T':0, 'sensor_00.T':0, 
                             'heat_out2.T' : 0, 'heat_out2.F':0})
 
@@ -240,9 +254,9 @@ def run_DES(params, collect=True, plot_graph=False):
 
     world.connect(hwts1[0], ctrls[0], 
               ('heat_out.T', 'tank_connections.tank1.heat_out_T'),('T_mean', 'T_mean_hwt'), 
-              ('mass', 'hwt_mass'),('sensor_02.T', 'tank_temps.tank1.top'),
+              ('mass', 'hwt_mass'),('sensor_02.T', 'tank_temps.tank1.sensor_2'),
               ('hp_out.T', 'tank_connections.tank1.hp_out_T'),('heat_out2.T','tank_connections.tank1.heat_out2_T'),
-              ('heat_out2.F', 'tank_connections.tank1.heat_out2_F'),('sensor_01.T', 'tank_temps.tank1.middle'),
+              ('heat_out2.F', 'tank_connections.tank1.heat_out2_F'),('sensor_01.T', 'tank_temps.tank1.sensor_1'),
               time_shifted=True, 
               initial_data={'heat_out.T':0, 'heat_out2.T':0,'T_mean':0, 'mass':0, 
                             'sensor_02.T':0, 'hp_out.T':0})
@@ -272,9 +286,9 @@ def run_DES(params, collect=True, plot_graph=False):
     
     world.connect(hwts2[0], ctrls[0], ('heat_out.T', 'tank_connections.tank2.heat_out_T'), 
               ('heat_out.F', 'tank_connections.tank2.heat_out_F'), 
-              ('sensor_00.T', 'tank_temps.tank2.bottom'),('sensor_02.T', 'tank_temps.tank2.top'), 
+              ('sensor_00.T', 'tank_temps.tank2.sensor_0'),('sensor_02.T', 'tank_temps.tank2.sensor_2'), 
               ('heat_out2.T','tank_connections.tank2.heat_out2_T'),('heat_out2.F', 'tank_connections.tank2.heat_out2_F'), 
-              ('sensor_01.T', 'tank_temps.tank2.middle'))
+              ('sensor_01.T', 'tank_temps.tank2.sensor_1'))
  
 
     """__________________________________________Boiler_______________________________________________________________________"""
