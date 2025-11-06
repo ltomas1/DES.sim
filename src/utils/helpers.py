@@ -5,6 +5,7 @@ import csv
 import os
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 
 def safe_get(lst, index, default=None):
@@ -33,7 +34,7 @@ def get_nested_attr(entity, attr): #Inspired from mosaik HWT model
     val = entity
     
     #The following have been added only to allow for the debug ethod in hotwater tank:(
-    if hasattr(entity, 'sensors'): #checking if it's a tank
+    if hasattr(entity, 'tankno'): #checking if it's a tank
         if attr_parts[0] in entity.sensors:
             return getattr(entity.sensors[attr_parts[0]],
                     attr_parts[1])
@@ -98,7 +99,17 @@ def flatten_attrs(entity, attrs):
 
 
 def debug_trace(time, attrs, entity, filename = 'debug_Log.csv', debug_log = {}, print_csv  = True, keyword = '', cycle = 0):
+    # Instead of passing debug_log each time, we can make it persistent using function attribute
+    
+    step_size = 900
+    print_freq = 50 # After how many steps, debug csv printed
+
     model = filename.strip('_trace.csv')
+     # initialize persistent variable
+    if not hasattr(debug_trace, "last_time"):
+        debug_trace.last_time = time  # first call initializes it  
+    
+
     if not debug_log:
         debug_log = {}
         debug_log[model+'time'] = []
@@ -123,17 +134,25 @@ def debug_trace(time, attrs, entity, filename = 'debug_Log.csv', debug_log = {},
             debug_log[model+'cycle'].append(cycle)
             debug_log[attr+keyword].append(get_nested_attr(entity, attr))
             if not print_csv:
-                print(f'attr: {attr}, val : {get_nested_attr(entity, attr)}')
+                if time != debug_trace.last_time:
+                    tqdm.write(f'Clearing screen -----\n---------------------------------\n')
+                    # os.system('cls' if os.name == 'nt' else 'clear')
+                tqdm.write(f'time:{time}, last_time:{debug_trace.last_time}')
+                tqdm.write(f'attr: {attr}, val : {get_nested_attr(entity, attr)}')
+            debug_trace.last_time = time
     # print(debug_log)
+            
 
     path = os.getcwd()     
     filepath = os.path.join(os.getcwd(), filename)
     if print_csv:
-        with open(filepath, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=debug_log.keys())
-            writer.writeheader()
-            for row in zip(*debug_log.values()):
-                writer.writerow(dict(zip(debug_log.keys(), row)))
+        if time % (step_size*print_freq) == 0 or time > 7560000:
+            # tqdm.write('printing debug csv')
+            with open(filepath, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=debug_log.keys())
+                writer.writeheader()
+                for row in zip(*debug_log.values()):
+                    writer.writerow(dict(zip(debug_log.keys(), row)))
 
 
     return debug_log
@@ -158,6 +177,7 @@ def calc_energy(vars, step_size):
             # so, pandas series
             vars[i] = vars[i].sum() * step_size/3600 
     
+    return np.abs(vars)
 
 def flatten_keys(obj, attr_list):
     # Flatten dict attributes
@@ -188,7 +208,7 @@ def rename_cols(df):
     for col in df.columns:
         attr = col.rsplit('-', 1)[1] if '-' in col else col
         # attr = attr.split('.')[1] if '.' in attr else attr
-        entity = col.split('.', 1)[0].replace('Sim', '')
+        entity = col.split('.', 1)[0].replace('Sim', '') if '.' in col else ''
         entity = entity.replace('sim_v2', '')
         # entity = 
         new_col = f"{entity}_{attr}" 
