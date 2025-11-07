@@ -672,8 +672,10 @@ class Controller():
             
             # Space heating :
             sh_out = f"tank_connections.{self.sh_out}"
-            sh_out2 = f"tank_connections.{self.sh_out2}" #using the dhw tank as the hotter tank!
-
+            if self.sh_out2: 
+                sh_out2 = f"tank_connections.{self.sh_out2}" #using the dhw tank as the hotter tank!
+            else:
+                sh_out2 = None
             building = 'radiator_high_insulation' #TODO move this to the params
             Tsup, Tdelta = self.supply_temp(self.T_amb, building) #from heating curve
             # using Tdelta to calculate Tretun, and then updating it if incase T supply changes
@@ -687,8 +689,8 @@ class Controller():
                 sh_F = 0 #unlikely in current setup, but if return temp delta not fixed, then maybe
 
             sh_T = helpers.get_nested_attr(self, sh_out+'_T')   #temp of the colder tank
-            sh2_T = helpers.get_nested_attr(self, sh_out2+'_T') 
-            
+            sh2_T = helpers.get_nested_attr(self, sh_out2+'_T') if sh_out2 else None
+
             fhot, fcold, Tsup = self.tcvalve1.get_flows(sh2_T, sh_T, Tsup, sh_F, Tdelta) #required flow rates from each of the tanks
             # tqdm.write(f'fhot:{fhot}, fcold:{fcold}')
             sh_F = fhot+fcold #flow rate could be changed if cold tank warmer than req. supply temp
@@ -803,6 +805,9 @@ class TCValve():
         if flow == 0:
             return 0,0,0
         Tret = T - dT # Return temperature if supply is at the heating curve determined temperature.
+        if Thot is None:
+            f_hot, f_cold, T_sup = 0, flow, Tcold
+            return f_hot, f_cold, T_sup 
         
         if Tcold > T:
             # If even the cold tank, warmer than req. supply temp, then all flow from this tank, and flow rate decreased accordingly.
