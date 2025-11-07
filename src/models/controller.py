@@ -62,14 +62,7 @@ class Controller():
         """
         
     def __init__(self, params):
-        # Temperature setpoints
-        self.T_hp_sp_winter = params.get('T_hp_sp_winter')
-        self.T_hp_sp_summer = params.get('T_hp_sp_summer')
-        self.T_hp_sp_surplus = params.get('T_hp_sp_surplus')
-        self.T_hr_sp_hwt = params.get('T_hr_sp_hwt', None)
-        self.T_dhw_sp = params.get('T_dhw_sp', None)
-        self.T_chp_h = params.get('T_chp_h')
-        self.heat_rT = params.get('heat_rT', 20) #Specific to the 2-runner setup
+
         # Control mode
         self.operation_mode = params.get('operation_mode', 'heating')
         self.control_strategy = params.get('control_strategy', '1')
@@ -261,115 +254,6 @@ class Controller():
         if self.operation_mode.lower() == 'heating':
             #Datasheet logic control
             if self.control_strategy == '1':
-                                
-                
-                #-------------------Heat pump----------------
-                if self.season == 'winter':
-
-                    if self.tank_temps['tank1']['sensor_1'] < self.T_hp_sp_winter: #Turns on only when below threshold of 35 degrees.
-                        
-                        self.generators['hp_status'] = 'on'
-                        
-                    if self.generators['hp_status'] == 'on' and self.isday: # Hp runs until upper threshold achieved.
-                        if self.tank_temps['tank0']['sensor_0'] < self.T_hp_sp_winter:
-                            self.generators['hp_demand'] = self.hwt_mass * 4184 * (self.T_hp_sp_winter - self.tank_temps['tank0']['sensor_0']) / self.step_size
-                        
-                        elif self.hp_surplus and self.tank_temps['tank0']['sensor_0'] < self.T_hp_sp_surplus:
-                            self.generators['hp_demand'] =  self.hwt_mass * 4184 * (self.T_hp_sp_surplus - self.tank_temps['tank0']['sensor_0']) / self.step_size
-                        
-                        else:
-                            self.generators['hp_demand'] = 0
-                            self.generators['hp_status'] = 'off'
-                    elif self.isday == False:
-                        if self.tank_temps['tank0']['sensor_2'] < self.T_hp_sp_winter:
-                            self.generators['hp_demand'] = self.hwt_mass * 4184 * (self.T_hp_sp_winter - self.tank_temps['tank0']['sensor_0']) / self.step_size
-                        
-                        elif self.hp_surplus and self.tank_temps['tank0']['sensor_0'] < self.T_hp_sp_surplus:
-                            self.generators['hp_demand'] =  self.hwt_mass * 4184 * (self.T_hp_sp_surplus - self.tank_temps['tank0']['sensor_0']) / self.step_size
-                        
-                        else:
-                            self.generators['hp_demand'] = 0
-                            self.generators['hp_status'] = 'off'      
-                    
-                    else:
-                        self.generators['hp_demand'] = 0
-
-                if self.season == 'summer':
-
-                    if self.tank_temps['tank2']['sensor_1'] < self.T_hp_sp_summer: #Turns on only when below threshold of 35 degrees.
-                        
-                        self.generators['hp_status'] = 'on'
-                        
-                    if self.generators['hp_status'] == 'on' and self.isday: # Hp runs until upper threshold achieved.
-                        if self.tank_temps['tank0']['sensor_0'] < self.T_hp_sp_summer:
-                            self.generators['hp_demand'] = self.hwt_mass * 4184 * (self.T_hp_sp_summer - self.tank_temps['tank0']['sensor_0']) / self.step_size
-                                                
-                        else:
-                            self.generators['hp_demand'] = 0
-                            self.generators['hp_status'] = 'off'
-                    
-                    elif self.isday == False:
-                        if self.tank_temps['tank1']['sensor_1'] < self.T_hp_sp_summer:
-                            self.generators['hp_demand'] = self.hwt_mass * 4184 * (self.T_hp_sp_summer - self.tank_temps['tank1']['sensor_1']) / self.step_size
-                        
-                        else:
-                            self.generators['hp_demand'] = 0
-                            self.generators['hp_status'] = 'off'      
-                    
-                    else:
-                        self.generators['hp_demand'] = 0
-                
-                if self.generators['hp_status'] == None:
-                        self.generators['hp_status'] = 'off'
-                    
-                #--------------------CHP----------------
-                if self.tank_temps['tank2']['sensor_2'] < self.T_dhw_sp + self.T_dhw_buffer: #i.e high heat demand
-                    self.generators['chp_status'] = 'on'
-                    
-                
-                if self.generators['chp_status'] == 'on': #runs until bottom layer of tank 2 reaches the threshold
-                    if self.tank_temps['tank2']['sensor_0'] < self.T_chp_h:
-                        self.generators['chp_demand'] = self.hwt_mass * 4184 * (self.T_dhw_sp - self.tank_temps['tank2']['sensor_0']) / self.step_size
-                    elif self.chp_uptime >= 15: #15 minute minimum runtime
-                        self.generators['chp_demand'] = 0
-                        self.generators['chp_status'] = 'off'
-                    else:
-                        self.generators['chp_demand'] = self.hwt_mass * 4184 * (self.T_dhw_sp - self.tank_temps['tank2']['sensor_0']) / self.step_size
-
-                    # logger_controller.debug(f'time : {time} \tsensor_0 layer : {self.sensor_0_layer_T_chp}, uptime : {self.chp_uptime}, status : {self.chp_status}')
-                else:
-                    
-                    self.generators['chp_demand'] = 0
-
-                
-                #-----------------Boiler------------------
-                #If the CHP is not able to keep up :
-                # Data transfer only at end of step, so this ensures, dt incremented after one step of chp.
-                if self.tank_temps['tank2']['sensor_2'] < self.T_dhw_sp and self.chp_uptime > 0: 
-                    self.dt += self.step_size
-                else :
-                    self.dt = 0
-                
-                if self.dt > self.boiler_delay and self.tank_temps['tank2']['sensor_2'] < self.T_dhw_sp and self.boiler_mode == 'on':
-                     self.generators['boiler_status'] = 'on'
-                    
-                
-                if self.generators['boiler_status'] == 'on':
-                    if self.tank_temps['tank2']['sensor_0'] < self.T_chp_h:
-                        self.generators['boiler_demand'] = self.hwt_mass * 4184 * (self.T_dhw_sp - self.tank_temps['tank2']['sensor_0']) / (self.step_size * 2) # heat up the entire tank to T_hr_sp in 2 time steps
-                        # self.boiler_demand =  self.heat_demand             
-                    elif self.boiler_uptime >= 15: #The transformer class has uptime in minutes, unlike the gasboiler model
-                        self.generators['boiler_demand'] = 0
-                        self.generators['boiler_status'] = 'off'
-                    else :
-                        self.generators['boiler_demand'] =  self.heat_demand
-                        # tqdm.write(f'boiler uptim : {self.boiler_uptime}; in the last condition')
-                else:
-                    
-                    self.generators['boiler_demand'] = 0
-                
-                # logger_controller.debug(f'time : {time}\t Top layer temp : {self.top_layer_Tank2}, uptime : {self.chp_uptime}, chpstatus : {self.chp_status}, dt : {self.dt}, boiler : {self.boiler_status}, boiler uptime : {self.boiler_uptime}\n')
-            if self.control_strategy == '2':
 
                 # new nested logi dict
                 '''
@@ -482,30 +366,6 @@ class Controller():
                         turn_off()
                     elif check_add_conditions(add_conditions, 'turn_off'):
                         turn_off()
-
-
-
-
-
-        
-        
-        # Control strategies for the operation of heat pump in cooling mode
-        elif self.operation_mode.lower() == 'cooling':
-
-            if (self.T_room > self.T_hp_sp_winter) or ((self.tank_temps['tank0']['sensor_0'] - self.T_room) < 5):
-                self.generators['hp_status'] = 'on'
-
-            if self.tank_temps['tank0']['sensor_0'] > 52:
-                self.generators['hp_status'] = 'off'
-
-            if self.generators['hp_status'] == 'on':
-                if self.T_room > (self.T_hp_sp_surplus+0.5):
-                    self.generators['hp_demand'] = 10000000
-                else:
-                    self.generators['hp_demand'] = 0
-                    self.generators['hp_status'] = 'off'
-            else:
-                self.generators['hp_demand'] = 0
 
             
         # Adjusting the mass flow rates for hot water tank in the heat pump circuit, when heat pump operates for only
