@@ -80,11 +80,12 @@ class Controller():
         #supply configuration
         self.config = params.get('supply_config')
         self.sh_out = params.get('sh_out')  #Tank which serves as the Output connection for space heating
-        self.sh_out2 = params.get('sh_out2')
+        self.sh_out2 = params.get('sh_out2', None)
         self.dhw_out = params.get('dhw_out')##Tank which serves as the Output connection for hot water demand
         self.ret_tank = params.get('return_tank', self.sh_out) #Tank which serves as the return connection; used except for 4-runner!!!
         self.sh_ret = params.get('sh_ret', None) #Tank which serves as the return connection for space heating
         self.dhw_ret = params.get('dhw_ret', None)
+        self.dhw_Tdelta = params.get('dhw_Tdelta', 15) #The temperature difference in the dhw circuit.
 
         self.stepsize = params.get('step_size')
         self.boiler_mode = params.get('boiler_mode','off').lower()
@@ -149,8 +150,7 @@ class Controller():
         self.IdealHrodsum = 0           # The sum of P_hr and space heating idealheater
         self.P_hr_sh = 0                #Instantatus of Ideal heater only for space heating.
         self.tcvalve1 = TCValve(self.max_flow)
-        self.hr_dhw = idealHeatRod(self.T_dhw_sp, self.heat_rT)
-        self.hr_sh = idealHeatRod()
+        self.hr = idealHeatRod()
         self.hwt2_hr_1 = 0 #Inbuilt heatingrods
         self.hwt1_hr_1 = 0
         self.hwt0_hr_1 = 0
@@ -645,7 +645,6 @@ class Controller():
         
         if config == '2-runner':
 
-            self.heat_dT = self.tank_connections['tank2']['heat_out_T'] - self.heat_rT
             try:
                 self.tank_connections['tank0']['heat_in_F'] = self.heat_demand/ (4184 * self.heat_dT)
             except ZeroDivisionError:
@@ -654,14 +653,14 @@ class Controller():
             self.tank_connections['tank0']['heat_in_F'] = max(0,self.tank_connections['tank0']['heat_in_F'])
             self.tank_connections['tank0']['heat_in_F'] = min(self.max_flow,self.tank_connections['tank0']['heat_in_F'])
 
-            self.heat_supply = self.tank_connections['tank0']['heat_in_F'] * 4184 * self.heat_dT
+            self.heat_supply = self.tank_connections['tank0']['heat_in_F'] * 4184 * self.dhw_Tdelta
 
             if self.idealheater == 'on':
-                self.tank_connections['tank0']['heat_in_F'], self.IdealHrodsum = self.hr_dhw.step(self.tank_connections['tank2']['heat_out_T'], self.heat_demand)
+                self.tank_connections['tank0']['heat_in_F'], self.IdealHrodsum = self.hr.step(self.tank_connections['tank2']['heat_out_T'], self.heat_demand,self.T_dhw_sp, self.dhw_out_T - self.dhw_Tdelta)
                 self.tank_connections['tank2']['heat_out_T'] = self.T_dhw_sp
                 self.heat_supply = self.heat_demand
 
-            self.tank_connections['tank0']['heat_in_T'] = self.heat_rT
+            self.tank_connections['tank0']['heat_in_T'] = self.tank_connections['tank2']['heat_out_T'] - self.dhw_Tdelta
 
             self.tank_connections['tank2']['heat_out_F'] = -self.tank_connections['tank0']['heat_in_F']
             
@@ -699,7 +698,7 @@ class Controller():
             Tret = Tsup - Tdelta
 
             if self.idealheater == 'on':
-                new_flow, self.P_hr_sh = self.hr_sh.step(sh2_T, self.sh_demand, Tsup, Tret)
+                new_flow, self.P_hr_sh = self.hr.step(sh2_T, self.sh_demand, Tsup, Tret)
                 if self.P_hr_sh > 0:
                     sh2_T = Tsup
                     fhot = new_flow
@@ -721,18 +720,18 @@ class Controller():
             #dhw
             dhw_out = f"tank_connections.{self.dhw_out}"
             self.dhw_out_T = helpers.get_nested_attr(self,dhw_out+'_T')
-            self.heat_dT_dhw = self.dhw_out_T - self.heat_rT
+
             try:
-                dhw_F = self.dhw_demand/(4184 * self.heat_dT_dhw)
+                dhw_F = self.dhw_demand/(4184 * self.dhw_Tdelta)
             except ZeroDivisionError:
                 dhw_F = 0
             
             dhw_F = max(0,dhw_F)
             dhw_F = min(self.max_flow, dhw_F)
-            self.dhw_supply = dhw_F * 4184 * self.heat_dT_dhw
+            self.dhw_supply = dhw_F * 4184 * self.dhw_Tdelta
 
             if self.idealheater == 'on':
-                new_flow, self.IdealHrodsum = self.hr_dhw.step(self.dhw_out_T, self.dhw_demand)
+                new_flow, self.IdealHrodsum = self.hr.step(self.dhw_out_T, self.dhw_demand, self.T_dhw_sp, self.dhw_out_T - self.dhw_Tdelta)
                 if self.IdealHrodsum > 0:
                     self.dhw_out_T = self.T_dhw_sp
                     dhw_F = new_flow
@@ -743,17 +742,19 @@ class Controller():
             helpers.set_nested_attr(self, dhw_out+'_F', -dhw_F)
             helpers.set_nested_attr(self, dhw_out+'_T', self.dhw_out_T)
 
+            self.dhw_rT = self.dhw_out_T - self.dhw_Tdelta
+
             if config == '3-runner':
                 # self.tank_connections[self.ret_tank]['heat_in_F'] = dhw_F + sh_F 
                 # self.tank_connections[self.ret_tank]['heat_in_T'] = (self.heat_rT*dhw_F + Tret*sh_F)/(dhw_F+sh_F) if (dhw_F+sh_F) != 0 else 0
                 helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", dhw_F + sh_F)
-                helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", (self.heat_rT*dhw_F + Tret*sh_F)/(dhw_F+sh_F) if (dhw_F+sh_F) != 0 else 0)
+                helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", (self.dhw_rT*dhw_F + Tret*sh_F)/(dhw_F+sh_F) if (dhw_F+sh_F) != 0 else 0)
             elif config == '4-runner':
                 helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_F", sh_F)
                 helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_T", Tret)
 
                 helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_F", dhw_F)
-                helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_T", self.heat_rT)
+                helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_T", self.dhw_rT)
             # tqdm.write(f'calculated  temps : {Tsup}, return {Tret}')
             # tqdm.write(f'calculated  flows tank2 : {fhot}, tank1 {fcold}')
 
@@ -893,7 +894,7 @@ class idealHeatRod():
         temp : float
             Current outlet water temperature [°C].
         demand : float
-            Required thermal energy demand [J] for this timestep.
+            Required thermal energy demand [kW] for this timestep.
         sup_setTemp(optional) : float
             Determined supply temperature(heating curve). Either passed as argument here, or initialised with object.
         ret_setTemp(optional) : float
