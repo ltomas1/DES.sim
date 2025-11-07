@@ -385,7 +385,7 @@ def run_DES(params, collect=True, plot_graph=False):
     world.connect(ctrls[0], csv_writer, 'heat_demand', 'heat_supply', 'generators.hp_demand', 'generators.hp_supply',
                 'generators.chp_demand', 'generators.chp_supply', 'sh_supply', 'dhw_supply', 
                  'pv_gen',
-                 'IdealHrodsum', 'dt', 'generators.boiler_demand', 'chp_uptime', 'req_shTsup')
+                 'IdealHrodsum', 'generators.boiler_demand', 'chp_uptime', 'req_shTsup')
 
     world.connect(hwts0[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
                 'heat_out.T', 'heat_out.F', 'hp_in.T', 'hp_in.F', 'hp_out.T',
