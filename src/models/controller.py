@@ -323,25 +323,24 @@ class Controller():
                         self.generators['hp_status'] = 'off'
                     
                 #--------------------CHP----------------
-                # if self.tank_temps['tank2']['sensor_2'] < self.T_dhw_sp + self.T_dhw_buffer: #i.e high heat demand
-                #     self.generators['chp_status'] = 'on'
+                if self.tank_temps['tank2']['sensor_2'] < self.T_dhw_sp + self.T_dhw_buffer: #i.e high heat demand
+                    self.generators['chp_status'] = 'on'
                     
                 
-                # if self.generators['chp_status'] == 'on': #runs until bottom layer of tank 2 reaches the threshold
-                #     if self.tank_temps['tank2']['sensor_0'] < self.T_chp_h:
-                #         self.generators['chp_demand'] = self.hwt_mass * 4184 * (self.T_dhw_sp - self.tank_temps['tank2']['sensor_0']) / self.step_size
-                #     elif self.chp_uptime >= 15: #15 minute minimum runtime
-                #         self.generators['chp_demand'] = 0
-                #         self.generators['chp_status'] = 'off'
-                #     else:
-                #         self.generators['chp_demand'] = self.hwt_mass * 4184 * (self.T_dhw_sp - self.tank_temps['tank2']['sensor_0']) / self.step_size
+                if self.generators['chp_status'] == 'on': #runs until bottom layer of tank 2 reaches the threshold
+                    if self.tank_temps['tank2']['sensor_0'] < self.T_chp_h:
+                        self.generators['chp_demand'] = self.hwt_mass * 4184 * (self.T_dhw_sp - self.tank_temps['tank2']['sensor_0']) / self.step_size
+                    elif self.chp_uptime >= 15: #15 minute minimum runtime
+                        self.generators['chp_demand'] = 0
+                        self.generators['chp_status'] = 'off'
+                    else:
+                        self.generators['chp_demand'] = self.hwt_mass * 4184 * (self.T_dhw_sp - self.tank_temps['tank2']['sensor_0']) / self.step_size
 
-                #     # logger_controller.debug(f'time : {time} \tsensor_0 layer : {self.sensor_0_layer_T_chp}, uptime : {self.chp_uptime}, status : {self.chp_status}')
-                # else:
+                    # logger_controller.debug(f'time : {time} \tsensor_0 layer : {self.sensor_0_layer_T_chp}, uptime : {self.chp_uptime}, status : {self.chp_status}')
+                else:
                     
-                #     self.generators['chp_demand'] = 0
+                    self.generators['chp_demand'] = 0
 
-                self.chp_uptime = 900
                 
                 #-----------------Boiler------------------
                 #If the CHP is not able to keep up :
