@@ -164,7 +164,20 @@ class Controller():
         return attr_list
     
     def step(self, time):
-        """Perform simulation step with step size step_size"""
+        """
+        Perform a simulation step.
+        time: Current simulation time (useful for debugging).
+
+        - Updates kW inputs to W,
+        - Sets generator status and demand based on tank sensor temperatures and thresholds defined in dictionary `logic`.
+        - Calculates the flow rate and temperature provided for the consumer(SH & DHW).
+        - Calculates the balancing flows between multiple tanks if applicable.
+        - Calculates the power mode for the inbuilt heating rods in tanks(if applicable).
+        - Calculates the power of the ideal heater, in case of supply deficits.
+
+        Next steps:
+        - Generator minimum runtime
+        """
         # tqdm.write(f'controller step run at time:{time}')
         
         # Convert the heat demand available in kW to W
@@ -282,13 +295,27 @@ class Controller():
 
                 # could move these methods to __init__, but would decrease readability, with very little to no performance impact.
                 def turn_on():
+                    '''
+                    Turns on the generator by setting the appropriate status and demand values.
+                    '''
                     self.generators[f'{gen}_status'] = 'on'
                     self.generators[f'{gen}_demand'] = self.hwt_mass * 4184 * (temp_sp_low - self.tank_temps[tank_id][tank_layer]) / self.step_size
                 def turn_off():
+                    '''
+                    Turns off the generator by setting the appropriate status and demand values.
+                    '''
                     self.generators[f'{gen}_status'] = 'off'
                     self.generators[f'{gen}_demand'] = 0
 
                 def check_add_conditions(add_cond_dict, key):
+                    '''
+                    Checks the additional conditions. Returns true if the condition is satisfied.
+                    add_cond_dict: dict containing the additional conditions
+                    key: 'turn_on' or 'turn_off'
+                    Returns:
+                        bool: True if the additional condition is satisfied, False otherwise.
+
+                    '''
                     if key not in add_cond_dict.keys():
                         return False
                     
@@ -373,7 +400,15 @@ class Controller():
                 raise ValueError(f"{tank} netflow error!")
 
     def supply_temp(self, out_temp, buildingtype):
-        # largely based on npro guidelines.
+        """
+        Calculate the supply temperature based on the outdoor temperature and building type using predefined generic heating curves.
+        Source(heating curve): npro
+        out_temp: Outdoor temperature (in °C)
+        buildingtype: Type of building insulation and heating system
+        Returns:
+            Tsupply: Supply temperature (in °C) 
+            delta_T: Temperature difference between supply and return (in °C)
+        """
         self.heating_curves = {
             "radiator_low_insulation": {"T_out": [-10, 15], "T_supply": [75, 45], "delta_T": 20},
             "radiator_high_insulation": {"T_out": [-10, 15], "T_supply": [55, 35], "delta_T": 15},
