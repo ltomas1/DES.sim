@@ -79,6 +79,8 @@ class Controller():
         self.sh_ret = params.get('sh_ret', None) #Tank which serves as the return connection for space heating
         self.dhw_ret = params.get('dhw_ret', None)
         self.dhw_Tdelta = params.get('dhw_Tdelta', 15) #The temperature difference in the dhw circuit.
+        self.T_dhw_sp = params.get('T_dhw_sp', None)
+        self.heat_dT = params.get('heat_dT', self.dhw_Tdelta)                 # The temperature difference in 2 runner setup
 
         self.stepsize = params.get('step_size')
         self.boiler_mode = params.get('boiler_mode','off').lower()
@@ -120,9 +122,6 @@ class Controller():
         self.sh_demand = None
         self.dhw_supply, self.sh_supply, self.heat_supply = None, None, None  # The heat supplied for DHW, SH and total (in W)
 
-
-        self.heat_dT = None                   # The temeprature difference between heat_in_T and heat_out_T (in K)
-
         self.hp_in_F = None                 # The mass flow of water into the hot water tank from heat pump (in kg/s)
         self.hp_in_T = None                 # The temperature of water into the hot water tank from heat pump (in °C)
         self.hp_out_F = None                # The mass flow of water from the hot water tank into heat pump (in kg/s)
@@ -132,7 +131,6 @@ class Controller():
 
         self.chp_uptime = None              #Time since startup of chp
         self.boiler_uptime = None       # The time for which the boiler has been operational (in Seconds)
-        self.dt = 0 #Time for how long top layer of Tank 3 below threshold, i.e chp not able to keep up with demand.
         
         self.T_mean_hwt = 0              # The mean temperature of the hot water tank (in °C)
         self.hwt_mass = 0                # The total mass of water inside the hot water tank (kg)
@@ -157,30 +155,13 @@ class Controller():
         self.timestamp = None
         self.hp_surplus = False
 
-        self.HP3wv_out1_share = 1 # The share of the flow from the mixing valve going to output 1(tank 1)
-
-        #Collecting all the attributes in init, to make it available in attrs list.
-        self.attr_list = list(vars(self).keys())
-        flat_keys = []
-
-        # Flatten dict attributes
-        for attr in self.attr_list:
-            value = getattr(self, attr)   # get the actual object
-            if isinstance(value, dict):
-                for key, val in value.items():
-                    if isinstance(val, dict):  # nested dict case
-                        for subkey in val.keys():
-                            flat_keys.append(f"{attr}.{key}.{subkey}")
-                    else:
-                        flat_keys.append(f"{attr}.{key}")
-
-        # extend self.attr_list with the flattened keys
-        self.attr_list.extend(flat_keys)
-        # tqdm.write(f'attr_list')
-
-
     def get_init_attrs(self):
-        return self.attr_list
+        '''
+        Simply returns a list of all user defined attributes in this class. 
+        Useful to add to the attrs list in META.
+        '''
+        attr_list = helpers.flatten_attrs(self, list(vars(self).keys()))
+        return attr_list
     
     def step(self, time):
         """Perform simulation step with step size step_size"""
@@ -217,14 +198,6 @@ class Controller():
             self.isday = False
         else:
             self.isday = None
-
-
-
-        # ---------------------HP charge tank, 3 way valve--------------------------------------
-        if self.season == 'summer':
-            self.HP3wv_out1_share = 0 # all to tank 2(dhw tank)
-        else:
-            self.HP3wv_out1_share = 1 # to tank tank1 (middle, SH)
 
         
         # ------------------HP surplus mode def-----------------------------------------
@@ -374,14 +347,6 @@ class Controller():
             self.hp_in_F = self.hp_on_fraction * self.hp_cond_m
             self.hp_out_F = -self.hp_on_fraction * self.hp_cond_m
  
-
-        # Calculating the heat required from the in-built heating rod of the hot water tank
-        if self.T_hr_sp_hwt is not None:
-            if self.T_mean_hwt < self.T_hr_sp_hwt:
-                self.hwt_hr_P_th_set = (self.hwt_mass * 4184 * (self.T_hr_sp_hwt - self.T_mean_hwt)) / self.step_size
-            else:
-                self.hwt_hr_P_th_set = 0
-        
         # ----------------- Tank balancing flows -----------------------
         if self.no_tanks > 1:
             for link in self.tank_setup:
@@ -407,83 +372,6 @@ class Controller():
             if abs(self.netflow) > 1e-5:
                 raise ValueError(f"{tank} netflow error!")
 
-        # ----------(in development) For circular connections(linear solving)----------
-        
-        #Preparing the incidence matrix and calculating residual flows for all tanks.
-        # A = np.zeros((self.no_tanks, len(self.tank_setup))) #The incidence matrix
-        # self.residuals_flows = {}
-        # for i, edge in enumerate(self.tank_setup):
-        #     src, dst = edge.split(':')
-        #     src_tank, src_port = src.split('.')
-        #     dst_tank, dst_port = dst.split('.')
-            
-        #     A[self.tanks.index(src_tank), i] = -1
-        #     A[self.tanks.index(dst_tank), i] = 1
-        #     # The rows of the tanks will be in the same order as in tanks list. This will be order of the solved flows.
-
-        #     self.tank_connections[src_tank][f'{src_port}_F'] = 0 #Resetting previous flow values
-        #     self.residuals_flows[src_tank] = sum([flow for port, flow in self.tank_connections[src_tank].items() if '_F' in port ])
-            
-        #     #Sample incidence matrix
-        #     '''
-        #     tanks\edges | tank0.heat_out:tank1.hp_out | tank1.heat_out:tank2.hp_out
-        #     tank0   |            -1                 |            0  
-        #     tank1   |             1                 |           -1
-        #     tank2   |             0                 |            1
-        #     '''
-            
-        # # converting to numpy array for solving   
-        # b = np.array([self.residuals_flows.get(tank, 0) for tank in self.tanks]) # So the order is again preserved.
-
-        # # Solving using least squares method(since, A might not always be a full matrix with a valid inverse)
-        # '''
-        # If A was a full matrix.
-        # F = A^-1 * b
-        # But not always A is a full matrix, so least squares method used, which 
-        # involved finding a pseudo inverse, and then multiplying with b.
-        # '''
-        # # so, A* F = b; to solve for F(the balancing flows)
-            
-        # #F, residuals, rank, s = np.linalg.lstsq(A, b, rcond=None)
-        # F, *_ = np.linalg.lstsq(A, b, rcond=None) # *_ captures the other returned values which are not needed here.
-        # # Updating tank_connections with the balancing flows
-
-        # for j, edge in enumerate(self.tank_setup):
-        #     src, dst = edge.split(':')
-        #     src_tank, src_port = src.split('.')
-        #     dst_tank, dst_port = dst.split('.')
-
-        #     # flow_idx = self.tanks.index(src_tank)
-        #     flow_val = float(F[j])
-
-        #     if flow_val > 0:
-        #         # Flow from src to dst
-        #         self.tank_connections[dst_tank][f'{dst_port}_T'] = self.tank_connections[src_tank][f'{src_port}_T']
-        #         self.tank_connections[dst_tank][f'{dst_port}_F'] = flow_val
-        #         self.tank_connections[src_tank][f'{src_port}_F'] = -flow_val
-        #     else:
-        #         # Flow from dst to src
-        #         self.tank_connections[src_tank][f'{src_port}_T'] = self.tank_connections[dst_tank][f'{dst_port}_T']
-        #         self.tank_connections[src_tank][f'{src_port}_F'] = -flow_val
-        #         self.tank_connections[dst_tank][f'{dst_port}_F'] = flow_val
-
-        # for tank, vals in self.tank_connections.items():
-        #     for connection, val in vals.items():
-        #         if 'F' in connection:
-        #             tqdm.write(f'{tank} {connection} : {val}')
-        
-        
-        # for tank, vals in self.tank_connections.items():
-        #     self.netflow = sum([flow for port, flow in vals.items() if '_F' in port ])
-        #     if abs(self.netflow) > 1e-5:
-        #         raise ValueError(f"{tank}:{self.netflow} netflow error!")
-
-        # for tank, vals in self.tank_connections.items():
-        #     for connection, val in vals.items():
-        #         if 'F' in connection:
-        #             tqdm.write(f'{tank} {connection} : {val}')
-
-    
     def supply_temp(self, out_temp, buildingtype):
         # largely based on npro guidelines.
         self.heating_curves = {
@@ -605,8 +493,6 @@ class Controller():
             self.dhw_rT = self.dhw_out_T - self.dhw_Tdelta
 
             if config == '3-runner':
-                # self.tank_connections[self.ret_tank]['heat_in_F'] = dhw_F + sh_F 
-                # self.tank_connections[self.ret_tank]['heat_in_T'] = (self.heat_rT*dhw_F + Tret*sh_F)/(dhw_F+sh_F) if (dhw_F+sh_F) != 0 else 0
                 helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", dhw_F + sh_F)
                 helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", (self.dhw_rT*dhw_F + Tret*sh_F)/(dhw_F+sh_F) if (dhw_F+sh_F) != 0 else 0)
             elif config == '4-runner':
