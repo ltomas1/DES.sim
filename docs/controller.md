@@ -110,14 +110,11 @@ Notes
 - `IncompleteConfigError` — used to signal missing configuration for the heating rod's temperature targets.
 
 
-## Usage examples
+## Sample parameters
 
 Minimal example (constructing controller and performing one step):
 
 ```python
-from src.models.controller import Controller
-from datetime import datetime
-
 params = {
         "T_dhw_sp": 65,
         "dhw_Tdelta" : 15,
@@ -133,14 +130,7 @@ params = {
         "gens" : ["hp", "boiler"],
         "NumberofTanks" : 3,
         "TankbalanceSetup" : ["tank0.heat_out:tank1.hp_out", "tank1.heat_out:tank2.hp_out"]
-    }
-
-ctrl = Controller(params)
-ctrl.timestamp = datetime.now()
-ctrl.sh_demand = 2.0  # kW
-ctrl.dhw_demand = 0.5 # kW
-ctrl.step(0)
-print(ctrl.sh_supply, ctrl.dhw_supply)
+    } 
 ```
 
 ## Developer notes & assumptions
