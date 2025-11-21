@@ -1,0 +1,142 @@
+{
+    "hp": {
+        "hp_model": "vitocal350_70kW",
+        "heat_source": "Air",
+        "calc_mode": "fast"
+    },
+    "params_chp": {
+    "eid_prefix": "CHP",
+    "heat_out": [0, 92000],
+    "elec_share": 0.5,
+    "startup_coeff": [-2.63, 3.9, 0.57],
+    "startup_limit": 11,
+    "set_flow": 4,
+    "step_size": "STEP_SIZE"
+  },
+  "params_boiler": {
+    "eid_prefix": "Boiler",
+    "heat_out" : [0, 50000, 100000],
+    "set_temp" : 70
+  },
+
+    "ctrl": {
+        "T_dhw_sp": 65,
+        "T_dhw_buffer": 5,
+        "operation_mode": "heating",
+        "control_strategy": "2",
+        "supply_config": "4-runner",
+        "return_tank" : "Tank0",
+        "boiler_mode": "on",
+        "Ideal_hr_mode" :"off",
+        "sh_out" : "tank1.heat_out2",
+        "sh_out2" : "tank2.heat_out2",
+        "dhw_out" : "tank2.heat_out",
+        "sh_ret" : "tank0.heat_in",
+        "dhw_ret" : "tank1.heat_in",
+        "dhw_Tdelta" : 15,
+        "gens" : ["hp", "boiler"],
+        "NumberofTanks" : 3,
+        "TankbalanceSetup" : ["tank0.heat_out:tank1.hp_out", "tank1.heat_out:tank2.hp_out"]
+    },
+    "tank": {
+        "Tanknumber" : "-",
+        "height": 2500,
+        "volume": 5000,
+        "T_env": 20.0,
+        "htc_walls": 0.5,
+        "htc_layers": 5,
+        "n_layers": 3,
+        "n_sensors": 3,
+        "connections": {
+            "heat_in": {
+                "pos": 150
+            },
+            "heat_out": {
+                "pos": 1840
+            },
+            "chp_in": {
+                "pos": 1840
+            },
+            "chp_out": {
+                "pos": 50
+            },
+            "hp_in": {
+                "pos": 1750
+            },
+            "hp_out": {
+                "pos": 100
+            },
+            "boiler_in": {
+                "pos": 1880
+            },
+            "boiler_out": {
+                "pos": 120
+            },
+            "heat_out2": {
+                "pos": 1880
+            },
+            "heat_in2": {
+                "pos": 200
+            }
+        },
+        "heating_rods": {
+            "hr_1": {
+                "mode": "off",
+                "pos": 1800,
+                "P_th_stages": [
+                    0,
+                    500,
+                    1000,
+                    2000,
+                    10000
+                ],
+                "T_max": 67,
+                "eta": 1
+            }
+        }
+    },
+    "init_vals_tank": {
+        "init_vals_hwt0": {
+            "layers": {
+                "T": [
+                    40.0,
+                    30.0,
+                    20.0
+                ]
+            },
+            "hr_1": {
+                "P_el": 0
+            }
+        },
+        "init_vals_hwt1": {
+            "layers": {
+                "T": [
+                    40.0,
+                    30.0,
+                    20.0
+                ]
+            },
+            "hr_1": {
+                "P_el": 0
+            }
+        },
+        "init_vals_hwt2": {
+            "layers": {
+                "T": [
+                    80.0,
+                    70.0,
+                    60.0
+                ]
+            },
+            "hr_1": {
+                "P_el": 500
+            }
+        }
+    },
+    "pv" : {
+        "calc_mode" : "simple",
+        "nom_power" : 70000,
+        "coordinates" : [49.1, 8.5, "Stutensee", 110, "Etc/GMT-1"],
+        "irradiation_data" : "../data/inputs/2025-04-07-Project1-weather.csv"
+    }
+}

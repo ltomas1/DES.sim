@@ -155,6 +155,8 @@ class Controller():
         self.timestamp = None
         self.hp_surplus = False
 
+        self.HP3wv_out1_share = 1 #Share of flow from the first output of the 3 way valve in heat pump condenser circuit.
+
     def get_init_attrs(self):
         '''
         Simply returns a list of all user defined attributes in this class. 
