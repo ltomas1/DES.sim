@@ -42,7 +42,10 @@
         "boiler_mode": "on",
         "Ideal_hr_mode": "on", 
         "boiler_delay": 600,
-        "step_size": 900
+        "step_size": 900,
+        "gens" : ["hp", "chp", "boiler"],
+        "NumberofTanks" : 3,
+        "TankbalanceSetup" : ["tank0.heat_out:tank1.hp_out", "tank1.heat_out:tank2.hp_out"]
     },
     "tank": {
         "Tanknumber" : "-",

@@ -128,7 +128,7 @@ def run_DES(params, collect=True, plot_graph=False):
     # unpacking input params
     
     params_hp = params['hp']
-    # params_ctrl = params['ctrl']  # for the other laters, so that used params can be used in visu
+    params_ctrl = params['ctrl']  # for the other laters, so that used params can be used in visu
     params_hwt = params['tank']
     params['ctrl']['tank'] = params['tank']
     init_vals_hwt0 = params['init_vals_tank']['init_vals_hwt0']
@@ -139,19 +139,7 @@ def run_DES(params, collect=True, plot_graph=False):
     params_chp['step_size'] = STEP_SIZE
     params_pv = params['pv']
 
-    params['ctrl'] = {
-        **params['ctrl'],
-        'sh_out' : 'tank1.heat_out2',
-        'sh_out2' : 'tank2.heat_out2',
-        'dhw_out' : 'tank2.heat_out',
-        'sh_ret' : 'tank0.heat_in',
-        'dhw_ret' : 'tank2.heat_in',
-        'supply_config' : '4-runner',
-        'control_strategy' : '2',
-        'gens' : ['hp', 'chp', 'boiler'],
-        'NumberofTanks' : 3,
-        'TankbalanceSetup' : ['tank0.heat_out:tank1.hp_out', 'tank1.heat_out:tank2.hp_out']
-    }
+   
 
     # -----------------------------------------pv-------------------------------------------------------------------------------------
     #Standalone pvmodel-------------------------------------------------
