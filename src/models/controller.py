@@ -218,8 +218,9 @@ class Controller():
         # ------------------HP surplus mode def-----------------------------------------
         
         # if surplus electricity generation:
-        if self.pv_gen and self.chp_el and self.pred_el_demand:
-            if (self.pv_gen + self.chp_el - self.pred_el_demand) > 1 : 
+        if (self.pv_gen is not None or self.chp_el is not None) and self.pred_el_demand is not None:
+            self.total_gen = (self.pv_gen or 0) + (self.chp_el or 0) - (self.pred_el_demand or 0)
+            if self.total_gen > 1 : 
                 self.hp_surplus = True
             else:
                 self.hp_surplus = False
@@ -264,7 +265,8 @@ class Controller():
                     '<': operator.lt,
                     '>': operator.gt,
                     '<=': operator.le,
-                    '>=': operator.ge
+                    '>=': operator.ge,
+                    '==': operator.eq,
                 }
                 logic = {
                     'boiler' : {
