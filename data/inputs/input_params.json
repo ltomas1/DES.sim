@@ -1,51 +1,84 @@
 {
     "hp": {
-        "hp_model": "Air_30kW",
+        "hp_model": "Air_60kW",
         "heat_source": "Air",
         "calc_mode": "fast"
     },
-    "params_chp": {
+    "chp": {
     "eid_prefix": "CHP",
-    "heat_out": [0, 0],
-    "elec_share": 0.5,
-    "efficiency": 0.5,
+    "nom_P_th": 90000,
+    "op_stages": [0, 0.25, 0.5, 0.75, 1.0],
+    "P_el": 50000,
+    "efficiency": 0.8,
     "startup_coeff": [-2.63, 3.9, 0.57],
     "startup_limit": 11,
     "set_flow": 4,
     "step_size": "STEP_SIZE",
     "heating_value": 10833.3
   },
-  "params_boiler": {
+  "boiler": {
     "eid_prefix": "Boiler",
-    "heat_out": [0, 200000],
+    "nom_P_th": 200000,
     "set_temp": 75,
     "efficiency": 0.8,
     "heating_value": 10833.3
   },
 
     "ctrl": {
-        "T_hp_sp_winter": 50,
-        "T_hp_sp_summer": 67,
-        "T_hp_sp_surplus": 67,
-        "T_chp_h": 65,
-        "T_dhw_sp": 65,
-        "T_dhw_buffer": 5,
-        "heat_rT": 35,
         "operation_mode": "heating",
         "control_strategy": "1",
         "supply_config": "4-runner",
+        "heating_curve": "floor_low_insulation",
         "sh_out" : "tank1.heat_out2",
         "sh_out2" : "tank2.heat_out2",
         "dhw_out" : "tank2.heat_out",
         "sh_ret" : "tank0.heat_in",
         "dhw_ret" : "tank2.heat_in",
         "boiler_mode": "on",
-        "Ideal_hr_mode": "on", 
-        "boiler_delay": 600,
+        "Ideal_hr_mode": "off", 
         "step_size": 900,
         "gens" : ["hp", "chp", "boiler"],
         "NumberofTanks" : 3,
-        "TankbalanceSetup" : ["tank0.heat_out:tank1.hp_out", "tank1.heat_out:tank2.hp_out"]
+        "TankbalanceSetup" : ["tank0.heat_out:tank1.hp_out", "tank1.heat_out:tank2.hp_out"],
+        "logic" : {
+            "chp" : {
+                "turn_on" : {
+                    "tank" : "tank2",
+                    "layer" : "sensor_2",
+                    "turn_on_temp" : 65
+                },
+                "turn_off" : {
+                    "tank" : "tank2",
+                    "layer" : "sensor_2",
+                    "turn_off_temp" : 75
+                }
+            },
+            "hp" : {
+                "turn_on" : {
+                    "tank" : "tank1",
+                    "layer" : "sensor_2",
+                    "turn_on_temp" : 40
+                },
+                "turn_off" : {
+                    "tank" : "tank1",
+                    "layer" : "sensor_2",
+                    "turn_off_temp" : 65
+                }
+            },
+            "boiler" : {
+                "turn_on":{
+                    "tank" : "tank2",
+                    "layer" : "sensor_2",
+                    "turn_on_temp" : 64
+                },
+                "add_conditions" : {
+                    "turn_on" : {
+                        "generators.chp_uptime" : [">=", 15]
+                    }
+                }
+            }
+        }
+
     },
     "tank": {
         "Tanknumber" : "-",

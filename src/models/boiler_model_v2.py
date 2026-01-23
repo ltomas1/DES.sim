@@ -1,8 +1,104 @@
+"""
+Module for simulating a gas boiler using basic thermal balance principles.
+The module inherits basic functionality from the Transformer_base class in
+the EnTransformer module.
+
+Author: AqibThennadan
+"""
+
 import mosaik_api
-from src.models.EnTransformer import Transformer_base
+from models.EnTransformer import Transformer_base
+from tqdm import tqdm
 
 class Gboiler(Transformer_base):
-
+    """Gas boiler model (Gboiler) extending Transformer_base.
+    This class models a staged gas boiler with optional startup transients for
+    power output and efficiency. It determines an appropriate thermal power
+    stage from available heat_out_caps based on the current heat demand, models
+    reduced output and efficiency during startup using polynomial regressions,
+    and delegates hydraulic/thermal calculations to Transformer_base.step().
+    Parameters
+    ----------
+    params : dict
+        Configuration dictionary. Recognized keys:
+        - 'startup_coeff' (list[float] | None): Coefficients of a polynomial
+          (a0, a1, a2, ...) giving instantaneous thermal power (in kW) as a
+          function of uptime (minutes) during startup. The polynomial is
+          evaluated at uptime (minutes), then converted to W (multiplied by 1000).
+        - 'startup_limit' (float | None): Startup duration (minutes). Used to
+          determine when the startup transient ends.
+        - 'startup_eta_coeff' (list[float] | None): Coefficients of a polynomial
+          (a0, a1, ...) giving thermal efficiency as a function of uptime
+          (minutes) during startup.
+        - step_size (float | None): Time-step size in seconds (used when scaling
+          averaged startup energy/efficiency across a timestep). May also be
+          provided/managed by the caller or Transformer_base.
+    Attributes
+    ----------
+    status : {'on','off'} | None
+        Current commanded status of the boiler. When 'on' the model will
+        produce heat according to staged capacity and startup behaviour.
+    lag_status : {'on','off'}
+        Status during the previous step; used to detect transitions and reset
+        startup timers.
+    uptime : float
+        Time elapsed since the last startup, expressed in minutes.
+    time_reset : float
+        Timestamp (seconds) when the boiler was last turned on; used to compute uptime.
+    Q_demand : float | None
+        Current thermal demand assigned to the boiler (W).
+    P_th : float
+        Thermal power output decided for the current timestep (W). Computed
+        from staged capacities and startup regressions before calling
+        Transformer_base.step().
+    eta : float
+        Current thermal efficiency (0..1). During startup this may be computed
+        from startup_eta_coeff; otherwise nominal efficiency (nom_eta) is used.
+    heat_out_caps : list[float]
+        Ordered list of available thermal output stages (W). The model picks the smallest stage >= Q_demand,
+        or the largest stage if demand exceeds all stages.
+    Method: step(time)
+    ------------------
+    step(time)
+        Advance the boiler model for the simulation time given by `time`.
+        - time: simulation timestamp in seconds.
+        Algorithm summary:
+        1. Select target power stage P_stage by finding the smallest entry in
+           heat_out_caps >= Q_demand (or use the largest stage if none match).
+        2. Update uptime (minutes): if status is 'on' and a transition from
+           'off' was detected, reset time_reset; compute uptime = (time - time_reset)/60.
+           If status is 'off' or None, uptime is reset to 0 and P_th set to 0.
+        3. If startup_coeff is provided and status == 'on':
+           - If uptime < startup_limit, compute instantaneous P_th (kW) via the
+             polynomial at uptime (minutes), convert to W (×1000), clamp non-negative.
+           - If the configured timestep is long relative to startup (step_size/60 > startup_limit)
+             and the unit is at the very start of the step (uptime == 0), compute an
+             averaged P_th over the timestep to account for partial-time startup energy.
+           - Finally, clamp P_th to be no greater than P_stage.
+        4. If no startup_coeff provided, set P_th = P_stage (instant switch to stage).
+        5. If startup_eta_coeff is provided, compute eta via its polynomial at uptime
+           (minutes). If the timestep spans the startup similarly to above, an averaged
+           eta is computed. Eta is clipped to be >= 0.
+        6. Call super().step(time) so Transformer_base can use P_th (and eta) to
+           compute flows, temperatures, and internal states.
+        7. Update lag_status for next-step transition detection.
+    Notes and assumptions
+    ---------------------
+    - Time units: `time` is expected in seconds; uptime and startup_limit are in minutes.
+    - Power units: heat_out_caps and P_th are in watts (W). Polynomials in startup_coeff
+      are assumed to produce values in kilowatts (kW) and are converted to W inside the model.
+    
+    Example
+    -------
+    params = {
+        'startup_coeff': [0.0, 0.5],        # P_th(kW) = 0.0 + 0.5 * uptime(min)
+        'startup_limit': 5.0,               # minutes
+        'startup_eta_coeff': [0.8, 0.02],   # eta = 0.8 + 0.02 * uptime(min)
+        'step_size': 60                     # seconds
+    }
+    boiler = Gboiler(params)
+    # set boiler.status, boiler.Q_demand, then call boiler.step(sim_time_seconds)
+    """
     def __init__(self, params):
         
         super().__init__(params)
@@ -12,12 +108,32 @@ class Gboiler(Transformer_base):
         self.startup_time = params.get('startup_limit', None)
         self.startup_eta_coeff = params.get('startup_eta_coeff', None)# coefficients to represent lower eta at startup
         self.step_size = None
+
+        #input/outpus
+        self.status = None
+        self.lag_status = 'off'
+        self.uptime = 0
+        self.time_reset = 0
+        self.Q_demand = None
     def step(self, time):
 
-        super().step(time)
-
-        if self.startup_coeff:            
-            if len(self.heat_out_caps) <=2 and self.uptime < (self.startup_time):
+        P_stage = min((i for i in self.heat_out_caps if i >= self.Q_demand), default=self.heat_out_caps[-1]) #target power stage based on demand
+        
+        # Counting uptime for startup behaviour
+        if self.status == 'off' or self.status is None :
+            self.P_th = 0
+            self.uptime = 0
+            
+        else :
+          
+            if self.status != self.lag_status: #lag_status initialized to off, so when turned on, reset var assigned
+                self.time_reset = time
+            #to count time passed after each startup. In the previous line, time_reset is assigned the time of initialisation of startup.
+            self.uptime = (time - self.time_reset)/60  #the regression model takes time in minutes.
+        
+        # Determining Pth based on startup behaviour
+        if self.startup_coeff and self.status == 'on':            
+            if self.uptime < (self.startup_time):
                 self.P_th = 0
                 for i in range(len(self.startup_coeff)):
                     self.P_th += self.startup_coeff[i] * self.uptime**i #i starts for 0, so will work for intercept as well.
@@ -25,8 +141,16 @@ class Gboiler(Transformer_base):
                 self.P_th *= 1000 #Regression model was for KW #TODO rectify this!
                 if self.P_th < 0:  #for the lack of a better model :)
                     self.P_th = 0
-            if self.step_size/60 > self.startup_time and self.uptime ==0:
+            #When the stepsize is lesser than the start up time of the gen, the energy is scaled accordingly
+            if self.step_size/60 > self.startup_time and self.uptime ==0: 
                 self.P_th = (0.5 * (self.startup_time/60)*self.heat_out_caps[-1] + ((self.step_size/60-self.startup_time)/60 * self.heat_out_caps[-1]))/(self.step_size/3600)
+            
+            self.P_th = min(self.P_th, P_stage) #ensuring that the power does not exceed the target power stage, and also allows startup behaviour for part-load       
+        
+        else: #When startup behaviour not specified
+            self.P_th = P_stage
+        
+        # If regression for efficiency during startup specified   
         if self.startup_eta_coeff:
             self.eta = 0
             for i in range(len(self.startup_eta_coeff)):
@@ -36,8 +160,11 @@ class Gboiler(Transformer_base):
                              ((self.step_size/60-self.startup_time)/60 * self.nom_eta))/(self.step_size/3600)
             self.eta = max(0, self.eta)
 
-            super().calc_fuel()
 
+        super().step(time) #self.Pth made available now
+        # tqdm.write(f'Boiler flow: {self.mdot}')
+
+        self.lag_status = self.status
 #-------------------------Mosaik Back-end-------------------------------
 META = {
     'type': 'time-based',
@@ -80,16 +207,59 @@ class TransformerSimulator(mosaik_api.Simulator):
         return self.meta
     
     def create(self, num, model, params):
+        """Create and register one or more model entities.
+
+        Parameters
+        ----------
+        num : int
+            Number of entities to create.
+        model : str
+            Model key as exposed in ``META['models']`` (unused but required
+            by the Mosaik API).
+        params : dict
+            Parameters passed to each created model instance.
+
+        Returns
+        -------
+        list
+            A list of entity descriptors as expected by Mosaik.
+        """
+
         entities = []
 
         next_eid = len(self.models) #if create called a second time, eid will not repeat
         for i in range(next_eid, next_eid + num):
             eid = '%s%d' % (self.eid_prefix, i)
             self.models[eid] = Gboiler(params)
+            self.models[eid].step_size = self.step_size #assigning the step size
             entities.append({'eid': eid, 'type': model})
         return entities
             
     def step(self, time, inputs, max_advance):
+        """Handle inputs from other simulators and advance all models.
+
+        This method maps incoming attribute values to the corresponding
+        model instances, updates the simulator-local step size, calls
+        :meth:`Gboiler.step` for each instance, and returns the next
+        requested simulation time when running in time-based mode.
+
+        Parameters
+        ----------
+        time : float
+            Current simulation time (seconds).
+        inputs : dict
+            Mapping of entity ids to input attributes received from other
+            simulators.
+        max_advance : float
+            Maximum time Mosaik allows to advance in this call (unused).
+
+        Returns
+        -------
+        float or None
+            Next requested time (``time + self.step_size``) for time-based
+            runs, or ``None`` for event-based runs.
+        """
+
         for eid, attrs in inputs.items():
             if self.meta['type'] == 'event-based':
                 if time != self.time:
@@ -112,6 +282,21 @@ class TransformerSimulator(mosaik_api.Simulator):
             return time + self.step_size
     
     def get_data(self, outputs):
+        """Return requested output attributes for the given entities.
+
+        Parameters
+        ----------
+        outputs : dict
+            Mapping of entity ids to lists of requested attribute names.
+
+        Returns
+        -------
+        dict
+            Mapping of entity ids to dictionaries of attribute values. The
+            returned mapping includes a ``time`` key holding the simulator's
+            current time.
+        """
+
         data = {}
         for eid, attrs in outputs.items():
             data[eid] = {}
@@ -120,10 +305,7 @@ class TransformerSimulator(mosaik_api.Simulator):
                         'attrs']:
                     raise ValueError('Unknown output attribute: %s' % attr)
                 data['time'] = self.time
-
-                value = getattr(self.models[eid], attr)
-                if isinstance(value, (float, int)):
-                    data[eid][attr] = float(value)
+                data[eid][attr] = getattr(self.models[eid], attr)
                     
         return data
 

@@ -1,24 +1,13 @@
 import mosaik
 import mosaik.util
-from mosaik_components.pv.configurations import generate_configurations, Scenarios
 import os
 import sys
 import nest_asyncio
 nest_asyncio.apply()
 import logging
-# from utils.setup_logging import setup_logging
-
-import cProfile
-import pstats
-
-from multiprocessing import Process
-
 import json
-from datetime import datetime
-import hashlib
 
 #setup the logger
-# setup_logging()
 logger = logging.getLogger("mosaik_logger")
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -26,51 +15,13 @@ OUTPUT_PATH = os.path.join(current_dir, "..", 'data/outputs')
 sys.path.append(os.path.join(current_dir, ".."))
 
 from src.models import pvlib_model
-#______________________________moved outside method, to be accessible from other scripts(visu.ipynb)
-#TODO use the param file in visu
 STEP_SIZE = 60*15 # step size 15 minutes
 HV = 10833.3 #Heating value of natural gas in Wh/m^3; standard cubic meter
 
-ref_param_filename = 'ref_params.json'
-param_export_filename = 'used_params.json' # TODO pass this in des_sim parameter list
 def export2json(params_dict):
     filename = os.path.join(OUTPUT_PATH, 'used_params.json')
     with open(filename, 'w') as f:
         json.dump(params_dict, f, indent = 4)
-
-def generatePrefix(current_params, ref_param_name) :
-    changes_dict = {}  #this dict will store the keys and their changes, could be exported with a unique key.
-    filename = os.path.join(OUTPUT_PATH, ref_param_name)
-    prefix = ''
-    if not os.path.exists(filename):
-        prefix += '_'
-        return prefix, changes_dict
- 
-    with open(filename, 'r') as f:
-        old_params = json.load(f)
-
-    for comp, prms in current_params.items():
-        for key, val in prms.items():
-            if old_params[comp][key] != val:
-                if type(val) == float or type(val) == int:               
-                    diff = val - old_params[comp][key] if old_params[comp][key] is not None else val
-                    prefix += f"{comp}.{key}+{diff}_"
-                    changes_dict[f'{comp}.{key}'] = diff
-
-                else :
-                    prefix += str(key) + '~' + str(val)+ '_'
-                    changes_dict[f'{comp}.{key}'] = f'{old_params[comp][key]}~{val}'
-    return prefix, hash_encrypt(changes_dict)
-
-def hash_encrypt(changes):
-
-    change_str = json.dumps(changes, sort_keys=True)
-    hash_str = hashlib.sha256(change_str.encode()).hexdigest()[:8]
-
-    # Optionally store the mapping for future lookup
-    # with open(os.path.join(OUTPUT_PATH, f'{hash_str}_changes.json'), 'w') as f:
-        # json.dump(changes, f, indent=4)
-    return hash_str
 
 def run_DES(params, collect=True, plot_graph=False):
     sim_config = {
@@ -123,10 +74,9 @@ def run_DES(params, collect=True, plot_graph=False):
     
     world = mosaik.World(sim_config, mosaik_config={'addr':('127.0.0.1', 0)})
     START = '2022-01-01 00:00:00'
-    END =  365*24*60*60 # one year in seconds
+    END =  5*24*60*60 # one year in seconds
 
     # unpacking input params
-    
     params_hp = params['hp']
     params_ctrl = params['ctrl']  # for the other laters, so that used params can be used in visu
     params_hwt = params['tank']
@@ -134,50 +84,16 @@ def run_DES(params, collect=True, plot_graph=False):
     init_vals_hwt0 = params['init_vals_tank']['init_vals_hwt0']
     init_vals_hwt1 = params['init_vals_tank']['init_vals_hwt1']
     init_vals_hwt2 = params['init_vals_tank']['init_vals_hwt2']    
-    params_chp = params['params_chp']
-    params_boiler = params['params_boiler']
-    params_chp['step_size'] = STEP_SIZE
+    params_chp = params['chp']
+    params_boiler = params['boiler']
     params_pv = params['pv']
-
-   
 
     # -----------------------------------------pv-------------------------------------------------------------------------------------
     #Standalone pvmodel-------------------------------------------------
     pv_results = pvlib_model.sim(params_pv)
     pv_csv = world.start('CSV', sim_start = START, datafile = pv_results)
-
     pv_mod = pv_csv.Data.create(1)
         
-    #---------pvsimulator.py-----------------------------------------------------
-    
-    # parameters for pv model
-    # LAT = 32.0
-    # AREA = 100
-    # EFF = 0.5
-    # EL = 32.0
-    # AZ = 0.0
-
-    # DNI_DATA = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'data','inputs', 'solar_data_HSO.csv')) # pv
-    # pv_sim = world.start("PVSim",start_date=START,step_size=STEP_SIZE) # pv
-    # DNI_sim = world.start("CSV", sim_start=START, datafile=DNI_DATA) # pv
-    
-    # pv_model = pv_sim.PV.create(1, latitude=LAT, area=AREA,efficiency=EFF, el_tilt=EL, az_tilt=AZ) # pv
-    # DNI_model = DNI_sim.DNI.create(1) # pv
-    
-    
-    #-------------PVlib(mosaik adapter )---------------------------------------------
-    # pv_count = 1
-    # pv_config = {str(i) : generate_configurations(Scenarios.BUILDING) for i in range(pv_count)}
-
-    # METEO_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data','inputs', 'Braunschweig_meteodata_2022_15min.csv') # pvlib
-    # pv_sim_pvlib = world.start("PVsim_pvlib", start_date=START, step_size=STEP_SIZE, pv_data=pv_config,) # pvlib (takes 4:01 minutes for 1 year)
-    # meteo_sim = world.start("CSV", sim_start=START, datafile=METEO_DATA) # pvlib (takes 13:16 minutes for 1 year)
-    
-    # pv_model_pvlib = pv_sim_pvlib.PVSim.create(pv_count) # PVlib
-    # meteo_model = meteo_sim.Braunschweig.create(1) # pvlib
-
-    #------------------------------------------PV END-----------------------------------------------------------------------------------------------------------------  
-
     # ----------------------Input data csv------------------------
     HEAT_LOAD_DATA = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'data', 'inputs', 'Input_kfw55_2_el.csv'))
     # configure the simulator
@@ -186,19 +102,15 @@ def run_DES(params, collect=True, plot_graph=False):
     heat_load = csv.HEATLOAD.create(1)
 
     # ------------------Output data storage-----------------------
-    # prefix, hash_prefix = generatePrefix(params, ref_param_filename)
-    # prefix, hash_prefix = '',''
-    
     # configure the simulator
     csv_sim_writer = world.start('CSV_writer', start_date= START, date_format='%Y-%m-%d %H:%M:%S',
                                 output_file=os.path.join(OUTPUT_PATH, 'DES_data.csv'))
-
-    collector = world.start('Collector')
     # Instantiate model
+    collector = world.start('Collector')
     csv_writer = csv_sim_writer.CSVWriter(buff_size=15 * 60 * 60)
     col = collector.Collector()
-    #-------------------------------------------------------------
 
+    #-------------------------------------------------------------
     # configure other simulators
     heatpumpsim = world.start('HeatPumpSim', step_size=STEP_SIZE)
     hwtsim0 = world.start('HotWaterTankSim', step_size=STEP_SIZE, config={**params_hwt, "Tanknumber" : 0})
@@ -327,42 +239,6 @@ def run_DES(params, collect=True, plot_graph=False):
                 )
     world.connect(heatpump[0], ctrls[0], ('cond_m_neg', 'tank_connections.tank0.hp_out_F'), ('cond_m', 'tank_connections.tank1.hp_in_F'),)
 
-
-    """__________________________________________ PVsim ___________________________________________________________________""" 
-    #? delete connections?
-    # world.connect(      DNI_model[0],
-    #                     pv_model[0],
-    #                     ("DNI", "DNI[W/m2]"),
-    #                 )
-    # world.connect(
-    #                     pv_model[0],
-    #                     csv_writer,
-    #                     "P[MW]", 
-    #                 )
-
-    # world.connect(
-    #                     DNI_model[0],
-    #                     csv_writer,
-    #                     "DNI", 
-    #                 )
-
-    """__________________________________________ PVlib ___________________________________________________________________""" 
-
-    # world.connect(
-    #                     meteo_model[0],
-    #                     pv_model_pvlib[0],
-    #                     ("GlobalRadiation", "GHI[W/m2]"),
-    #                     ("AirPressHourly", "Air[Pa]"),
-    #                     ("AirTemperature", "Air[C]"),
-    #                     ("WindSpeed", "Wind[m/s]"),
-    #                 )
-
-    # world.connect(
-    #                     pv_model_pvlib[0],
-    #                     csv_writer,
-    #                     "P[MW]", # could change it to watts, make it easier in visu, to switch and compare!
-    #                 )
-
     """__________________________________________ CSV ___________________________________________________________________""" 
     # connect everything to the csv writer
     world.connect(heat_load[0], csv_writer, 'T_amb', 'Heat Demand [kW]')
@@ -390,13 +266,9 @@ def run_DES(params, collect=True, plot_graph=False):
                 'hp_out.F', 'heat_in.T', 'heat_in.F',
                 'T_mean', 'hr_1.P_th', 'heat_out2.F', 'heat_out2.T')
 
-    # world.connect(chp[0], csv_writer, 'eff_el', 'nom_P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_Demand', 'temp_out',
-    #                'P_th', 'P_el', 'fuel_m3', 'chp_uptime'
-    #               )  
     world.connect(chp[0], csv_writer,  'P_th', 'mdot', 'mdot_neg', 'temp_in', 'Q_demand', 'temp_out',
                     'P_el', 'uptime'
                   )  
-    # world.connect(boiler[0], csv_writer, 'P_th', 'Q_Demand', 'temp_out', 'fuel_m3', 'mdot')   
     world.connect(boiler[0], csv_writer, 'P_th', 'Q_demand', 'temp_out', 'mdot')   
 
     # auto-connect *all* source attributes to collector
@@ -460,6 +332,9 @@ if __name__ == "__main__":
     run_DES(params) #this will be executed only when this file is run directly.
     
     # pvsim()
+# import cProfile
+# import pstats
 # cProfile.run('run_DES()', 'profile_output') 
 # p = pstats.Stats('profile_output')
+
 

@@ -5,24 +5,24 @@ from src.models.boiler_model_v2 import Gboiler
 class CHP(Gboiler):
 
     def __init__(self, params):
-        
         super().__init__(params)
         
-        self.nom_P_el = params.get('P_el', None)
-        self.elec_share = params.get('elec_share', None) 
+        self.nom_P_el = params.get('P_el', None) # TODO: warning (or error) if this is None
+        self.elec_share = params.get('elec_share', None) # TH to EL ratio, P_el / P_th
         self.startup_coeff = params.get('startup_coeff') # Future : list of lists, corresponding to each power stage
         self.startup_time = params.get('startup_limit')
-        self.step_size = params.get('step_size', None)
+        self.step_size = None
 
         if self.nom_P_el:
-            self.elec_share = self.nom_P_th/self.nom_P_el #More intuitive to have the nominal power defined by the user.
-    
+            self.elec_share = self.nom_P_el/self.nom_P_th #More intuitive to have the nominal power defined by the user.
+        self.P_el = None
+
     def step(self, time):
 
         super().step(time)
 
         if self.elec_share:
-            self.P_el = self.P_th*self.elec_share 
+            self.P_el = self.P_th * self.elec_share 
 
     def get_init_attrs(self):
         '''
@@ -38,7 +38,7 @@ META = {
         'Transformer': {
             'public': True,
             'params': ['params'],
-            'attrs': [],
+            'attrs': ['status'],
         },
     },
 }
@@ -79,6 +79,7 @@ class TransformerSimulator(mosaik_api.Simulator):
         for i in range(next_eid, next_eid + num):
             eid = '%s%d' % (self.eid_prefix, i)
             self.models[eid] = CHP(params)
+            self.models[eid].step_size = self.step_size
             entities.append({'eid': eid, 'type': model})
         return entities
             
@@ -113,10 +114,7 @@ class TransformerSimulator(mosaik_api.Simulator):
                         'attrs']:
                     raise ValueError('Unknown output attribute: %s' % attr)
                 data['time'] = self.time
-                
-                value = getattr(self.models[eid], attr)
-                if isinstance(value, (float, int)):
-                    data[eid][attr] = float(value)
+                data[eid][attr] = getattr(self.models[eid], attr)
                     
         return data
 
