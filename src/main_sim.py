@@ -216,7 +216,7 @@ def run_DES(params, collect=True, plot_graph=False):
 
     world.connect(ctrls[0], chp[0], ('generators.chp_demand', 'Q_demand'), ('generators.chp_status' , 'status'),
                 time_shifted=True,
-                initial_data={'generators.chp_demand': 90000}
+                initial_data={'generators.chp_demand': 0}
                 )
 
     """__________________________________________ heat pump ___________________________________________________________________""" 

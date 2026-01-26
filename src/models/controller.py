@@ -323,7 +323,7 @@ class Controller():
                             return True
                     return False
 
-
+                
                 for gen_, cond in logic.items():
                     #gen_ will be the exact key in the dict, with the dhw, sh suffix and such.
 
