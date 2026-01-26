@@ -74,11 +74,10 @@ def run_DES(params, collect=True, plot_graph=False):
     
     world = mosaik.World(sim_config, mosaik_config={'addr':('127.0.0.1', 0)})
     START = '2022-01-01 00:00:00'
-    END =  5*24*60*60 # one year in seconds
+    END =  365*24*60*60 # one year in seconds
 
     # unpacking input params
     params_hp = params['hp']
-    params_ctrl = params['ctrl']  # for the other laters, so that used params can be used in visu
     params_hwt = params['tank']
     params['ctrl']['tank'] = params['tank']
     init_vals_hwt0 = params['init_vals_tank']['init_vals_hwt0']

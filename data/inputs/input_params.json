@@ -63,18 +63,16 @@
                     "tank" : "tank1",
                     "layer" : "sensor_2",
                     "turn_off_temp" : 65
-                }
+                },
+                "add_conditions" :{ 
+                            "turn_on" : {"hp_surplus" : ["==", "True"]}
+            }
             },
             "boiler" : {
                 "turn_on":{
                     "tank" : "tank2",
                     "layer" : "sensor_2",
                     "turn_on_temp" : 64
-                },
-                "add_conditions" : {
-                    "turn_on" : {
-                        "generators.chp_uptime" : [">=", 15]
-                    }
                 }
             }
         }

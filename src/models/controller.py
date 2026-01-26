@@ -230,9 +230,9 @@ class Controller():
         if (self.pv_gen is not None or self.chp_el is not None) and self.pred_el_demand is not None:
             self.total_gen = (self.pv_gen or 0) + (self.chp_el or 0) - (self.pred_el_demand or 0)
             if self.total_gen > 1 : 
-                self.hp_surplus = True
+                self.hp_surplus = "True"
             else:
-                self.hp_surplus = False
+                self.hp_surplus = "False"
         #----------------------------------------------------------------------
         # Calculate the mass flows, temperatures and heat from back up heater for the SH circuit
         self.calc_heat_supply(self.config)
@@ -264,7 +264,7 @@ class Controller():
                             't_high' :} },
                         'turn-off' :{
                             default = turn-on + 5C}},
-                        'add_conds' :{ #this would have higher priority, can override the turn on/off temps.
+                        'add_conditions' :{ #this would have higher priority, can override the turn on/off temps.
                             'turn_on' : {'attr' : [sign(default = '<='), thresh_val]},
                             'turn_off' : , 
                         }
@@ -352,12 +352,14 @@ class Controller():
                             tank_id = f'tank{len(self.tanks)-1}' #default to last tank
                             tank_layer = 'sensor_2' #default to top layer
                             turn_on()
+                            self.generators[f'{gen}_demand'] = 1 # W
                     else:
                         # Turn on logic
                         if self.tank_temps[tank_id][tank_layer] <= temp_sp_low:
                             turn_on()
                         elif check_add_conditions(add_conditions, 'turn_on'): # this can overwrite the previous temp setpoints
                             turn_on()
+                            self.generators[f'{gen}_demand'] = 1 # W
                                     
                     if turn_off_tank_id is None and turn_off_tank_layer is None: # if no tank temp based setpoint defined
                         if check_add_conditions(add_conditions, 'turn_off'):
