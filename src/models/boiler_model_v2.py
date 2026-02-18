@@ -7,7 +7,9 @@ Author: AqibThennadan
 """
 
 import mosaik_api
-from models.EnTransformer import Transformer_base
+import warnings
+
+from models.EnTransformer import IncompleteConfigError, OverdefinedConfig, Transformer_base
 from tqdm import tqdm
 
 class Gboiler(Transformer_base):
@@ -100,7 +102,7 @@ class Gboiler(Transformer_base):
     # set boiler.status, boiler.Q_demand, then call boiler.step(sim_time_seconds)
     """
     def __init__(self, params):
-        
+
         super().__init__(params)
         
 
@@ -165,6 +167,28 @@ class Gboiler(Transformer_base):
         # tqdm.write(f'Boiler flow: {self.mdot}')
 
         self.lag_status = self.status
+
+    def _validate_model_params(self, params, hard_errors):
+
+        # constraints that raises errors (collect all issues, raise once)
+        checks = []
+
+        # Startup behaviour requires a startup duration.
+        if params.get("startup_coeff", None) is not None or params.get("startup_eta_coeff", None) is not None:
+            startup_limit = params.get("startup_limit", None)
+            checks.append((
+                startup_limit is not None,
+                "'startup_limit' must be defined when startup coefficients are provided.",
+            ))
+            if startup_limit is not None:
+                checks.append((
+                    isinstance(startup_limit, (int, float)) and startup_limit > 0,
+                    "'startup_limit' must be a number (minutes) greater than 0.",
+                ))
+
+        for ok, msg in checks:
+            if not ok:
+                hard_errors.append(msg)
 #-------------------------Mosaik Back-end-------------------------------
 META = {
     'type': 'time-based',

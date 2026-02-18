@@ -1,6 +1,7 @@
 import mosaik_api
-from src.models.EnTransformer import Transformer_base
+from src.models.EnTransformer import IncompleteConfigError, OverdefinedConfig, Transformer_base
 from src.models.boiler_model_v2 import Gboiler
+import warnings
 
 class CHP(Gboiler):
 
@@ -17,12 +18,51 @@ class CHP(Gboiler):
             self.elec_share = self.nom_P_el/self.nom_P_th #More intuitive to have the nominal power defined by the user.
         self.P_el = None
 
+    
+
     def step(self, time):
 
         super().step(time)
 
         if self.elec_share:
             self.P_el = self.P_th * self.elec_share 
+
+    def _validate_model_params(self, params, hard_errors):
+            # Keep boiler validation structure/behavior 
+            super()._validate_model_params(params, hard_errors)
+            
+            if params.get("P_el", None) is None and params.get("elec_share", None) is None:
+                warnings.warn(
+                    "CHP: neither 'P_el' nor 'elec_share' provided, CHP will default to 0 electrical power output.", 
+                    UserWarning
+                )
+
+            # over-definition warnings
+            if params.get("P_el", None) is not None and params.get("elec_share", None) is not None:
+                warnings.warn(
+                    "CHP: both 'P_el' and 'elec_share' provided, 'P_el' will be used to compute 'elec_share'.",
+                    OverdefinedConfig,
+                )
+
+            # constraints loop (collect all issues, raise once)
+            checks = []
+
+            if params.get("P_el", None) is not None:
+                checks.append((
+                    isinstance(params.get("P_el"), (int, float)) and params.get("P_el") > 0,
+                    "'P_el' must be a number > 0 (W) when provided.",
+                ))
+
+            
+            if params.get("elec_share", None) is not None:
+                checks.append((
+                    isinstance(params.get("elec_share", None), (int, float)) and 0 < params.get("elec_share", None) <= 1,
+                    "'elec_share' must be a number > 0 and <= 1 when provided (P_el / P_th).",
+                ))
+
+            for ok, msg in checks:
+                if not ok:
+                    hard_errors.append(msg)
 
     def get_init_attrs(self):
         '''

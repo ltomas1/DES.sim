@@ -1,3 +1,4 @@
+import warnings
 import pvlib
 import pandas as pd
 import numpy as np
@@ -11,6 +12,54 @@ def sim(params):
     '''
         Standalone pvlib model.
     '''
+    # -------------------- validation (two loops) --------------------
+    hard_errors = []
+
+    # Loop 1: defaults / warnings (inform user; do not modify params)
+    # default_warnings = {
+    #     "calc_mode": "PV: 'calc_mode' not provided; defaulting to 'simple'.",
+    # }
+    # for key, msg in default_warnings.items():
+    #     if key not in params:
+    #         warnings.warn(msg, UserWarning)
+
+    calc_mode = params.get("calc_mode", "simple")
+
+    # Loop 2: must-have / constraints (collect all issues, raise once)
+    checks = []
+
+    checks.append((
+        calc_mode == "simple",
+        f"PV: unsupported 'calc_mode'={calc_mode!r}. Supported: 'simple'.",
+    ))
+
+
+    checks.append((
+        isinstance(params.get("nom_power", None), (int, float)) and params.get("nom_power", None) > 0,
+        "PV: 'nom_power' is missing or invalid. Provide a number > 0 (W).",
+    ))
+
+
+    checks.append((
+        isinstance(params.get("coordinates", None), (list, tuple)) and len(params.get("coordinates", None)) == 5,
+        "PV: 'coordinates' is missing/invalid. Provide [latitude, longitude, name, altitude, timezone] for eg. [49.1, 8.5, 'Karlsruhe', 110, 'Etc/GMT-1'].",
+    ))
+
+    
+    checks.append((
+        isinstance(params.get("irradiation_data", None), str) and params.get("irradiation_data", None).strip() != "",
+        "PV: 'irradiation_data' is missing/invalid. Provide a relative path to the weather CSV.",
+    ))
+
+    for ok, msg in checks:
+        if not ok:
+            hard_errors.append(msg)
+
+    if hard_errors:
+        raise ValueError("PV configuration error(s):\n- " + "\n- ".join(hard_errors))
+    # -------------------------------------------------------------------------------
+
+
     params_sample= {
         'calc_mode' : 'simple',
         'nom_power' : None,
