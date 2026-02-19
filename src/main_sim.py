@@ -66,8 +66,9 @@ def run_DES(params, collect=True, plot_graph=False):
         'Collector': {
                 'python': 'src.models.collector:Collector',
         },
-
-
+        'BatterySim': {
+                'python': 'src.models.battery:BatterySimulator',
+        },
     }
     
     # Create World
@@ -86,6 +87,7 @@ def run_DES(params, collect=True, plot_graph=False):
     params_chp = params['chp']
     params_boiler = params['boiler']
     params_pv = params['pv']
+    params_bat = params['battery']
 
     # -----------------------------------------pv-------------------------------------------------------------------------------------
     #Standalone pvmodel-------------------------------------------------
@@ -118,6 +120,7 @@ def run_DES(params, collect=True, plot_graph=False):
     ctrlsim = world.start('ControllerSim', step_size=STEP_SIZE, params = params['ctrl'])
     chpsim = world.start('Chpsim_v2', step_size = STEP_SIZE, params = params_chp)
     boilersim = world.start('Boilersim_v2', step_size = STEP_SIZE, params = params_boiler)
+    batsim = world.start('BatterySim', step_size = STEP_SIZE, params = params_bat)
     
     # Instantiate other models
     heatpump = heatpumpsim.HeatPump.create(1, params=params_hp)
@@ -127,7 +130,7 @@ def run_DES(params, collect=True, plot_graph=False):
     hwts2 = hwtsim2.HotWaterTank.create(1, params=params_hwt, init_vals=init_vals_hwt2)
     ctrls = ctrlsim.Controller.create(1, params=params['ctrl'])
     boiler = boilersim.Transformer.create(1, params = params_boiler)
-
+    battery = batsim.Battery.create(1, params = params_bat)
     # -------------------------------------------------------------Connect entities----------------------------------------------------------------------------
 
     world.connect(heat_load[0], ctrls[0], 'T_amb', ('Heat Demand [kW]', 'heat_demand'), ('Domestic hot water (kW)' ,  'dhw_demand'), ('Space heating (kW)', 'sh_demand')
@@ -221,7 +224,7 @@ def run_DES(params, collect=True, plot_graph=False):
     """__________________________________________ heat pump ___________________________________________________________________""" 
 
     world.connect(heatpump[0], ctrls[0], ('Q_Supplied', 'generators.hp_supply'), ('on_fraction', 'hp_on_fraction'),
-                ('cond_m', 'hp_cond_m'))
+                ('cond_m', 'hp_cond_m'), ('P_Required','HP_P_Required'))
 
     world.connect(ctrls[0], heatpump[0], ('generators.hp_demand', 'Q_Demand'),
                 'T_amb', 'heat_source_T', time_shifted=True,
@@ -237,6 +240,12 @@ def run_DES(params, collect=True, plot_graph=False):
     world.connect(heatpump[0], hwts1[0], ('cons_T', 'hp_in.T'), ('cond_m', 'hp_in.F'),
                 )
     world.connect(heatpump[0], ctrls[0], ('cond_m_neg', 'tank_connections.tank0.hp_out_F'), ('cond_m', 'tank_connections.tank1.hp_in_F'),)
+
+    """__________________________________________ battery ___________________________________________________________________""" 
+
+    world.connect(battery[0], ctrls[0], ('soc', 'battery_soc'), time_shifted=True, initial_data={'soc': 50})
+    
+    world.connect(ctrls[0], battery[0], ('charge_battery', 'P_el_in'), ('discharge_battery', 'P_el_out'))
 
     """__________________________________________ CSV ___________________________________________________________________""" 
     # connect everything to the csv writer
@@ -270,6 +279,8 @@ def run_DES(params, collect=True, plot_graph=False):
                   )  
     world.connect(boiler[0], csv_writer, 'P_th', 'Q_demand', 'temp_out', 'mdot')   
 
+    world.connect(battery[0], csv_writer, 'soc', 'P_el_in', 'P_el_out')
+
     # auto-connect *all* source attributes to collector
     def connect_all_attrs(world, src_sim, src_entities, collector_ent):
         for e in src_entities:
@@ -282,6 +293,7 @@ def run_DES(params, collect=True, plot_graph=False):
     connect_all_attrs(world, chpsim, chp, col)
     connect_all_attrs(world, ctrlsim, ctrls, col)
     connect_all_attrs(world, heatpumpsim, heatpump, col)
+    connect_all_attrs(world, batsim, battery, col)
     # connect_all_attrs(world, hwtsim0, hwts0, col)
     # connect_all_attrs(world, hwtsim1, hwts1, col)
     # connect_all_attrs(world, hwtsim2, hwts2, col)    
@@ -335,5 +347,3 @@ if __name__ == "__main__":
 # import pstats
 # cProfile.run('run_DES()', 'profile_output') 
 # p = pstats.Stats('profile_output')
-
-
