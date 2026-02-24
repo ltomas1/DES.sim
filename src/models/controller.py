@@ -231,8 +231,9 @@ class Controller():
         # ------------------HP surplus mode -----------------------------------------
         
         # if surplus electricity generation:
+        self.total_gen = (self.pv_gen or 0) + (self.chp_el or 0) - (self.pred_el_demand or 0)
+
         if (self.pv_gen is not None or self.chp_el is not None) and self.pred_el_demand is not None:
-            self.total_gen = (self.pv_gen or 0) + (self.chp_el or 0) - (self.pred_el_demand or 0)
             if self.total_gen > 1 : 
                 self.hp_surplus = "True"
             else:
@@ -248,6 +249,8 @@ class Controller():
         battery_surplus = self.total_gen - self.HP_P_Required
         if battery_surplus > 0 and self.battery_full == "False":
             self.charge_battery = battery_surplus
+        else:
+            self.charge_battery = 0
         
         # Calculate the mass flows, temperatures and heat from back up heater for the SH circuit
         self.calc_heat_supply(self.config)
@@ -393,11 +396,15 @@ class Controller():
             self.hp_in_F = self.hp_on_fraction * self.hp_cond_m
             self.hp_out_F = -self.hp_on_fraction * self.hp_cond_m
 
-        # discharging the battery 
+        # discharging the battery only when battery is full and HP is running
         if self.battery_full == "True":
             self.charge_battery = 0
             if self.generators['hp_status'] == 'on':
                 self.discharge_battery = self.HP_P_Required
+            else:
+                self.discharge_battery = 0
+        else:
+            self.discharge_battery = 0
 
         # ----------------- Tank balancing flows -----------------------
         if self.no_tanks > 1:

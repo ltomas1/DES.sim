@@ -755,9 +755,6 @@ def _build_electrical_links(df: pd.DataFrame, *, input_df: pd.DataFrame, step_si
     if chp_el_col:
         producers["CHP"] = clone_df[chp_el_col[0]]
 
-    # if "Battery_P_el_out" in clone_df.columns:
-        # producers["Battery"] = clone_df["Battery_P_el_out"]
-        
     # --- GENERIC USERS (CONSUMERS) ---
     # Add here any new electrical users you want to track
     users: Dict[str, pd.Series] = {}
@@ -800,6 +797,10 @@ def _build_electrical_links(df: pd.DataFrame, *, input_df: pd.DataFrame, step_si
         import_needed = remaining_demand[u_key]
         if float(import_needed.sum()) > 0:
             elec_links_df[f"Grid:{u_key}"] = import_needed
+            
+    # special case for battery: battery supplies only Heat Pump and therefore is not accounted for in producers
+    if "Battery_P_el_in" in clone_df.columns:
+        elec_links_df["Grid:Heat Pump"] = elec_links_df["Grid:Heat Pump"] - clone_df["Battery_P_el_out"]
 
     for p_key in producers_keys:
         export_possible = remaining_supply[p_key]
