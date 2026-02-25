@@ -2,19 +2,19 @@ __doc__ = """
 The controller module contains an updated class for the controller model (:class:`Controller`).
 """
 #Logging setup------------------------------------------------------------------------------------------------------------#
-import logging
+# import logging
 
-logger_controller = logging.getLogger("mosaik_logger")
-logger_controller.setLevel(logging.DEBUG)  # Log everything (DEBUG, INFO, WARNING, ERROR)
+# logger_controller = logging.getLogger("mosaik_logger")
+# logger_controller.setLevel(logging.DEBUG)  # Log everything (DEBUG, INFO, WARNING, ERROR)
 
-# Create a file handler to store logs
-file_handler_controller = logging.FileHandler("controller_mosaik_simulation.log")  # Save to file
-file_handler_controller.setLevel(logging.DEBUG)
+# # Create a file handler to store logs
+# file_handler_controller = logging.FileHandler("controller_mosaik_simulation.log")  # Save to file
+# file_handler_controller.setLevel(logging.DEBUG)
 
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
+# console_handler = logging.StreamHandler()
+# console_handler.setLevel(logging.INFO)
 
-logger_controller.addHandler(file_handler_controller)
+# logger_controller.addHandler(file_handler_controller)
 #----------------------------------------------------------------------------------------------------------------------------#
 
 import pandas as pd
@@ -142,13 +142,17 @@ class Controller():
         self.hwt0_hr_1 = 0
 
         self.pv_gen = None
-        self.chp_el = None  #The electricity generation from the chp
-        self.HP_P_Required = None #The power requirement of the heat pump
+        self.chp_el = None  # The electricity generation from the chp
+        self.HP_P_Required = None # The power requirement of the heat pump
+        self.battery_soc = None # The state of charge of the battery
+        self.charge_battery = None # The power to charge the battery [W]
+        self.discharge_battery = None # The power to discharge the battery [W]
 
         self.pred_el_demand = None #The predicted/future electricity demand.
         
         self.timestamp = None
         self.hp_surplus = False
+        self.battery_full = False
 
         self.HP3wv_out1_share = 1 #The share of the flow from the mixing valve going to output 1(tank 1)
 
@@ -224,16 +228,30 @@ class Controller():
                 self.HP3wv_out1_share = 1 # if temp drops too low, switch it back to middle tank
 
         
-        # ------------------HP surplus mode def-----------------------------------------
+        # ------------------HP surplus mode -----------------------------------------
         
         # if surplus electricity generation:
+        self.total_gen = (self.pv_gen or 0) + (self.chp_el or 0) - (self.pred_el_demand or 0)
+
         if (self.pv_gen is not None or self.chp_el is not None) and self.pred_el_demand is not None:
-            self.total_gen = (self.pv_gen or 0) + (self.chp_el or 0) - (self.pred_el_demand or 0)
             if self.total_gen > 1 : 
                 self.hp_surplus = "True"
             else:
                 self.hp_surplus = "False"
-        #----------------------------------------------------------------------
+        # ------------------battery -----------------------------------------
+
+        if self.battery_soc is not None:
+            if self.battery_soc >= 99.5:
+                self.battery_full = "True"
+            else:
+                self.battery_full = "False"
+        
+        battery_surplus = self.total_gen - self.HP_P_Required
+        if battery_surplus > 0 and self.battery_full == "False":
+            self.charge_battery = battery_surplus
+        else:
+            self.charge_battery = 0
+        
         # Calculate the mass flows, temperatures and heat from back up heater for the SH circuit
         self.calc_heat_supply(self.config)
 
@@ -253,7 +271,7 @@ class Controller():
             #Datasheet logic control
             if self.control_strategy == '1':
 
-                # new nested logi dict
+                # new nested logic dict
                 '''
                 logic = {
                     'comp' : {
@@ -377,7 +395,17 @@ class Controller():
         if self.hp_on_fraction is not None and self.hp_cond_m is not None:
             self.hp_in_F = self.hp_on_fraction * self.hp_cond_m
             self.hp_out_F = -self.hp_on_fraction * self.hp_cond_m
- 
+
+        # discharging the battery only when battery is full and HP is running
+        if self.battery_full == "True":
+            self.charge_battery = 0
+            if self.generators['hp_status'] == 'on':
+                self.discharge_battery = self.HP_P_Required
+            else:
+                self.discharge_battery = 0
+        else:
+            self.discharge_battery = 0
+
         # ----------------- Tank balancing flows -----------------------
         if self.no_tanks > 1:
             for link in self.tank_setup:

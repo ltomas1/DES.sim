@@ -86,6 +86,7 @@ THERMAL_COLOR_MAP: Dict[str, str] = {
     "SH": "rgba(109, 0, 250, 0.7)",
     "DHN": "rgba(109, 0, 255, 0.7)",
     "Storage Loss": "rgba(130, 0, 3, 0.56)",
+    "Battery": "rgba(75, 0, 130, 0.7)",
 }
 
 
@@ -100,6 +101,9 @@ GENERIC_ENERGY_SANKEY_NODE_CONFIG: Dict[str, Tuple[float, float, str]] = {
     "Unused Surplus": (0, 0.9, "gray"),
     # --- Layer 0.5: sources/Components (Before-Middle-Left) ---
     "CHP": (0.5, 0.3, "brown"),
+    # --- Layer 0.75: Battery (Before-HeatPump) ---
+    "Battery": (0.75, 0.5, "rgba(75, 0, 130, 0.7)"),
+
     # --- Layer 1: Components (Middle-Left) ---
     "Gas Boiler": (1, 0.1, "red"),
     "Heat Pump": (1, 0.5, "rgba(217, 104, 0, 1)"),
@@ -108,7 +112,6 @@ GENERIC_ENERGY_SANKEY_NODE_CONFIG: Dict[str, Tuple[float, float, str]] = {
     "Heat Deficit": (1, 0.9, "crimson"),
     # --- Layer 2: Storage (Middle-Right) ---
     "Buffer Tank": (2, 0.35, "rgba(0, 0, 189, 0.8)"),
-    "Battery": (2, 0.8, "purple"),
     # --- Layer 3: Consumers (Right) ---
     "DHW": (3, 0.1, "teal"),
     "SH": (3, 0.35, "thistle"),
@@ -121,6 +124,7 @@ GENERIC_ENERGY_SANKEY_NODE_CONFIG: Dict[str, Tuple[float, float, str]] = {
 GENERIC_ENERGY_SANKEY_LAYER_POSITIONS: Dict[float, float] = {
     0: 0.001,
     0.5: 0.15,
+    0.75: 0.2,
     1: 0.33,
     1.5: 0.55,
     2: 0.66,
@@ -344,6 +348,10 @@ def _build_column_translation(df_columns: Iterable[str]) -> Dict[str, str]:
                 suffix = suffix.split(".")[-1]
             columnname[col] = suffix
 
+        elif "BatterySim" in col:
+            suffix = col.split("-")[-1]
+            columnname[col] = f"Battery_{suffix}"
+
     return columnname
 
 
@@ -566,6 +574,8 @@ def _print_run_report(
         "heat_demand",
         "ideal_supply",
         "total_supply",
+        "battery_charge",
+        "battery_discharge",
     ]
     for k in keys_order:
         if k in energies:
@@ -661,6 +671,8 @@ def _compute_energies(df: pd.DataFrame, *, params: Dict[str, Any], step_size: fl
         "heat_supply": 0.0,
         "ideal_supply": 0.0,
         "heat_demand": 0.0,
+        "battery_charge": 0.0,
+        "battery_discharge": 0.0,
     }
 
     # A. CHP (Look for ANY column starting with CHP_ and ending with P_th)
@@ -715,6 +727,11 @@ def _compute_energies(df: pd.DataFrame, *, params: Dict[str, Any], step_size: fl
     if "IdealHrodsum" in df.columns:
         energies["ideal_supply"] = _get_energy(df["IdealHrodsum"], step_size=step_size)
 
+    if "Battery_P_el_in" in df.columns:
+        energies["battery_charge"] = _get_energy(df["Battery_P_el_in"], step_size=step_size)
+
+    if "Battery_P_el_out" in df.columns:
+        energies["battery_discharge"] = _get_energy(df["Battery_P_el_out"], step_size=step_size)
     # Check differences in heat supply vs demand for 2-runner cases
     energies["total_supply"] = (
         energies["chp_supply"] + energies["boiler_supply"] + energies["hp_supply"] + energies["hrods_supply"]
@@ -730,6 +747,7 @@ def _build_electrical_links(df: pd.DataFrame, *, input_df: pd.DataFrame, step_si
     # --- GENERIC PRODUCERS ---
     # Add here any new electrical producers you want to track
     producers: Dict[str, pd.Series] = {}
+
     if "PV_P[W]" in clone_df.columns:
         producers["PV"] = clone_df["PV_P[W]"]
 
@@ -740,6 +758,9 @@ def _build_electrical_links(df: pd.DataFrame, *, input_df: pd.DataFrame, step_si
     # --- GENERIC USERS (CONSUMERS) ---
     # Add here any new electrical users you want to track
     users: Dict[str, pd.Series] = {}
+    if "Battery_P_el_in" in clone_df.columns:
+        users["Battery"] = clone_df["Battery_P_el_in"]
+
     if "Household_demand" in clone_df.columns:
         users["Household Electricity"] = clone_df["Household_demand"]
     elif "Electricity Demand [W]" in input_df.columns:
@@ -776,6 +797,10 @@ def _build_electrical_links(df: pd.DataFrame, *, input_df: pd.DataFrame, step_si
         import_needed = remaining_demand[u_key]
         if float(import_needed.sum()) > 0:
             elec_links_df[f"Grid:{u_key}"] = import_needed
+            
+    # special case for battery: battery supplies only Heat Pump and therefore is not accounted for in producers
+    if "Battery_P_el_in" in clone_df.columns:
+        elec_links_df["Grid:Heat Pump"] = elec_links_df["Grid:Heat Pump"] - clone_df["Battery_P_el_out"]
 
     for p_key in producers_keys:
         export_possible = remaining_supply[p_key]
@@ -819,6 +844,9 @@ def _build_thermal_links(
 
     if energies.get("ideal_supply", 0.0) > 0:
         thermal_links["Heat Deficit:Buffer Tank"] = [energies["ideal_supply"], color_map["Heat Deficit"]]
+
+    if energies.get("battery_discharge", 0.0) > 0:
+        thermal_links["Battery:Heat Pump"] = [energies["battery_discharge"], color_map["Battery"]]
 
     # --- OUTPUTS (Buffer -> Consumers) ---
     if energies.get("dhw_supply", 0.0) > 0:
@@ -1009,13 +1037,13 @@ def _stage4_compute_outputs(*, df: pd.DataFrame, input_df: pd.DataFrame, params:
 
 
 if __name__ == "__main__":
-    out = prepare_visu_v2(verbose=True)
+    out = prepare_visu_v2(verbose=True, step_size=90*15)
     print(
         "prepare_visu_v2 OK | ",
         "df:",
         out["df"].shape,
         "| final_links:",
-        len(out["final_links"]),
+        # len(out["final_links"]),
         "| latest_pv:",
-        out["latest_pv_file"],
+        # out["latest_pv_file"],
     )
