@@ -1,4 +1,5 @@
 import mosaik_api
+import numpy as np
 from src.models.EnTransformer import IncompleteConfigError, OverdefinedConfig, Transformer_base
 from src.models.boiler_model_v2 import Gboiler
 import warnings
@@ -28,41 +29,60 @@ class CHP(Gboiler):
             self.P_el = self.P_th * self.elec_share 
 
     def _validate_model_params(self, params, hard_errors):
-            # Keep boiler validation structure/behavior 
-            super()._validate_model_params(params, hard_errors)
+        # Keep boiler validation structure/behavior 
+        super()._validate_model_params(params, hard_errors)
+        
+
+        #-------------------- warnings -------------------- 
+        if params.get("P_el", None) is not None and (params.get("elec_share", None) is not None and params.get("nom_P_th", None) is not None):
+            warnings.warn(
+                "CHP: both 'P_el' and 'elec_share and 'nom_P_th' provided, 'P_el' will be used to compute 'elec_share'.",
+                OverdefinedConfig,
+            )
+        # -------------------- constraints (dict rules, per-key) --------------------
+        rules = {
+            "P_el": {
+                "required": False,
+                "types": (int, float, np.number),
+                "pred": lambda v: v > 0,
+                "msg": "'P_el' must be a number > 0 (W) when provided.",
+            },
+            "elec_share": {
+                "required": False,
+                "types": (int, float, np.number),
+                "pred": lambda v: 0 < v <= 1,
+                "msg": "'elec_share' must be a number in (0, 1] when provided (P_el / P_th).",
+            },
+        }   
+
+        for key, rule in rules.items():
+            required = rule.get("required", False)
+            types_ = rule.get("types", None)
+            pred = rule.get("pred", None)
+            msg = rule.get("msg", f"Invalid '{key}'.")
             
+            if key not in params or params.get(key, None) is None:
+                if required:
+                    hard_errors.append(f"CHP: missing required parameter '{key}'.")
+                continue
+
+            val = params.get(key, None)
+            if val is None:
+                if required:
+                    hard_errors.append(f"CHP: parameter '{key}' must not be None.")
+                continue
+
+            if types_ is not None and not isinstance(val, types_):
+                hard_errors.append(f"CHP: {msg}")
+                continue
+
+            if pred is not None and not pred(val):
+                hard_errors.append(f"CHP: {msg}")
+            # -------------------- cross-field required logic --------------------
             if params.get("P_el", None) is None and params.get("elec_share", None) is None:
-                warnings.warn(
-                    "CHP: neither 'P_el' nor 'elec_share' provided, CHP will default to 0 electrical power output.", 
-                    UserWarning
+                hard_errors.append(
+                    f"CHP: At least one of 'P_el' or 'elec_share' must be provided to define electrical output."
                 )
-
-            # over-definition warnings
-            if params.get("P_el", None) is not None and params.get("elec_share", None) is not None:
-                warnings.warn(
-                    "CHP: both 'P_el' and 'elec_share' provided, 'P_el' will be used to compute 'elec_share'.",
-                    OverdefinedConfig,
-                )
-
-            # constraints loop (collect all issues, raise once)
-            checks = []
-
-            if params.get("P_el", None) is not None:
-                checks.append((
-                    isinstance(params.get("P_el"), (int, float)) and params.get("P_el") > 0,
-                    "'P_el' must be a number > 0 (W) when provided.",
-                ))
-
-            
-            if params.get("elec_share", None) is not None:
-                checks.append((
-                    isinstance(params.get("elec_share", None), (int, float)) and 0 < params.get("elec_share", None) <= 1,
-                    "'elec_share' must be a number > 0 and <= 1 when provided (P_el / P_th).",
-                ))
-
-            for ok, msg in checks:
-                if not ok:
-                    hard_errors.append(msg)
 
     def get_init_attrs(self):
         '''
@@ -91,7 +111,7 @@ class TransformerSimulator(mosaik_api.Simulator):
         self.models = dict()  # contains the model instances
         self.sid = None
         self.step_size = None
-        self.eid_prefix = None
+        self.eid_prefix = "CHP"
         self.time = 0
         
         

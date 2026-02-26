@@ -176,46 +176,106 @@ class Transformer_base:
         #         warnings.warn(msg, UserWarning)
 
         
-        # OverdefinedConfig warnings here 
-        if params.get("heat_out_caps", None) is not None and (params.get("nom_P_th", None) is not None and params.get("op_stages", None) is not None):
+        # -------------------- warnings -------------------- 
+        if params.get("heat_out_caps", None) is not None and (params.get("nom_P_th", None) is not None and params.get("op_stages", None)) is not None:
             warnings.warn(
-                "nom_P_th and op_stages are not required when 'heat_out_caps' is provided; using the provided 'heat_out_caps'.",
+                f"{name}: 'nom_P_th' and 'op_stages' are not required when 'heat_out_caps' is provided; using the provided 'heat_out_caps'.",
                 OverdefinedConfig,
             )
+        if params.get("set_flow", None) is not None and params.get("set_temp", None) is not None:
+            warnings.warn(
+                f"{name}: Both 'set_flow' and 'set_temp' are provided; 'set_temp' will take precedence and 'set_flow' will be ignored.",
+                OverdefinedConfig,
+            )
+        # -------------------- constraints (dict rules, per-key) --------------------
+        rules = {
+            # required for these models
+            "efficiency": {
+                "required": True,
+                "types": (int, float, np.number),
+                "pred": lambda v: 0 < v <= 1,
+                "msg": "'efficiency' must be a number in (0, 1].",
+            },
 
-        # constraints that raises errors (collect all issues, raise once)
-        checks = []
+            # optional common numeric params
+            "nom_P_th": {
+                "required": False,
+                "types": (int, float, np.number),
+                "pred": lambda v: v > 0,
+                "msg": "'nom_P_th' must be a number > 0 when provided.",
+            },
+            "set_temp": {
+                "required": False,
+                "types": (int, float, np.number),
+                "msg": "'set_temp' must be a number when provided.",
+            },
+            "set_flow": {
+                "required": False,
+                "types": (int, float, np.number),
+                "msg": "'set_flow' must be a number when provided.",
+            },
+            "heating_value": {
+                "required": False,
+                "types": (int, float, np.number),
+                "pred": lambda v: v > 0,
+                "msg": "'heating_value' must be a number > 0 when provided.",
+            },
 
-        # Core operating definition, controllable either by flow or by outlet temperature.
-        checks.append((
-            (params.get("set_flow", None) is not None) or (params.get("set_temp", None) is not None),
-            "At least one of 'set_flow' or 'set_temp' must be defined.",
-        ))
+            # lists
+            "op_stages": {
+                "required": False,
+                "types": (list, tuple, np.ndarray),
+                "pred": lambda v: (
+                    len(v) > 0
+                    and all(isinstance(x, (int, float, np.number)) and 0 <= x <= 1 for x in v)
+                ),
+                "msg": "'op_stages' must be a non-empty list/array of numbers in [0, 1].",
+            },
+            "heat_out_caps": {
+                "required": False,
+                "types": (list, tuple, np.ndarray),
+                "pred": lambda v: (
+                    len(v) > 0
+                    and all(isinstance(x, (int, float, np.number)) and x >= 0 for x in v)
+                ),
+                "msg": "'heat_out_caps' must be a non-empty list/array of numbers >= 0.",
+            },
+        }
 
-        # Capacity definition, either explicit heat_out stages or a nominal power.
-        checks.append((
-            (params.get("heat_out_caps", None) is not None) or (params.get("nom_P_th", None) is not None),
-            "Either 'heat_out_caps' (explicit stages) or 'nom_P_th' must be defined.",
-        ))
+        for key, rule in rules.items():
+            required = rule.get("required", False)
+            types_ = rule.get("types", None)
+            pred = rule.get("pred", None)
+            msg = rule.get("msg", f"Invalid '{key}'.")
 
-        # efficiency is required to compute meaningful fuel consumption.
-        checks.append((
-            params.get("efficiency", None) is not None and 0 < params.get("efficiency", None) <= 1,
-            "'efficiency' must be defined for fuel calculation and be between 0 and 1.",
-        ))
+            if key not in params:
+                if required:
+                    hard_errors.append(f"{name}: missing required parameter '{key}'.")
+                continue
 
-        checks.append((
-            params.get("op_stages", None) is None or (isinstance(params.get("op_stages"), (list, np.ndarray)) and all(0 <= s <= 1 for s in params.get("op_stages"))),
-            "'op_stages' must be a list of relative stage fractions between 0 and 1 when provided (0% and 100% of nominal power).",
-        ))
+            val = params.get(key, None)
+            if val is None:
+                if required:
+                    hard_errors.append(f"{name}: parameter '{key}' must not be None.")
+                continue
 
-        for ok, msg in checks:
-            if not ok:
-                hard_errors.append(msg)
+            if types_ is not None and not isinstance(val, types_):
+                hard_errors.append(f"{name}: {msg}")
+                continue
 
+            if pred is not None and not pred(val):
+                hard_errors.append(f"{name}: {msg}")
+
+        # -------------------- cross-field required logic --------------------
+        if params.get("set_flow", None) is None and params.get("set_temp", None) is None:
+            hard_errors.append(f"{name}: At least one of 'set_flow' or 'set_temp' must be defined.")
+
+        if params.get("heat_out_caps", None) is None and params.get("nom_P_th", None) is None :
+            hard_errors.append(f"{name}: Either 'heat_out_caps' or 'nom_P_th' and 'op_stages' must be defined.")
+
+        # hook: boiler/chp add their own checks
         self._validate_model_params(params, hard_errors)
 
-        # ---- model-specific hook ----
         if hard_errors:
             raise IncompleteConfigError(
                 f"{name} configuration error(s):\n- " + "\n- ".join(hard_errors)

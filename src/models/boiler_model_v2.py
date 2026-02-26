@@ -10,6 +10,7 @@ import mosaik_api
 import warnings
 
 from models.EnTransformer import IncompleteConfigError, OverdefinedConfig, Transformer_base
+import numpy as np
 from tqdm import tqdm
 
 class Gboiler(Transformer_base):
@@ -170,25 +171,65 @@ class Gboiler(Transformer_base):
 
     def _validate_model_params(self, params, hard_errors):
 
-        # constraints that raises errors (collect all issues, raise once)
-        checks = []
+        # -------------------- warnings -------------------- 
+        if (params.get("startup_coeff", None) is None and params.get("startup_eta_coeff", None) is None) and params.get("startup_limit", None) is not None:
+            warnings.warn(
+                "Boiler: 'startup_limit' is defined but no startup coefficients are provided; 'startup_limit' will be ignored.",
+                UserWarning,
+            )
+        # -------------------- constraints (dict rules, per-key) --------------------
+        rules = {
+            "startup_limit": {
+                "required": False,
+                "types": (int, float, np.number),
+                "pred": lambda v: v > 0,
+                "msg": "'startup_limit' must be a number > 0 (minutes) when provided.",
+            },
+            "startup_coeff": {
+                "required": False,
+                "types": (list, tuple, np.ndarray),
+                "pred": lambda v: (len(v) > 0 and all(isinstance(x, (int, float, np.number)) for x in v)),
+                "msg": "'startup_coeff' must be a non-empty list of numbers when provided.",
+            },
+            "startup_eta_coeff": {
+                "required": False,
+                "types": (list, tuple, np.ndarray),
+                "pred": lambda v: (len(v) > 0 and all(isinstance(x, (int, float, np.number)) for x in v)),
+                "msg": "'startup_eta_coeff' must be a non-empty list of numbers when provided.",
+            },
+        }
 
-        # Startup behaviour requires a startup duration.
+        for key, rule in rules.items():
+            required = rule.get("required", False)
+            types_ = rule.get("types", None)
+            pred = rule.get("pred", None)
+            msg = rule.get("msg", f"Invalid '{key}'.")
+            
+            if key not in params or params.get(key, None) is None:
+                if required:
+                    hard_errors.append(f"Boiler: missing required parameter '{key}'.")
+                continue
+
+            val = params.get(key, None)
+            if val is None:
+                if required:
+                    hard_errors.append(f"Boiler: parameter '{key}' must not be None.")
+                continue
+
+            if types_ is not None and not isinstance(val, types_):
+                hard_errors.append(f"Boiler: {msg}")
+                continue
+
+            if pred is not None and not pred(val):
+                hard_errors.append(f"Boiler: {msg}")
+
+        # Cross-field startup requirement
         if params.get("startup_coeff", None) is not None or params.get("startup_eta_coeff", None) is not None:
-            startup_limit = params.get("startup_limit", None)
-            checks.append((
-                startup_limit is not None,
-                "'startup_limit' must be defined when startup coefficients are provided.",
-            ))
-            if startup_limit is not None:
-                checks.append((
-                    isinstance(startup_limit, (int, float)) and startup_limit > 0,
-                    "'startup_limit' must be a number (minutes) greater than 0.",
-                ))
-
-        for ok, msg in checks:
-            if not ok:
-                hard_errors.append(msg)
+            sl = params.get("startup_limit", None)
+            if not isinstance(sl, (int, float, np.number)) or not (sl > 0):
+                hard_errors.append(
+                    "Boiler: 'startup_limit' is required and must be > 0 minutes when startup coefficients are provided."
+                )
 #-------------------------Mosaik Back-end-------------------------------
 META = {
     'type': 'time-based',
@@ -209,7 +250,7 @@ class TransformerSimulator(mosaik_api.Simulator):
         self.models = dict()  # contains the model instances
         self.sid = None
         self.step_size = None
-        self.eid_prefix = None
+        self.eid_prefix = "Boiler"
         self.time = 0
         
         
