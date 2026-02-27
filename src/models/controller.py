@@ -69,21 +69,22 @@ class Controller():
         #supply configuration
         self.config = params.get('supply_config')
         self.heating_curve = params.get('heating_curve', 'floor_high_insulation')
-        self.sh_out = params.get('sh_out', None)  #Tank which serves as the Output connection for space heating
+        self.sh_out = params.get('sh_out', None)                    # Tank which serves as the Output connection for space heating
         self.sh_out2 = params.get('sh_out2', None)
-        self.dhw_out = params.get('dhw_out', None) #Tank which serves as the Output connection for hot water demand
-        self.ret_tank = params.get('return_conn', None) #Tank which serves as the return connection; used except for 4-runner!!!
-        self.sup_tank = params.get('supply_conn', None) #Connections which serves as the heat out for 2 pipe set up
-        self.sh_ret = params.get('sh_ret', None) #Tank which serves as the return connection for space heating
+        self.dhw_out = params.get('dhw_out', None)                  # Tank which serves as the Output connection for hot water demand
+        self.ret_tank = params.get('return_conn', None)             # Tank which serves as the return connection; used except for 4-pipe!!!
+        self.sup_tank = params.get('supply_conn', None)             # Connections which serves as the heat out for 2 pipe set up
+        self.sh_ret = params.get('sh_ret', None)                    # Tank which serves as the return connection for space heating
         self.dhw_ret = params.get('dhw_ret', None)
-        self.dhw_Tdelta = params.get('dhw_Tdelta', 15) #The temperature difference in the dhw circuit.
+        self.dhw_Tdelta = params.get('dhw_Tdelta', 15)              # The temperature difference in the dhw circuit.
         self.T_dhw_sp = params.get('T_dhw_sp', 65)
-        self.heat_dT = params.get('heat_dT', 15)                 # The temperature difference in 2 runner setup
+        self.T_dhn_sp = params.get('T_dhn_sp', None)                # The temperature set point for the distribution, in 2-pipe and 2-pipe-dch setup
+        self.heat_dT = params.get('heat_dT', 15)                    # The temperature difference in 2-pipe and 2-pipe-dch setup
         self.params_hwt = params.get('tank')
         
         self.gens = params.get('gens')
-        self.no_tanks = params.get('NumberofTanks') # the number of tanks in the system
-        self.tank_setup = params.get('TankbalanceSetup', None)# the tank connections in the system
+        self.no_tanks = params.get('NumberofTanks')                 # The number of tanks in the system
+        self.tank_setup = params.get('TankbalanceSetup', None)      # The tank connections in the system
 
         self.control_logic = params.get('logic', None) # the control logic dict
         
@@ -451,7 +452,7 @@ class Controller():
         """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
         heating (SH) circuit"""
         
-        if config == '2-runner':
+        if config == '2-pipe':
             #TODO: add error message if params are not defined 
             try:
                 heat_in_F = self.heat_demand/ (4184 * self.heat_dT)
@@ -469,10 +470,10 @@ class Controller():
 
             if self.idealheater == 'on':
                 
-                ret_temp = self.heat_sp - self.heat_dT # Return temp in case of ideal supply temperature
-                new_flow, self.IdealHrodsum = self.hr.step(temp, self.heat_demand, self.heat_sp, ret_temp)
+                ret_temp = self.T_dhn_sp - self.heat_dT # Return temp in case of ideal supply temperature
+                new_flow, self.IdealHrodsum = self.hr.step(temp, self.heat_demand, self.T_dhn_sp, ret_temp)
                 if self.IdealHrodsum > 0:
-                    temp = self.heat_sp
+                    temp = self.T_dhn_sp
                     heat_in_F = new_flow
                     self.heat_supply = self.heat_demand
                 
@@ -483,8 +484,21 @@ class Controller():
 
             self.dhw_supply, self.sh_supply = 0,0
         
+        if config == '2-pipe-dch':
+            
+            try:
+                heat_in_F = self.heat_demand/ (4184 * self.heat_dT)
+            except ZeroDivisionError:
+                heat_in_F = 0
 
-        if config == '3-runner' or config == '4-runner':
+            heat_in_F = min(self.max_flow, max(0,heat_in_F))
+            ret_temp = self.T_dhn_sp - self.heat_dT
+
+            # here calculate the el. power used decentrally
+            self.dch_power =  self.dhw_demand #? add efficiency factor here?
+            
+
+        if config == '3-pipe' or config == '4-pipe':
             #TODO: add error message if params are not defined
             # Space heating :
             sh_out = f"tank_connections.{self.sh_out}"
@@ -559,10 +573,10 @@ class Controller():
 
             self.dhw_rT = self.dhw_out_T - self.dhw_Tdelta
 
-            if config == '3-runner':
+            if config == '3-pipe':
                 helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", dhw_F + sh_F)
                 helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", (self.dhw_rT*dhw_F + Tret*sh_F)/(dhw_F+sh_F) if (dhw_F+sh_F) != 0 else 0)
-            elif config == '4-runner':
+            elif config == '4-pipe':
                 helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_F", sh_F)
                 helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_T", Tret)
 
