@@ -26,9 +26,7 @@ Author: AqibThennadan
 import mosaik_api
 from tqdm import tqdm
 import numpy as np
-import warnings
 import numpy as np
-import warnings
 
 class IncompleteConfigError(Exception):
     """Raised when required configuration for a transformer is missing."""
@@ -173,19 +171,17 @@ class Transformer_base:
         # }
         # for key, msg in default_warnings.items():
         #     if key not in params:
-        #         warnings.warn(msg, UserWarning)
+        #         tqdm.write(msg)
 
         
         # -------------------- warnings -------------------- 
         if params.get("heat_out_caps", None) is not None and (params.get("nom_P_th", None) is not None and params.get("op_stages", None)) is not None:
-            warnings.warn(
-                f"{name}: 'nom_P_th' and 'op_stages' are not required when 'heat_out_caps' is provided; using the provided 'heat_out_caps'.",
-                OverdefinedConfig,
+            tqdm.write(
+                f"- {name}: 'nom_P_th' and 'op_stages' are not required when 'heat_out_caps' is provided; using the provided 'heat_out_caps'."
             )
         if params.get("set_flow", None) is not None and params.get("set_temp", None) is not None:
-            warnings.warn(
-                f"{name}: Both 'set_flow' and 'set_temp' are provided; 'set_temp' will take precedence and 'set_flow' will be ignored.",
-                OverdefinedConfig,
+            tqdm.write(
+                f"- {name}: Both 'set_flow' and 'set_temp' are provided; 'set_temp' will take precedence and 'set_flow' will be ignored."
             )
         # -------------------- constraints (dict rules, per-key) --------------------
         rules = {

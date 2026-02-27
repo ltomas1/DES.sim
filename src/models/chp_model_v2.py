@@ -1,8 +1,8 @@
 import mosaik_api
 import numpy as np
-from src.models.EnTransformer import IncompleteConfigError, OverdefinedConfig, Transformer_base
+from tqdm import tqdm
+from src.models.EnTransformer import Transformer_base
 from src.models.boiler_model_v2 import Gboiler
-import warnings
 
 class CHP(Gboiler):
 
@@ -35,9 +35,8 @@ class CHP(Gboiler):
 
         #-------------------- warnings -------------------- 
         if params.get("P_el", None) is not None and (params.get("elec_share", None) is not None and params.get("nom_P_th", None) is not None):
-            warnings.warn(
-                "CHP: both 'P_el' and 'elec_share and 'nom_P_th' provided, 'P_el' will be used to compute 'elec_share'.",
-                OverdefinedConfig,
+            tqdm.write(
+                "- CHP: both 'P_el' and 'elec_share and 'nom_P_th' provided, 'P_el' will be used to compute 'elec_share'."
             )
         # -------------------- constraints (dict rules, per-key) --------------------
         rules = {

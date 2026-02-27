@@ -7,9 +7,8 @@ Author: AqibThennadan
 """
 
 import mosaik_api
-import warnings
 
-from models.EnTransformer import IncompleteConfigError, OverdefinedConfig, Transformer_base
+from models.EnTransformer import Transformer_base
 import numpy as np
 from tqdm import tqdm
 
@@ -173,9 +172,8 @@ class Gboiler(Transformer_base):
 
         # -------------------- warnings -------------------- 
         if (params.get("startup_coeff", None) is None and params.get("startup_eta_coeff", None) is None) and params.get("startup_limit", None) is not None:
-            warnings.warn(
-                "Boiler: 'startup_limit' is defined but no startup coefficients are provided; 'startup_limit' will be ignored.",
-                UserWarning,
+            tqdm.write(
+                "- GBoiler: 'startup_limit' is defined but no startup coefficients are provided; 'startup_limit' will be ignored."
             )
         # -------------------- constraints (dict rules, per-key) --------------------
         rules = {
