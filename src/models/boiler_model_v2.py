@@ -7,7 +7,9 @@ Author: AqibThennadan
 """
 
 import mosaik_api
+
 from models.EnTransformer import Transformer_base
+import numpy as np
 from tqdm import tqdm
 
 class Gboiler(Transformer_base):
@@ -99,9 +101,9 @@ class Gboiler(Transformer_base):
     boiler = Gboiler(params)
     # set boiler.status, boiler.Q_demand, then call boiler.step(sim_time_seconds)
     """
-    def __init__(self, params):
-        
-        super().__init__(params)
+    def __init__(self, params, *, validate: bool = True):
+
+        super().__init__(params, validate=validate)
         
 
         self.startup_coeff = params.get('startup_coeff', None) # Future : list of lists, corresponding to each power stage
@@ -165,6 +167,69 @@ class Gboiler(Transformer_base):
         # tqdm.write(f'Boiler flow: {self.mdot}')
 
         self.lag_status = self.status
+
+    def _validate_model_params(self, params, hard_errors):
+
+        name = type(self).__name__
+        
+        # -------------------- warnings -------------------- 
+        if (params.get("startup_coeff", None) is None and params.get("startup_eta_coeff", None) is None) and params.get("startup_limit", None) is not None:
+            tqdm.write(
+                f"- {name}: 'startup_limit' is defined but no startup coefficients are provided; 'startup_limit' will be ignored."
+            )
+        # -------------------- constraints (dict rules, per-key) --------------------
+        rules = {
+            "startup_limit": {
+                "required": False,
+                "types": (int, float, np.number),
+                "pred": lambda v: v > 0,
+                "msg": "'startup_limit' must be a number > 0 (minutes) when provided.",
+            },
+            "startup_coeff": {
+                "required": False,
+                "types": (list, tuple, np.ndarray),
+                "pred": lambda v: (len(v) > 0 and all(isinstance(x, (int, float, np.number)) for x in v)),
+                "msg": "'startup_coeff' must be a non-empty list of numbers when provided.",
+            },
+            "startup_eta_coeff": {
+                "required": False,
+                "types": (list, tuple, np.ndarray),
+                "pred": lambda v: (len(v) > 0 and all(isinstance(x, (int, float, np.number)) for x in v)),
+                "msg": "'startup_eta_coeff' must be a non-empty list of numbers when provided.",
+            },
+        }
+
+        for key, rule in rules.items():
+            required = rule.get("required", False)
+            types_ = rule.get("types", None)
+            pred = rule.get("pred", None)
+            msg = rule.get("msg", f"Invalid '{key}'.")
+            
+            if key not in params or params.get(key, None) is None:
+                if required:
+                    hard_errors.append(f"{name}: missing required parameter '{key}'.")
+                continue
+
+            val = params.get(key, None)
+            if val is None:
+                if required:
+                    hard_errors.append(f"{name}: parameter '{key}' must not be None.")
+                continue
+
+            if types_ is not None and not isinstance(val, types_):
+                hard_errors.append(f"{name}: {msg}")
+                continue
+
+            if pred is not None and not pred(val):
+                hard_errors.append(f"{name}: {msg}")
+
+        # Cross-field startup requirement
+        if params.get("startup_coeff", None) is not None or params.get("startup_eta_coeff", None) is not None:
+            sl = params.get("startup_limit", None)
+            if not isinstance(sl, (int, float, np.number)) or not (sl > 0):
+                hard_errors.append(
+                    f"{name}: 'startup_limit' is required and must be > 0 minutes when startup coefficients are provided."
+                )
 #-------------------------Mosaik Back-end-------------------------------
 META = {
     'type': 'time-based',
@@ -185,7 +250,7 @@ class TransformerSimulator(mosaik_api.Simulator):
         self.models = dict()  # contains the model instances
         self.sid = None
         self.step_size = None
-        self.eid_prefix = None
+        self.eid_prefix = "Boiler"
         self.time = 0
         
         
@@ -201,7 +266,7 @@ class TransformerSimulator(mosaik_api.Simulator):
 
         self.eid_prefix = params.get('eid_prefix')
         
-        self.dummy_object = Gboiler(params)
+        self.dummy_object = Gboiler(params, validate=False)
         self.meta['models']['Transformer']['attrs'] = self.dummy_object.get_init_attrs()
 
         return self.meta
