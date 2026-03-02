@@ -1,11 +1,13 @@
 import mosaik_api
+import numpy as np
+from tqdm import tqdm
 from src.models.EnTransformer import Transformer_base
 from src.models.boiler_model_v2 import Gboiler
 
 class CHP(Gboiler):
 
-    def __init__(self, params):
-        super().__init__(params)
+    def __init__(self, params, *, validate: bool = True):
+        super().__init__(params, validate=validate)
         
         self.nom_P_el = params.get('P_el', None) # TODO: warning (or error) if this is None
         self.elec_share = params.get('elec_share', None) # TH to EL ratio, P_el / P_th
@@ -17,12 +19,69 @@ class CHP(Gboiler):
             self.elec_share = self.nom_P_el/self.nom_P_th #More intuitive to have the nominal power defined by the user.
         self.P_el = None
 
+    
+
     def step(self, time):
 
         super().step(time)
 
         if self.elec_share:
             self.P_el = self.P_th * self.elec_share 
+
+    def _validate_model_params(self, params, hard_errors):
+        # Keep boiler validation structure/behavior 
+        super()._validate_model_params(params, hard_errors)
+        name = type(self).__name__
+
+        #-------------------- warnings -------------------- 
+        if params.get("P_el", None) is not None and (params.get("elec_share", None) is not None and params.get("nom_P_th", None) is not None):
+            tqdm.write(
+                f"- {name}: both 'P_el' and 'elec_share and 'nom_P_th' provided, 'P_el' will be used to compute 'elec_share'."
+            )
+        # -------------------- constraints (dict rules, per-key) --------------------
+        rules = {
+            "P_el": {
+                "required": False,
+                "types": (int, float, np.number),
+                "pred": lambda v: v > 0,
+                "msg": "'P_el' must be a number > 0 (W) when provided.",
+            },
+            "elec_share": {
+                "required": False,
+                "types": (int, float, np.number),
+                "pred": lambda v: 0 < v <= 1,
+                "msg": "'elec_share' must be a number in (0, 1] when provided (P_el / P_th).",
+            },
+        }   
+
+        for key, rule in rules.items():
+            required = rule.get("required", False)
+            types_ = rule.get("types", None)
+            pred = rule.get("pred", None)
+            msg = rule.get("msg", f"Invalid '{key}'.")
+            
+            if key not in params or params.get(key, None) is None:
+                if required:
+                    hard_errors.append(f"{name}: missing required parameter '{key}'.")
+                continue
+
+            val = params.get(key, None)
+            if val is None:
+                if required:
+                    hard_errors.append(f"{name}: parameter '{key}' must not be None.")
+                continue
+
+            if types_ is not None and not isinstance(val, types_):
+                hard_errors.append(f"{name}: {msg}")
+                continue
+
+            if pred is not None and not pred(val):
+                hard_errors.append(f"{name}: {msg}")
+        # -------------------- cross-field required logic --------------------
+        if params.get("P_el", None) is None and params.get("elec_share", None) is None:
+            hard_errors.append(
+                f"{name}: At least one of 'P_el' or 'elec_share' must be provided to define electrical output."
+            )
 
     def get_init_attrs(self):
         '''
@@ -51,7 +110,7 @@ class TransformerSimulator(mosaik_api.Simulator):
         self.models = dict()  # contains the model instances
         self.sid = None
         self.step_size = None
-        self.eid_prefix = None
+        self.eid_prefix = "CHP"
         self.time = 0
         
         
@@ -67,7 +126,7 @@ class TransformerSimulator(mosaik_api.Simulator):
 
         self.eid_prefix = params.get('eid_prefix')
         
-        self.dummy_object = CHP(params)
+        self.dummy_object = CHP(params, validate=False)
         self.meta['models']['Transformer']['attrs'] = self.dummy_object.get_init_attrs()
 
         return self.meta
