@@ -6,8 +6,8 @@ from src.models.boiler_model_v2 import Gboiler
 
 class CHP(Gboiler):
 
-    def __init__(self, params):
-        super().__init__(params)
+    def __init__(self, params, *, validate: bool = True):
+        super().__init__(params, validate=validate)
         
         self.nom_P_el = params.get('P_el', None) # TODO: warning (or error) if this is None
         self.elec_share = params.get('elec_share', None) # TH to EL ratio, P_el / P_th
@@ -31,12 +31,12 @@ class CHP(Gboiler):
     def _validate_model_params(self, params, hard_errors):
         # Keep boiler validation structure/behavior 
         super()._validate_model_params(params, hard_errors)
-        
+        name = type(self).__name__
 
         #-------------------- warnings -------------------- 
         if params.get("P_el", None) is not None and (params.get("elec_share", None) is not None and params.get("nom_P_th", None) is not None):
             tqdm.write(
-                "- CHP: both 'P_el' and 'elec_share and 'nom_P_th' provided, 'P_el' will be used to compute 'elec_share'."
+                f"- {name}: both 'P_el' and 'elec_share and 'nom_P_th' provided, 'P_el' will be used to compute 'elec_share'."
             )
         # -------------------- constraints (dict rules, per-key) --------------------
         rules = {
@@ -62,26 +62,26 @@ class CHP(Gboiler):
             
             if key not in params or params.get(key, None) is None:
                 if required:
-                    hard_errors.append(f"CHP: missing required parameter '{key}'.")
+                    hard_errors.append(f"{name}: missing required parameter '{key}'.")
                 continue
 
             val = params.get(key, None)
             if val is None:
                 if required:
-                    hard_errors.append(f"CHP: parameter '{key}' must not be None.")
+                    hard_errors.append(f"{name}: parameter '{key}' must not be None.")
                 continue
 
             if types_ is not None and not isinstance(val, types_):
-                hard_errors.append(f"CHP: {msg}")
+                hard_errors.append(f"{name}: {msg}")
                 continue
 
             if pred is not None and not pred(val):
-                hard_errors.append(f"CHP: {msg}")
-            # -------------------- cross-field required logic --------------------
-            if params.get("P_el", None) is None and params.get("elec_share", None) is None:
-                hard_errors.append(
-                    f"CHP: At least one of 'P_el' or 'elec_share' must be provided to define electrical output."
-                )
+                hard_errors.append(f"{name}: {msg}")
+        # -------------------- cross-field required logic --------------------
+        if params.get("P_el", None) is None and params.get("elec_share", None) is None:
+            hard_errors.append(
+                f"{name}: At least one of 'P_el' or 'elec_share' must be provided to define electrical output."
+            )
 
     def get_init_attrs(self):
         '''
@@ -126,7 +126,7 @@ class TransformerSimulator(mosaik_api.Simulator):
 
         self.eid_prefix = params.get('eid_prefix')
         
-        self.dummy_object = CHP(params)
+        self.dummy_object = CHP(params, validate=False)
         self.meta['models']['Transformer']['attrs'] = self.dummy_object.get_init_attrs()
 
         return self.meta

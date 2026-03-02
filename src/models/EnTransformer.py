@@ -58,9 +58,10 @@ class Transformer_base:
         - 'efficiency' (float): nominal efficiency: fuel to thermal
         - 'heating_value' (float): fuel heating value (J/g or J/kg depending)
     """
-    def __init__(self, params):
+    def __init__(self, params, *, validate: bool = True):
         
-        self.validate_params(params)
+        if validate:
+            self.validate_params(params)
 
         self.heat_out_caps = params.get('heat_out_caps', None)# list 
         self.nom_P_th = params.get('nom_P_th', None)

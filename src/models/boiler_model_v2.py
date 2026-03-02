@@ -101,9 +101,9 @@ class Gboiler(Transformer_base):
     boiler = Gboiler(params)
     # set boiler.status, boiler.Q_demand, then call boiler.step(sim_time_seconds)
     """
-    def __init__(self, params):
+    def __init__(self, params, *, validate: bool = True):
 
-        super().__init__(params)
+        super().__init__(params, validate=validate)
         
 
         self.startup_coeff = params.get('startup_coeff', None) # Future : list of lists, corresponding to each power stage
@@ -170,10 +170,12 @@ class Gboiler(Transformer_base):
 
     def _validate_model_params(self, params, hard_errors):
 
+        name = type(self).__name__
+        
         # -------------------- warnings -------------------- 
         if (params.get("startup_coeff", None) is None and params.get("startup_eta_coeff", None) is None) and params.get("startup_limit", None) is not None:
             tqdm.write(
-                "- GBoiler: 'startup_limit' is defined but no startup coefficients are provided; 'startup_limit' will be ignored."
+                f"- {name}: 'startup_limit' is defined but no startup coefficients are provided; 'startup_limit' will be ignored."
             )
         # -------------------- constraints (dict rules, per-key) --------------------
         rules = {
@@ -205,28 +207,28 @@ class Gboiler(Transformer_base):
             
             if key not in params or params.get(key, None) is None:
                 if required:
-                    hard_errors.append(f"Boiler: missing required parameter '{key}'.")
+                    hard_errors.append(f"{name}: missing required parameter '{key}'.")
                 continue
 
             val = params.get(key, None)
             if val is None:
                 if required:
-                    hard_errors.append(f"Boiler: parameter '{key}' must not be None.")
+                    hard_errors.append(f"{name}: parameter '{key}' must not be None.")
                 continue
 
             if types_ is not None and not isinstance(val, types_):
-                hard_errors.append(f"Boiler: {msg}")
+                hard_errors.append(f"{name}: {msg}")
                 continue
 
             if pred is not None and not pred(val):
-                hard_errors.append(f"Boiler: {msg}")
+                hard_errors.append(f"{name}: {msg}")
 
         # Cross-field startup requirement
         if params.get("startup_coeff", None) is not None or params.get("startup_eta_coeff", None) is not None:
             sl = params.get("startup_limit", None)
             if not isinstance(sl, (int, float, np.number)) or not (sl > 0):
                 hard_errors.append(
-                    "Boiler: 'startup_limit' is required and must be > 0 minutes when startup coefficients are provided."
+                    f"{name}: 'startup_limit' is required and must be > 0 minutes when startup coefficients are provided."
                 )
 #-------------------------Mosaik Back-end-------------------------------
 META = {
@@ -264,7 +266,7 @@ class TransformerSimulator(mosaik_api.Simulator):
 
         self.eid_prefix = params.get('eid_prefix')
         
-        self.dummy_object = Gboiler(params)
+        self.dummy_object = Gboiler(params, validate=False)
         self.meta['models']['Transformer']['attrs'] = self.dummy_object.get_init_attrs()
 
         return self.meta
