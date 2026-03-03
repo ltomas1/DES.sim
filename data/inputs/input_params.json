@@ -63,7 +63,7 @@
                     "turn_off_temp" : 65
                 },
                 "add_conditions" :{ 
-                            "turn_on" : {"hp_surplus" : ["==", "True"]}
+                            "turn_on" : {"battery_full" : ["==", "True"]}
             }
             },
             "boiler" : {
@@ -176,5 +176,10 @@
         "nom_power" : 70000,
         "coordinates" : [49.1, 8.5, "Stutensee", 110, "Etc/GMT-1"],
         "irradiation_data" : "../data/inputs/2025-04-07-Project1-weather.csv"
+    },
+    "battery": {
+        "nom_capacity": 65000,
+        "charge_eff": 0.93,
+        "max_charge_power": 25000
+        }
     }
-}
