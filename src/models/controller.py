@@ -468,14 +468,12 @@ class Controller():
 
             temp = helpers.get_nested_attr(self, f"tank_connections.{self.sup_tank}_T") #the available temperature in tank
 
-            if self.idealheater == 'on':
-                
-                ret_temp = self.T_dhn_sp - self.heat_dT # Return temp in case of ideal supply temperature
-                new_flow, self.IdealHrodsum = self.hr.step(temp, self.heat_demand, self.T_dhn_sp, ret_temp)
-                if self.IdealHrodsum > 0:
-                    temp = self.T_dhn_sp
-                    heat_in_F = new_flow
-                    self.heat_supply = self.heat_demand
+            ret_temp = self.T_dhn_sp - self.heat_dT # Return temp in case of ideal supply temperature
+            new_flow, self.IdealHrodsum = self.hr.step(temp, self.heat_demand, self.T_dhn_sp, ret_temp)
+            if self.IdealHrodsum > 0:
+                temp = self.T_dhn_sp
+                heat_in_F = new_flow
+                self.heat_supply = self.heat_demand
                 
             helpers.set_nested_attr(self, f"tank_connections.{self.sup_tank}_T", temp) #not passed to tank, but to the visu for supporting calcs
             helpers.set_nested_attr(self, f"tank_connections.{self.sup_tank}_F", -heat_in_F)
@@ -487,15 +485,27 @@ class Controller():
         if config == '2-pipe-dch':
             
             try:
-                heat_in_F = self.heat_demand/ (4184 * self.heat_dT)
+                heat_in_F = self.sh_demand/ (4184 * self.heat_dT)
             except ZeroDivisionError:
                 heat_in_F = 0
 
             heat_in_F = min(self.max_flow, max(0,heat_in_F))
+
+            self.dch_power =  self.dhw_demand / 0.98 #assuming 98% efficiency for the decentralized electric heater
             ret_temp = self.T_dhn_sp - self.heat_dT
 
-            # here calculate the el. power used decentrally
-            self.dch_power =  self.dhw_demand #? add efficiency factor here?
+            temp = helpers.get_nested_attr(self, f"tank_connections.{self.sup_tank}_T") #the available temperature in tank
+            new_flow, self.IdealHrodsum = self.hr.step(temp, self.sh_demand, self.T_dhn_sp, ret_temp)
+            
+            if self.IdealHrodsum > 0:
+                temp = self.T_dhn_sp
+                heat_in_F = new_flow
+                self.sh_supply = self.sh_demand
+                
+            helpers.set_nested_attr(self, f"tank_connections.{self.sup_tank}_T", temp) #not passed to tank, but to the visu for supporting calcs
+            helpers.set_nested_attr(self, f"tank_connections.{self.sup_tank}_F", -heat_in_F)
+            helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", heat_in_F)
+            helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", temp - self.heat_dT)
             
 
         if config == '3-pipe' or config == '4-pipe':

@@ -75,7 +75,7 @@ def run_DES(params, collect=True, plot_graph=False):
     
     world = mosaik.World(sim_config, mosaik_config={'addr':('127.0.0.1', 0)})
     START = '2022-01-01 00:00:00'
-    END =  365*24*60*60 # one year in seconds
+    END =  35*24*60*60 # one year in seconds
 
     # unpacking input params
     params_hp = params['hp']
@@ -209,16 +209,15 @@ def run_DES(params, collect=True, plot_graph=False):
 
     """__________________________________________CHP__________________________________"""  
     
-    world.connect(hwts2[0], chp[0], ('sensor_00.T', 'temp_in'))
-    world.connect(chp[0], hwts2[0], ('temp_out', 'chp_in.T'), ('mdot','chp_in.F'), ('mdot_neg', 'chp_out.F'),
+    world.connect(hwts1[0], chp[0], ('sensor_00.T', 'temp_in'))
+    world.connect(chp[0], hwts1[0], ('temp_out', 'chp_in.T'), ('mdot','chp_in.F'), ('mdot_neg', 'chp_out.F'),
                     time_shifted=True, initial_data={'temp_out': 20, 'mdot':0, 'mdot_neg':0})
 
     world.connect(chp[0], ctrls[0], ('P_th', 'generators.chp_supply'), ('uptime', 'chp_uptime'), ('P_el', 'chp_el'),
+                  time_shifted=True, initial_data={'P_th':0, 'uptime':0, 'P_el':0}
                ) 
 
     world.connect(ctrls[0], chp[0], ('generators.chp_demand', 'Q_demand'), ('generators.chp_status' , 'status'),
-                time_shifted=True,
-                initial_data={'generators.chp_demand': 0}
                 )
 
     """__________________________________________ heat pump ___________________________________________________________________""" 
