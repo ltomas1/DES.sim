@@ -1,4 +1,3 @@
-import warnings
 import pvlib
 import pandas as pd
 import numpy as np
@@ -12,52 +11,75 @@ def sim(params):
     '''
         Standalone pvlib model.
     '''
-    # -------------------- validation (two loops) --------------------
-    hard_errors = []
-
-    # Loop 1: defaults / warnings (inform user; do not modify params)
+    # -------------------- validation --------------------
+    # defaults / warnings (inform user; do not modify params)
     # default_warnings = {
     #     "calc_mode": "PV: 'calc_mode' not provided; defaulting to 'simple'.",
     # }
     # for key, msg in default_warnings.items():
     #     if key not in params:
     #         warnings.warn(msg, UserWarning)
-
-    calc_mode = params.get("calc_mode", "simple")
-
-    # Loop 2: must-have / constraints (collect all issues, raise once)
-    checks = []
-
-    checks.append((
-        calc_mode == "simple",
-        f"PV: unsupported 'calc_mode'={calc_mode!r}. Supported: 'simple'.",
-    ))
-
-
-    checks.append((
-        isinstance(params.get("nom_power", None), (int, float)) and params.get("nom_power", None) > 0,
-        "PV: 'nom_power' is missing or invalid. Provide a number > 0 (W).",
-    ))
-
-
-    checks.append((
-        isinstance(params.get("coordinates", None), (list, tuple)) and len(params.get("coordinates", None)) == 5,
-        "PV: 'coordinates' is missing/invalid. Provide [latitude, longitude, name, altitude, timezone] for eg. [49.1, 8.5, 'Karlsruhe', 110, 'Etc/GMT-1'].",
-    ))
-
+    # -------------------- constraints (dict rules, per-key) --------------------
+    name = "PV"
+    hard_errors = []
     
-    checks.append((
-        isinstance(params.get("irradiation_data", None), str) and params.get("irradiation_data", None).strip() != "",
-        "PV: 'irradiation_data' is missing/invalid. Provide a relative path to the weather CSV.",
-    ))
+    rules = {
+        # required for these models
+        "calc_mode": {
+            "required": True,
+            "types": (str),
+            "pred": lambda v: v in ["simple"],
+            "msg": "unsupported 'calc_mode'. Supported modes: 'simple'",
+        },
+        "nom_power": {
+            "required": True,
+            "types": (int, float, np.number),
+            "pred": lambda v: v > 0,
+            "msg": "'nom_power' must be a number > 0 when provided.",
+        },
+        "coordinates": {
+            "required": True,
+            "types": (list, tuple),
+            "pred": lambda v: len(v) == 5 and isinstance(v[0], (int, float)) and isinstance(v[1], (int, float)) and isinstance(v[2], str) and isinstance(v[3], (int, float)) and isinstance(v[4], str),
+            "msg": "'coordinates' must be a list/tuple of 5 values [latitude, longitude, name, altitude, timezone] for eg. [49.1, 8.5, 'Karlsruhe', 110, 'Etc/GMT-1'].",
+        },
+        "irradiation_data": {
+            "required": True,
+            "types": (str),
+            "pred": lambda v: v.strip() != "",
+            "msg": "'irradiation_data' must be a non-empty string with a relative path to the weather CSV.",
+        },
+        
+    }
 
-    for ok, msg in checks:
-        if not ok:
-            hard_errors.append(msg)
+    for key, rule in rules.items():
+        required = rule.get("required", False)
+        types_ = rule.get("types", None)
+        pred = rule.get("pred", None)
+        msg = rule.get("msg", f"Invalid '{key}'.")
 
+        if key not in params:
+            if required:
+                hard_errors.append(f"{name}: missing required parameter '{key}'.")
+            continue
+
+        val = params.get(key, None)
+        if val is None:
+            if required:
+                hard_errors.append(f"{name}: parameter '{key}' must not be None.")
+            continue
+
+        if types_ is not None and not isinstance(val, types_):
+            hard_errors.append(f"{name}: {msg}")
+            continue
+
+        if pred is not None and not pred(val):
+            hard_errors.append(f"{name}: {msg}")
     if hard_errors:
-        raise ValueError("PV configuration error(s):\n- " + "\n- ".join(hard_errors))
-    # -------------------------------------------------------------------------------
+        raise ValueError(
+            f"{name} configuration error(s):\n- " + "\n- ".join(hard_errors)
+        )
+    #-------------------------------------------------------------------------------
 
 
     params_sample= {
