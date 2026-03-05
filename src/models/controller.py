@@ -470,15 +470,17 @@ class Controller():
 
             ret_temp = self.T_dhn_sp - self.heat_dT # Return temp in case of ideal supply temperature
             new_flow, self.IdealHrodsum = self.hr.step(temp, self.heat_demand, self.T_dhn_sp, ret_temp)
-            if self.IdealHrodsum > 0:
+            if self.IdealHrodsum > 0 or temp < self.T_dhn_sp - 0.5:
                 temp = self.T_dhn_sp
                 heat_in_F = new_flow
                 self.heat_supply = self.heat_demand
-                
+            
+            fhot, fcold, Tsup = self.tcvalve1.get_flows(temp, (self.T_dhn_sp - self.heat_dT), self.T_dhn_sp, heat_in_F, self.heat_dT) #required flow rates from each of the tanks
+            
             helpers.set_nested_attr(self, f"tank_connections.{self.sup_tank}_T", temp) #not passed to tank, but to the visu for supporting calcs
-            helpers.set_nested_attr(self, f"tank_connections.{self.sup_tank}_F", -heat_in_F)
-            helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", heat_in_F)
-            helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", temp - self.heat_dT)
+            helpers.set_nested_attr(self, f"tank_connections.{self.sup_tank}_F", -fhot)
+            helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", fhot)
+            helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", Tsup - self.heat_dT)
 
             self.dhw_supply, self.sh_supply = 0,0
         
@@ -593,7 +595,6 @@ class Controller():
                 helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_F", dhw_F)
                 helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_T", self.dhw_rT)
             
-
 class TCValve():
     def __init__(self, max):
         """
@@ -618,22 +619,22 @@ class TCValve():
         Parameters
         ----------
         Thot : float
-            Temperature of the hot tank [°C].
+            Temperature of the hot port (A) [°C].
         Tcold : float
-            Temperature of the cold tank [°C].
+            Temperature of the cold port (B) [°C].
         T : float
             Target (mixed) supply temperature [°C].
         flow : float
-            Total requested flow rate [kg/s or L/s].
+            Total requested flow rate at outgoing port (AB) [kg/s or L/s].
         dT : float
-            Temperature difference between suppy and return lines.
+            Temperature difference between supply and return lines.
 
         Returns
         -------
         f_hot : float
-            Flow rate from the hot tank [kg/s or L/s].
+            Flow rate into the hot port (A) [kg/s or L/s].
         f_cold : float
-            Flow rate from the cold tank [kg/s or L/s].
+            Flow rate into the cold port (B) [kg/s or L/s].
         T_sup : float
             Actual supply temperature achieved after mixing [°C].
         """
@@ -693,7 +694,6 @@ class TCValve():
 
         return f_hot, f_cold, T_sup
 
-        
 class idealHeatRod():
     """
     Ideal electric heating rod model.

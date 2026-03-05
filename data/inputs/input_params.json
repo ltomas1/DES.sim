@@ -25,13 +25,13 @@
     "ctrl": {
         "operation_mode": "heating",
         "control_strategy": "1",
-        "supply_config": "2-pipe-dch",
+        "supply_config": "2-pipe",
         "heating_curve": "floor_high_insulation",
-        "T_dhn_sp": 40,
+        "T_dhn_sp": 67,
         "sh_out" : "tank1.heat_out2",
         "sh_out2" : "tank2.heat_out2",
         "dhw_out" : "tank2.heat_out",
-        "supply_conn": "tank1.heat_out2",
+        "supply_conn": "tank2.heat_out2",
         "return_conn": "tank0.heat_in",
         "sh_ret" : "tank0.heat_in",
         "dhw_ret" : "tank2.heat_in",
@@ -44,14 +44,14 @@
         "logic" : {
             "chp" : {
                 "turn_on" : {
-                    "tank" : "tank1",
+                    "tank" : "tank2",
                     "layer" : "sensor_2",
-                    "turn_on_temp" : 40
+                    "turn_on_temp" : 65
                 },
                 "turn_off" : {
-                    "tank" : "tank1",
+                    "tank" : "tank2",
                     "layer" : "sensor_2",
-                    "turn_off_temp" : 60
+                    "turn_off_temp" : 75
                 }
             },
             "hp" : {
