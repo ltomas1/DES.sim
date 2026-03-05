@@ -61,8 +61,8 @@ class Controller():
         
     def __init__(self, params, *, validate: bool = True):
 
-        if validate:
-            self.validate_params(params)
+        
+        self.validate_params(params, validate=validate)
         # --------------------------------Initialising attributes from params----------------------------------------------
         # Control mode
         self.operation_mode = params.get('operation_mode', 'heating')
@@ -572,7 +572,7 @@ class Controller():
                 helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_F", dhw_F)
                 helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_T", self.dhw_rT)
 
-    def validate_params(self, params):
+    def validate_params(self, params, *, validate: bool = True):
         """
         parameter validation for the controller model. Checks for required parameters, types, value ranges and cross-field logic.
         """
@@ -595,12 +595,13 @@ class Controller():
         #     if key not in params:
         #         tqdm.write(msg)
 
-        
-        # -------------------- warnings -------------------- 
-        if params.get("logic", None).keys() is not None and params.get("gens", None) is not None:
-            for gen in params.get("gens", []):
-                if not any(key.startswith(gen) for key in params["logic"].keys()):
-                    tqdm.write(f"- {name}: No logic defined for '{gen}' in 'logic' dict; it will not operate.")
+            
+        # -------------------- warnings --------------------
+        if validate:
+            if params.get("logic", None).keys() is not None and params.get("gens", None) is not None:
+                for gen in params.get("gens", []):
+                    if not any(key.startswith(gen) for key in params["logic"].keys()):
+                        tqdm.write(f"- {name}: No logic defined for '{gen}' in 'logic' dict; it will not operate.")
         # -------------------- constraints (dict rules, per-key) --------------------
         rules = {
             # required for this model
@@ -677,12 +678,6 @@ class Controller():
                 "types": (int, float, np.number),
                 "pred": lambda v: v > 0,
                 "msg": "'step_size' must be a number > 0 when provided.",
-            },
-            "Ideal_hr_mode": {
-                "required": False,
-                "types": (str,),
-                "pred": lambda v: v.lower() in ["on", "off"],
-                "msg": "'Ideal_hr_mode' must be either 'on' or 'off' when provided.",
             },
         }
 
