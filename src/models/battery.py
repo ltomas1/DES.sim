@@ -1,5 +1,6 @@
 import mosaik_api
-
+import numpy as np
+from tqdm import tqdm
 class Battery():
     """Generic simplified battery storage model.
 
@@ -12,8 +13,11 @@ class Battery():
         - 'charge_eff' (float): efficiency for charging the battery (0-1)
         - 'max_charge_power' (float): maximum power for charging the battery (W)
     """
-    def __init__(self, params):
+    def __init__(self, params, *, warn: bool = True):
         
+        
+        self.validate_params(params)
+
         self.nom_capacity = params.get('nom_capacity', None) 
         self.charge_eff = params.get('charge_eff', None) 
         self.discharge_eff = params.get('discharge_eff', self.charge_eff)
@@ -49,6 +53,88 @@ class Battery():
 
         self.soc = max(0, min(100, self.soc))
 
+    def validate_params(self, params, *, warn: bool = True):
+            """
+            validation of the input parameters for the battery model.  
+            """
+            name = type(self).__name__
+
+            # -------------------- warnings --------------------
+            #  if warn:
+                # if params.get("discharge_eff", None) is None:
+                #     tqdm.write(
+                #         f"- {name}: 'discharge_eff' not provided; Battery will default to 'charge_eff'."
+                #     )
+                # if params.get("max_discharge_power", None) is None:
+                #     tqdm.write(
+                #         f"- {name}: 'max_discharge_power' not provided; Battery will default to 'max_charge_power'."
+                #     )
+
+            hard_errors = []
+            
+            rules = {
+                # required for these models
+                "nom_capacity": {
+                    "required": True,
+                    "types": (int, float, np.number),
+                    "pred": lambda v: v > 0,
+                    "msg": "'nom_capacity' must be a number > 0 when provided.",
+                },
+                "charge_eff": {
+                    "required": True,
+                    "types": (int, float, np.number),
+                    "pred": lambda v: 0 < v <= 1,
+                    "msg": "'charge_eff' must be a number in (0, 1] when provided.",
+                },
+                "max_charge_power": {
+                    "required": True,
+                    "types": (int, float, np.number),
+                    "pred": lambda v: v > 0,
+                    "msg": "'max_charge_power' must be a number > 0 when provided.",
+
+                # optional common numeric params
+                },
+                "discharge_eff": {
+                    "required": False,
+                    "types": (int, float, np.number),
+                    "pred": lambda v: 0 < v <= 1,
+                    "msg": "'discharge_eff' must be a number in (0, 1] when provided.",
+                },
+                "max_discharge_power": {
+                    "required": False,
+                    "types": (int, float, np.number),
+                    "pred": lambda v: v > 0,
+                    "msg": "'max_discharge_power' must be a number > 0 when provided.",
+                },
+            }
+
+            for key, rule in rules.items():
+                required = rule.get("required", False)
+                types_ = rule.get("types", None)
+                pred = rule.get("pred", None)
+                msg = rule.get("msg", f"Invalid '{key}'.")
+
+                if key not in params:
+                    if required:
+                        hard_errors.append(f"{name}: missing required parameter '{key}'.")
+                    continue
+
+                val = params.get(key, None)
+                if val is None:
+                    if required:
+                        hard_errors.append(f"{name}: parameter '{key}' must not be None.")
+                    continue
+
+                if types_ is not None and not isinstance(val, types_):
+                    hard_errors.append(f"{name}: {msg}")
+                    continue
+
+                if pred is not None and not pred(val):
+                    hard_errors.append(f"{name}: {msg}")
+            if hard_errors:
+                raise ValueError(
+                    f"{name} configuration error(s):\n- " + "\n- ".join(hard_errors)
+                )
     def get_init_attrs(self):
         '''
         Simply returns a list of all user defined attributes in this class. 
@@ -92,7 +178,7 @@ class BatterySimulator(mosaik_api.Simulator):
 
         self.eid_prefix = params.get('eid_prefix')
         
-        self.dummy_object = Battery(params)
+        self.dummy_object = Battery(params, warn=False)
         self.meta['models']['Battery']['attrs'] = self.dummy_object.get_init_attrs()
 
         return self.meta

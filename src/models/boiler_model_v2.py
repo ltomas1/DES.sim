@@ -101,9 +101,9 @@ class Gboiler(Transformer_base):
     boiler = Gboiler(params)
     # set boiler.status, boiler.Q_demand, then call boiler.step(sim_time_seconds)
     """
-    def __init__(self, params, *, validate: bool = True):
+    def __init__(self, params, *, warn: bool = True):
 
-        super().__init__(params, validate=validate)
+        super().__init__(params, warn=warn)
         
 
         self.startup_coeff = params.get('startup_coeff', None) # Future : list of lists, corresponding to each power stage
@@ -168,15 +168,16 @@ class Gboiler(Transformer_base):
 
         self.lag_status = self.status
 
-    def _validate_model_params(self, params, hard_errors):
+    def _validate_model_params(self, params, hard_errors, *, warn: bool = True):
 
         name = type(self).__name__
         
         # -------------------- warnings -------------------- 
-        if (params.get("startup_coeff", None) is None and params.get("startup_eta_coeff", None) is None) and params.get("startup_limit", None) is not None:
-            tqdm.write(
-                f"- {name}: 'startup_limit' is defined but no startup coefficients are provided; 'startup_limit' will be ignored."
-            )
+        if warn:
+            if (params.get("startup_coeff", None) is None and params.get("startup_eta_coeff", None) is None) and params.get("startup_limit", None) is not None:
+                tqdm.write(
+                    f"- {name}: 'startup_limit' is defined but no startup coefficients are provided; 'startup_limit' will be ignored."
+                )
         # -------------------- constraints (dict rules, per-key) --------------------
         rules = {
             "startup_limit": {
@@ -263,10 +264,8 @@ class TransformerSimulator(mosaik_api.Simulator):
         self.step_size = step_size
         if same_time_loop:
             self.meta['type'] = 'event-based'
-
-        self.eid_prefix = params.get('eid_prefix')
         
-        self.dummy_object = Gboiler(params, validate=False)
+        self.dummy_object = Gboiler(params, warn=False)
         self.meta['models']['Transformer']['attrs'] = self.dummy_object.get_init_attrs()
 
         return self.meta
