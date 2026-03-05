@@ -58,10 +58,10 @@ class Transformer_base:
         - 'efficiency' (float): nominal efficiency: fuel to thermal
         - 'heating_value' (float): fuel heating value (J/g or J/kg depending)
     """
-    def __init__(self, params, *, validate: bool = True):
+    def __init__(self, params, *, warn: bool = True):
         
-        if validate:
-            self.validate_params(params)
+
+        self.validate_params(params, warn=warn)
 
         self.heat_out_caps = params.get('heat_out_caps', None)# list 
         self.nom_P_th = params.get('nom_P_th', None)
@@ -149,7 +149,7 @@ class Transformer_base:
         self.calc_fuel()
         self.mdot_neg = -1 * self.mdot if self.mdot is not None else None #Powershare case
 
-    def validate_params(self, params):
+    def validate_params(self, params, *, warn: bool = True):
         """
         Base validation entrypoint:
         - Runs checks common to all Transformer_base subclasses
@@ -174,16 +174,16 @@ class Transformer_base:
         #     if key not in params:
         #         tqdm.write(msg)
 
-        
         # -------------------- warnings -------------------- 
-        if params.get("heat_out_caps", None) is not None and (params.get("nom_P_th", None) is not None and params.get("op_stages", None)) is not None:
-            tqdm.write(
-                f"- {name}: 'nom_P_th' and 'op_stages' are not required when 'heat_out_caps' is provided; using the provided 'heat_out_caps'."
-            )
-        if params.get("set_flow", None) is not None and params.get("set_temp", None) is not None:
-            tqdm.write(
-                f"- {name}: Both 'set_flow' and 'set_temp' are provided; 'set_temp' will take precedence and 'set_flow' will be ignored."
-            )
+        if warn:
+            if params.get("heat_out_caps", None) is not None and (params.get("nom_P_th", None) is not None and params.get("op_stages", None)) is not None:
+                tqdm.write(
+                    f"- {name}: 'nom_P_th' and 'op_stages' are not required when 'heat_out_caps' is provided; using the provided 'heat_out_caps'."
+                )
+            if params.get("set_flow", None) is not None and params.get("set_temp", None) is not None:
+                tqdm.write(
+                    f"- {name}: Both 'set_flow' and 'set_temp' are provided; 'set_temp' will take precedence and 'set_flow' will be ignored."
+                )
         # -------------------- constraints (dict rules, per-key) --------------------
         rules = {
             # required for these models
@@ -271,7 +271,7 @@ class Transformer_base:
             hard_errors.append(f"{name}: Either 'heat_out_caps' or 'nom_P_th' and 'op_stages' must be defined.")
 
         # hook: boiler/chp add their own checks
-        self._validate_model_params(params, hard_errors)
+        self._validate_model_params(params, hard_errors, warn=warn)
 
         if hard_errors:
             raise IncompleteConfigError(
@@ -281,7 +281,7 @@ class Transformer_base:
         
 
 
-    def _validate_model_params(self, params, hard_errors):
+    def _validate_model_params(self, params, hard_errors, *, warn: bool = True):
         """Hook for subclasses. Override in model classes."""
         pass
 

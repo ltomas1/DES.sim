@@ -6,9 +6,9 @@ from src.models.boiler_model_v2 import Gboiler
 
 class CHP(Gboiler):
 
-    def __init__(self, params, *, validate: bool = True):
-        super().__init__(params, validate=validate)
-        
+    def __init__(self, params, *, warn: bool = True):
+        super().__init__(params, warn=warn)
+
         self.nom_P_el = params.get('P_el', None) # TODO: warning (or error) if this is None
         self.elec_share = params.get('elec_share', None) # TH to EL ratio, P_el / P_th
         self.startup_coeff = params.get('startup_coeff') # Future : list of lists, corresponding to each power stage
@@ -28,16 +28,17 @@ class CHP(Gboiler):
         if self.elec_share:
             self.P_el = self.P_th * self.elec_share 
 
-    def _validate_model_params(self, params, hard_errors):
+    def _validate_model_params(self, params, hard_errors, *, warn: bool = True):
         # Keep boiler validation structure/behavior 
-        super()._validate_model_params(params, hard_errors)
+        super()._validate_model_params(params, hard_errors, warn=warn)
         name = type(self).__name__
 
         #-------------------- warnings -------------------- 
-        if params.get("P_el", None) is not None and (params.get("elec_share", None) is not None and params.get("nom_P_th", None) is not None):
-            tqdm.write(
-                f"- {name}: both 'P_el' and 'elec_share and 'nom_P_th' provided, 'P_el' will be used to compute 'elec_share'."
-            )
+        if warn:
+            if params.get("P_el", None) is not None and (params.get("elec_share", None) is not None and params.get("nom_P_th", None) is not None):
+                tqdm.write(
+                    f"- {name}: both 'P_el' and 'elec_share and 'nom_P_th' provided, 'P_el' will be used to compute 'elec_share'."
+                )
         # -------------------- constraints (dict rules, per-key) --------------------
         rules = {
             "P_el": {
@@ -124,7 +125,7 @@ class TransformerSimulator(mosaik_api.Simulator):
         if same_time_loop:
             self.meta['type'] = 'event-based'
         
-        self.dummy_object = CHP(params, validate=False)
+        self.dummy_object = CHP(params, warn=False)
         self.meta['models']['Transformer']['attrs'] = self.dummy_object.get_init_attrs()
 
         return self.meta

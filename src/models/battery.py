@@ -13,10 +13,10 @@ class Battery():
         - 'charge_eff' (float): efficiency for charging the battery (0-1)
         - 'max_charge_power' (float): maximum power for charging the battery (W)
     """
-    def __init__(self, params, *, validate: bool = True):
+    def __init__(self, params, *, warn: bool = True):
         
-        if validate:
-            self.validate_params(params)
+        
+        self.validate_params(params)
 
         self.nom_capacity = params.get('nom_capacity', None) 
         self.charge_eff = params.get('charge_eff', None) 
@@ -53,21 +53,22 @@ class Battery():
 
         self.soc = max(0, min(100, self.soc))
 
-    def validate_params(self, params):
+    def validate_params(self, params, *, warn: bool = True):
             """
             validation of the input parameters for the battery model.  
             """
             name = type(self).__name__
 
-            # -------------------- warnings -------------------- 
-            # if params.get("discharge_eff", None) is None:
-            #     tqdm.write(
-            #         f"- {name}: 'discharge_eff' not provided; Battery will default to 'charge_eff'."
-            #     )
-            # if params.get("max_discharge_power", None) is None:
-            #     tqdm.write(
-            #         f"- {name}: 'max_discharge_power' not provided; Battery will default to 'max_charge_power'."
-            #     )
+            # -------------------- warnings --------------------
+            #  if warn:
+                # if params.get("discharge_eff", None) is None:
+                #     tqdm.write(
+                #         f"- {name}: 'discharge_eff' not provided; Battery will default to 'charge_eff'."
+                #     )
+                # if params.get("max_discharge_power", None) is None:
+                #     tqdm.write(
+                #         f"- {name}: 'max_discharge_power' not provided; Battery will default to 'max_charge_power'."
+                #     )
 
             hard_errors = []
             
@@ -177,7 +178,7 @@ class BatterySimulator(mosaik_api.Simulator):
 
         self.eid_prefix = params.get('eid_prefix')
         
-        self.dummy_object = Battery(params, validate=False)
+        self.dummy_object = Battery(params, warn=False)
         self.meta['models']['Battery']['attrs'] = self.dummy_object.get_init_attrs()
 
         return self.meta

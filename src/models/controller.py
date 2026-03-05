@@ -59,10 +59,10 @@ class Controller():
 
         """
         
-    def __init__(self, params, *, validate: bool = True):
+    def __init__(self, params, *, warn: bool = True):
 
         
-        self.validate_params(params, validate=validate)
+        self.validate_params(params, warn=warn)
         # --------------------------------Initialising attributes from params----------------------------------------------
         # Control mode
         self.operation_mode = params.get('operation_mode', 'heating')
@@ -572,7 +572,7 @@ class Controller():
                 helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_F", dhw_F)
                 helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_T", self.dhw_rT)
 
-    def validate_params(self, params, *, validate: bool = True):
+    def validate_params(self, params, *, warn: bool = True):
         """
         parameter validation for the controller model. Checks for required parameters, types, value ranges and cross-field logic.
         """
@@ -597,7 +597,7 @@ class Controller():
 
             
         # -------------------- warnings --------------------
-        if validate:
+        if warn:
             if params.get("logic", None).keys() is not None and params.get("gens", None) is not None:
                 for gen in params.get("gens", []):
                     if not any(key.startswith(gen) for key in params["logic"].keys()):
