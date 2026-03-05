@@ -123,8 +123,6 @@ class TransformerSimulator(mosaik_api.Simulator):
         self.step_size = step_size
         if same_time_loop:
             self.meta['type'] = 'event-based'
-
-        self.eid_prefix = params.get('eid_prefix')
         
         self.dummy_object = CHP(params, validate=False)
         self.meta['models']['Transformer']['attrs'] = self.dummy_object.get_init_attrs()
