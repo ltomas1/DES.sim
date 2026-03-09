@@ -452,25 +452,34 @@ class Controller():
         """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
         heating (SH) circuit"""
         
-        if config == '2-pipe':
+        if config == '2-pipe' or config == '2-pipe-dch':
             #TODO: add error message if params are not defined 
             try:
                 heat_in_F = self.heat_demand/ (4184 * self.heat_dT)
+                if config == '2-pipe-dch':
+                    heat_in_F = self.sh_demand/ (4184 * self.heat_dT)
             except ZeroDivisionError:
                 heat_in_F = 0
 
             heat_in_F = min(self.max_flow, max(0,heat_in_F))
 
-            self.heat_supply = heat_in_F * 4184 * self.heat_dT
-            if (self.heat_demand - self.heat_supply) > 1:
-                dev = self.heat_supply - self.heat_demand
-                tqdm.write(f'Heat supply deficit : {dev} W')
+            if config == '2-pipe-dch':
+                self.sh_supply = heat_in_F * 4184 * self.heat_dT
+                self.dch_power = self.dhw_demand / 0.98 #assuming 98% efficiency for the decentralized electric heater
+                self.dhw_supply = self.dhw_demand
+            else:
+                self.heat_supply = heat_in_F * 4184 * self.heat_dT
 
             temp = helpers.get_nested_attr(self, f"tank_connections.{self.sup_tank}_T") #the available temperature in tank
 
             ret_temp = self.T_dhn_sp - self.heat_dT # Return temp in case of ideal supply temperature
-            new_flow, self.IdealHrodsum = self.hr.step(temp, self.heat_demand, self.T_dhn_sp, ret_temp)
-            if self.IdealHrodsum > 0 or temp < self.T_dhn_sp - 0.5:
+
+            if config == '2-pipe-dch':
+                new_flow, self.IdealHrodsum = self.hr.step(temp, self.sh_demand, self.T_dhn_sp, ret_temp)
+            else:
+                new_flow, self.IdealHrodsum = self.hr.step(temp, self.heat_demand, self.T_dhn_sp, ret_temp)
+
+            if self.IdealHrodsum > 0:
                 temp = self.T_dhn_sp
                 heat_in_F = new_flow
                 self.heat_supply = self.heat_demand
@@ -482,34 +491,9 @@ class Controller():
             helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", fhot)
             helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", Tsup - self.heat_dT)
 
-            self.dhw_supply, self.sh_supply = 0,0
+            if config == '2-pipe':
+                self.dhw_supply, self.sh_supply = 0,0
         
-        if config == '2-pipe-dch':
-            
-            try:
-                heat_in_F = self.sh_demand/ (4184 * self.heat_dT)
-            except ZeroDivisionError:
-                heat_in_F = 0
-
-            heat_in_F = min(self.max_flow, max(0,heat_in_F))
-
-            self.dch_power =  self.dhw_demand / 0.98 #assuming 98% efficiency for the decentralized electric heater
-            ret_temp = self.T_dhn_sp - self.heat_dT
-
-            temp = helpers.get_nested_attr(self, f"tank_connections.{self.sup_tank}_T") #the available temperature in tank
-            new_flow, self.IdealHrodsum = self.hr.step(temp, self.sh_demand, self.T_dhn_sp, ret_temp)
-            
-            if self.IdealHrodsum > 0:
-                temp = self.T_dhn_sp
-                heat_in_F = new_flow
-                self.sh_supply = self.sh_demand
-                
-            helpers.set_nested_attr(self, f"tank_connections.{self.sup_tank}_T", temp) #not passed to tank, but to the visu for supporting calcs
-            helpers.set_nested_attr(self, f"tank_connections.{self.sup_tank}_F", -heat_in_F)
-            helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", heat_in_F)
-            helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", temp - self.heat_dT)
-            
-
         if config == '3-pipe' or config == '4-pipe':
             #TODO: add error message if params are not defined
             # Space heating :
@@ -750,7 +734,7 @@ class idealHeatRod():
         
         # Assuming a 5k tolerance, this case intended for space heating, exact outflow temp is not important.
         #If outflow temp lower than tolerance, deficit to achieve determined temp calc here.
-        if temp < sup_setTemp - 5:
+        if temp < sup_setTemp - 0.5:
             flow = demand/ (self.cp * (sup_setTemp - ret_setTemp))
             P = flow * self.cp * (sup_setTemp - temp)
         else:
