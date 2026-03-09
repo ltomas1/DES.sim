@@ -53,6 +53,8 @@ COLUMN_TRANSLATION_BASE: Dict[str, str] = {
     "CSV-0.DNI_0-DNI": "DNI",
     "CSV-1.HEATLOAD_0-T_amb": "T_amb",
     "CSV-1.HEATLOAD_0-Heat Demand [kW]": "Heat Demand [KW]",
+    "CSV-1.HEATLOAD_0-Domestic hot water (kW)": "Domestic Hot Water [KW]",
+    "CSV-1.HEATLOAD_0-Space heating (kW)": "Space Heating [KW]",
     "CHPSim-0.CHP_0-eff_el": "CHP_eff",
 }
 
@@ -129,6 +131,20 @@ GENERIC_ENERGY_SANKEY_LAYER_POSITIONS: Dict[float, float] = {
     1.5: 0.55,
     2: 0.66,
     3: 0.999,
+}
+
+# Color pairs (bottom, top) for tank temperature traces in the aggregated plot.
+TANK_TEMP_COLORS: Dict[int, Dict[str, str]] = {
+    0: {"bottom": "yellow",   "top": "orange"},
+    1: {"bottom": "darkorange", "top": "orangered"},
+    2: {"bottom": "indianred",        "top": "darkred"},
+}
+
+
+SUPPLY_RETURN_COLORS: Dict[str, str] = {
+    "sh":   "purple",
+    "dhw":  "firebrick",
+    "heat": "magenta",
 }
 
 
@@ -237,6 +253,7 @@ def prepare_visu_v2(
         "df": prepared["df"],
         "generic_energy_sankey": build_sankey_inputs(computed["final_links"]),
         "electric_sankey": build_sankey_inputs(computed["elec_links"]),
+        "aggregated_plot_traces": computed["aggregated_traces"],
         "params": loaded["params"],
         "params_hp": loaded["params_hp"],
         "params_ctrl": loaded["params_ctrl"],
@@ -799,7 +816,7 @@ def _build_electrical_links(df: pd.DataFrame, *, input_df: pd.DataFrame, step_si
             elec_links_df[f"Grid:{u_key}"] = import_needed
             
     # special case for battery: battery supplies only Heat Pump and therefore is not accounted for in producers
-    if "Battery_P_el_in" in clone_df.columns:
+    if "Battery_P_el_in" in clone_df.columns and "Grid:Heat Pump" in elec_links_df.columns:
         elec_links_df["Grid:Heat Pump"] = elec_links_df["Grid:Heat Pump"] - clone_df["Battery_P_el_out"]
 
     for p_key in producers_keys:
@@ -933,6 +950,92 @@ def build_sankey_inputs(
         "link_colors": link_colors,
     }
 
+def _port_spec_to_col(spec: str) -> str:
+    """Convert a controller port spec ('tank2.heat_out2') to translated df column ('HWT2_heatout2_T')."""
+    tank_part, port = spec.split(".", 1)
+    tank_id = tank_part.replace("tank", "")
+    translated = TANK_SUFFIX_TRANSLATIONS.get(f"{port}.T", f"{port}_T")
+    return f"HWT{tank_id}_{translated}"
+
+
+def _build_aggregated_traces(df: pd.DataFrame, params_ctrl: Dict[str, Any]) -> list:
+    """Build trace descriptors for the aggregated plot — only for components active in df.
+
+    Each descriptor is a dict with keys:
+        col   : column name in df
+        name  : legend label
+        color : plotly color string
+        yaxis : 'y1' (power) or 'y2' (temperature)
+        dash  : 'solid', 'dash', 'dot'  (default 'solid')
+    """
+    traces: list = []
+
+    # --- 1. Power traces (y1) ---
+    # Components 
+    if "HP_Q_Supplied" in df.columns and df["HP_Q_Supplied"].sum() > 0:
+        traces.append({"col": "HP_Q_Supplied", "name": "Heat Pump", "color": "blue",   "yaxis": "y1", "dash": "solid"})
+
+    chp_col = next((c for c in df.columns if c.startswith("CHP_") and c.endswith("P_th")), None)
+    if chp_col and df[chp_col].sum() > 0:
+        traces.append({"col": chp_col, "name": "CHP",      "color": "red",    "yaxis": "y1", "dash": "solid"})
+
+    boiler_col = next((c for c in df.columns if c.startswith("Boiler_") and c.endswith("P_th")), None)
+    if boiler_col and df[boiler_col].sum() > 0:
+        traces.append({"col": boiler_col, "name": "Boiler", "color": "sienna", "yaxis": "y1", "dash": "solid"})
+
+    for col in sorted(c for c in df.columns if "hr1_P_th" in c):
+        if df[col].sum() > 0:
+            tank_label = col.split("_")[0]  # e.g. "HWT2"
+            traces.append({"col": col, "name": f"Heating Rod ({tank_label})", "color": "yellow", "yaxis": "y1", "dash": "solid"})
+    
+    # Loads 
+    if "Heat Demand [KW]" in df.columns:
+        df["Heat Demand [W]"] = df["Heat Demand [KW]"] * 1000  # convert kW to W for plotting
+        traces.append({"col": "Heat Demand [W]", "name": "Heat Demand", "color": "springgreen", "yaxis": "y1", "dash": "solid"})
+    if "Space Heating [KW]" in df.columns:
+        df["Space Heating [W]"] = df["Space Heating [KW]"] * 1000  # convert kW to W for plotting
+        traces.append({"col": "Space Heating [W]", "name": "Space Heating Demand", "color": "hotpink", "yaxis": "y1", "dash": "solid"})
+    if "Domestic Hot Water [KW]" in df.columns:
+        df["Domestic Hot Water [W]"] = df["Domestic Hot Water [KW]"] * 1000  # convert kW to W for plotting
+        traces.append({"col": "Domestic Hot Water [W]", "name": "Domestic Hot Water Demand", "color": "lightblue", "yaxis": "y1", "dash": "solid"})
+
+    # --- 2. Tank sensor temperature traces (y2) ---
+    for i in range(10):
+        colors = TANK_TEMP_COLORS.get(i,{"bottom": "darkgray", "top": "lightgray"})
+        bottom_col = f"HWT{i}_sensor0_T"
+        top_col    = f"HWT{i}_sensor2_T"
+        if bottom_col in df.columns:
+            traces.append({"col": bottom_col, "name": f"Tank[{i}] bottom Temp", "color": colors["bottom"], "yaxis": "y2", "dash": "solid"})
+        if top_col in df.columns:
+            traces.append({"col": top_col,    "name": f"Tank[{i}] top Temp",    "color": colors["top"],    "yaxis": "y2", "dash": "solid"})
+
+    # --- 3. Supply / return temperature traces (y2), runner-config-dependent ---
+    config = params_ctrl.get("supply_config")
+
+    def _add_temp_trace(spec: Optional[str], name: str, color: str, dash: str = "solid") -> None:
+        if not spec:
+            return
+        col = _port_spec_to_col(spec)
+        if col in df.columns:
+            traces.append({"col": col, "name": name, "color": color, "yaxis": "y2", "dash": dash})
+
+    if config == "2-runner":
+        _add_temp_trace(params_ctrl.get("supply_conn"), "Supply temp", SUPPLY_RETURN_COLORS["heat"])
+        _add_temp_trace(params_ctrl.get("return_conn"), "Return temp", SUPPLY_RETURN_COLORS["heat"], dash="dash")
+
+    elif config in ("3-runner", "4-runner"):
+        _add_temp_trace(params_ctrl.get("sh_out"),  "SH supply Temp (cold tank)", SUPPLY_RETURN_COLORS["sh"])
+        _add_temp_trace(params_ctrl.get("sh_out2"), "SH supply Temp (hot tank)",  SUPPLY_RETURN_COLORS["sh"],  dash="dot")
+        _add_temp_trace(params_ctrl.get("dhw_out"), "DHW supply Temp",            SUPPLY_RETURN_COLORS["dhw"])
+
+        if config == "3-runner":
+            _add_temp_trace(params_ctrl.get("return_conn"), "Return temp", SUPPLY_RETURN_COLORS["sh"], dash="dash")
+        else:  # 4-runner
+            _add_temp_trace(params_ctrl.get("sh_ret"),  "SH return Temp",  SUPPLY_RETURN_COLORS["sh"],  dash="dash")
+            _add_temp_trace(params_ctrl.get("dhw_ret"), "DHW return Temp", SUPPLY_RETURN_COLORS["dhw"], dash="dash")
+
+    return traces
+
 
 def _stage1_resolve_paths(
     *,
@@ -1014,7 +1117,7 @@ def _stage3_prepare_frames(loaded: Dict[str, Any]) -> Dict[str, Any]:
     df = _merge_pv_and_dedup(loaded["df_raw"], loaded["pv_df"])
     df, untranslated_columns = _apply_column_translation(df)
     df = df.apply(pd.to_numeric, errors="coerce")
-    df_monthly = df.resample("ME").sum() / 4
+    df_monthly = df.resample("M").sum() / 4
     return {"df": df, "df_monthly": df_monthly, "untranslated_columns": untranslated_columns}
 
 
@@ -1024,6 +1127,8 @@ def _stage4_compute_outputs(*, df: pd.DataFrame, input_df: pd.DataFrame, params:
     elec_links_df, elec_links = _build_electrical_links(df, input_df=input_df, step_size=resolved_step_size)
     thermal_links = _build_thermal_links(energies=energies, init_energy=init_energy, end_energy=end_energy)
     final_links = {**elec_links, **thermal_links}
+    params_ctrl = params.get("ctrl") or {}
+    aggregated_traces = _build_aggregated_traces(df, params_ctrl)
     return {
         "resolved_step_size": resolved_step_size,
         "energies": energies,
@@ -1033,6 +1138,7 @@ def _stage4_compute_outputs(*, df: pd.DataFrame, input_df: pd.DataFrame, params:
         "elec_links": elec_links,
         "thermal_links": thermal_links,
         "final_links": final_links,
+        "aggregated_traces": aggregated_traces,
     }
 
 

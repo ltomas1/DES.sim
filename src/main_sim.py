@@ -249,7 +249,7 @@ def run_DES(params, collect=True, plot_graph=False):
 
     """__________________________________________ CSV ___________________________________________________________________""" 
     # connect everything to the csv writer
-    world.connect(heat_load[0], csv_writer, 'T_amb', 'Heat Demand [kW]')
+    world.connect(heat_load[0], csv_writer, 'T_amb', 'Heat Demand [kW]', 'Domestic hot water (kW)', 'Space heating (kW)')
     world.connect(heatpump[0], csv_writer, 'Q_Demand', 'Q_Supplied', 'T_amb', 'heat_source_T', 'cons_T',
                 'P_Required',
                 'COP', 'cond_m', 'cond_in_T', 'on_fraction','Q_evap')
