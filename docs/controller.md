@@ -1,113 +1,154 @@
-# controller.py — Module documentation
+# Controller — Configuration Guide
 
 ## Overview
 
-`controller.py` implements a simulation controller for a heating/cooling system. The main responsibilities are:
+The controller monitors tank sensor temperatures to decide when generators (heat pump, CHP, boiler) should switch on or off. It also takes the current space heating and DHW demand and computes the water flow rates needed to meet that demand from the available tanks.
 
-- Matching heating demands (space heating and domestic hot water) with supply from tanks and backup heaters.
-- Controlling generators behavior using configurable control strategies.
-- Computing tank flows, temperatures, and the output heat delivered to consumers.
+## Pipe configuration
 
-The module contains these main classes:
+The pipe configuration defines how space heating (SH) and domestic hot water (DHW) circuits are physically connected to the tanks. `supply_config` should be set to one of the following options.
 
-- `Controller` — primary model tying together sensors, tanks, and generators.
-- `TCValve` — simplified temperature-controlled 3-way mixing valve model.
-- `idealHeatRod` — idealized electric heating rod helper used to identify component undersizing.
-- `IncompleteConfigError` — small exception used by `idealHeatRod`.
+### 2-pipe
 
-## Controller
+One shared supply pipe and one shared return pipe serve all consumers. SH and DHW are not separated — the controller works with a single combined `heat_demand`. This is the simplest topology.
 
-Purpose
-: Simulation model of a controller which implements Boolean/threshold logic to operate generators, heating rods and mixing valves.
+The following params must be set:
+- `supply_conn` — tank port to draw heat from
+- `return_conn` — tank port for the return flow
 
-Instantiation
-: `ctrl = Controller(params)`
+### 3-pipe
 
-Key init parameters (passed in the `params` dict)
+SH and DHW have separate supply pipes but share a single return. The controller computes flow for each circuit independently.
 
-- `control_strategy` — str, default `'1'`: picks the generator/HP control logic to use.
-- `Ideal_hr_mode` — str, default `'off'`: enables the ideal heating rod behaviour when `'on'`.
-- `supply_config` — str: selects tank topology/branching for supply calculations (2/3/4-runner).
-- `sh_out` — str: tank connection used to supply the space heating demand.
-- `sh_out2` — str|None: optional secondary (hot) source used to supply space heating demand.
-- `dhw_out` — str: tank connection port used to supply drinking hot water demand.
-- `return_tank` — str: target port for aggregated return flows (required for `2-`and `3-runner` setups).
-- `sh_ret` — str|None: dedicated space-heating return port (4-runner only).
-- `dhw_ret` — str|None: dedicated DHW return port (4-runner only).
-- `dhw_Tdelta` — numeric, default `15`: temperature difference between DHW supply and return.
-- `T_dhw_sp` — numeric|None: DHW supply temperature setpoint used by ideal heater logic.
-- `heat_dT` — numeric: temperature difference used for 2-runner heat calculation (defaults to `dhw_Tdelta`).
+The following params must be set:
+- `sh_out` — tank port for space heating supply
+- `dhw_out` — tank port for DHW supply
+- `return_conn` — shared return port
 
-- `step_size` — numeric: simulation step size in seconds (attribute stored as `self.stepsize`).
-- `tank` — dict: nested tank configuration (volume, layers, connections, sensors, heating_rods).
+### 4-pipe
 
-- `gens` — list[str]: base generator names which are expanded into status/demand/supply keys.
-- `NumberofTanks` — int: how many `tank` entries to create and manage.
-- `TankbalanceSetup` — list[str]: pairings of tank ports that define flow balancing connections.
+SH and DHW have fully separate supply and return pipes. This is the most detailed topology and allows independent return temperatures for each circuit.
 
-Primary attributes (selected)
-- `generators` (dict): generator status/demand/supply keys like `'{gen}_status'`.
-- `tank_connections` (dict): per-tank ports and temperature/flow keys (e.g., `'heat_in_T'`, `'heat_in_F'`).
-- `tank_temps` (dict): sensor readings per tank layer.
-- `sh_demand`, `dhw_demand`, `heat_demand` (float): loads in W (converted from kW inside `step`).
-- `sh_supply`, `dhw_supply`, `heat_supply` (float): computed supply power in W.
-- `hp_on_fraction`, `hp_cond_m` (float): heat pump on fraction and condenser mass flow.
-- `timestamp` (datetime-like): current timestep for day/season logic.
+The following params must be set:
+- `sh_out` — tank port for space heating supply
+- `dhw_out` — tank port for DHW supply
+- `sh_ret` — dedicated space heating return port
+- `dhw_ret` — dedicated DHW return port
 
-Key methods
-- `get_init_attrs()` — returns a flattened list of the object's attributes (helper utility).
-- `step(time)` — main time-step update. It:
-  - converts kW inputs to W,
-  - sets season/day flags based on `self.timestamp`,
-  - Uses the `logic` dict to determine the operation status and demand of the generators.  
-  - calls `calc_heat_supply` to compute flows/temps for SH/DHW,
-  - computes heating rod power requirements and adjusts generator demands/status,
-  - performs tank balancing flows for multi-tank setups.
+## Parameters
 
+### Required — all configurations
 
-## TCValve
+| Parameter | Type | Unit | Description |
+|---|---|---|---|
+| `supply_config` | str | — | Pipe topology. Must be `"2-pipe"`, `"3-pipe"` or `"4-pipe"`. See Pipe configuration above. |
+| `gens` | list[str] | — | Names of the generators in the system, e.g. `["hp", "chp", "boiler"]`. Every name listed here must have a corresponding entry in `logic`, otherwise that generator will not run. |
+| `NumberofTanks` | int | — | Number of tanks in the system. Tanks are indexed from 0, so `3` creates `tank0`, `tank1`, `tank2`. |
+| `logic` | dict | — | Thermostat rules defining when each generator turns on and off. See Generator control logic below. |
+| `tank` | dict | — | Tank configuration shared across all tanks (volume, connections, sensors, heating rods). |
+| `TankbalanceSetup` | list[str] | — | Required when `NumberofTanks > 1`. Defines how heat flows between tanks. See Tank balancing below. |
 
-Purpose
-: A simplified 3-way temperature-controlled mixing valve used to combine two tank flows (hot and cold) to achieve target supply temperature.
+### Optional
 
-Constructor
-: `valve = TCValve(max_flow)`
+| Parameter | Type | Unit | Default | Description |
+|---|---|---|---|---|
+| `heating_curve` | str | — | `"floor_high_insulation"` | Determines the SH supply temperature as a function of outdoor temperature. Used in `3-pipe` and `4-pipe` only. Options: `"radiator_low_insulation"`, `"radiator_high_insulation"`, `"floor_low_insulation"`, `"floor_high_insulation"`, `"Durlach_mes"`. |
+| `sh_out2` | str | — | `None` | Secondary (hotter) tank port for space heating supply. When set, the controller uses a mixing valve to blend flow from both `sh_out` and `sh_out2`. Used in `3-pipe` and `4-pipe` only. |
+| `dhw_Tdelta` | float | °C | `15` | Temperature difference between DHW supply and return. Used to compute DHW flow rate. |
+| `T_dhw_sp` | float | °C | `65` | DHW supply temperature setpoint. Used by the ideal heating rod when `Ideal_hr_mode` is `"on"`. |
+| `heat_dT` | float | °C | `15` | Temperature difference between supply and return used to compute flow rate in `2-pipe` config. |
+| `Ideal_hr_mode` | str | — | `"off"` | When set to `"on"`, enables an ideal backup heater that covers any supply deficit. Useful for identifying undersized components. |
+| `control_strategy` | str | — | `"1"` | Generator control strategy. Currently only `"1"` is supported. |
+| `operation_mode` | str | — | `"heating"` | Operating mode of the system. Currently only `"heating"` is supported. |
+| `step_size` | float | s | — | Simulation step size in seconds. |
 
-Method
-- `get_flows(Thot, Tcold, T, flow, dT)`
-  - Inputs:
-    - `Thot`, `Tcold` — temperatures of hot and cold tanks (°C or None)
-    - `T` — requested supply temperature (°C)
-    - `flow` — requested total flow (kg/s or same units used by the controller)
-    - `dT` — delta between supply and return
-  - Returns: `f_hot, f_cold, T_sup` — flows from hot and cold source and achieved supply temperature.
+## Generator control logic
 
-Behavior highlights
-- If either tank is warmer than `T` the valve can prioritize that tank and reduce total flow if necessary.
-- The valve enforces a `maxflow` per source and will limit flows if they exceed that value.
+The `logic` dict defines the thermostat rules for each generator — when to turn it on and off based on a tank sensor reading. Every generator listed in `gens` must have an entry here, otherwise it will not run.
 
-## idealHeatRod
+### Structure
 
-Purpose
-: Very simple ideal electric heating rod model used to calculate backup power and flow to reach a setpoint.
+Each generator entry follows this pattern:
 
-Constructor
-: `rod = idealHeatRod(setpoint=None, returntemp=None)`
+```json
+"logic": {
+    "chp": {
+        "turn_on": {
+            "tank": "tank2",
+            "layer": "sensor_2",
+            "turn_on_temp": 65
+        },
+        "turn_off": {
+            "tank": "tank2",
+            "layer": "sensor_2",
+            "turn_off_temp": 75
+        }
+    }
+}
+```
 
-Method
-- `step(temp, demand, sup_setTemp=None, ret_setTemp=None)`
-  - `temp` — current outlet temperature (°C)
-  - `demand` — required thermal energy for current timestep (kW as passed into the controller)
-  - `sup_setTemp`, `ret_setTemp` — supply/return setpoints (°C). If not provided, the object's `dhw_sp` and `rT` are used.
-  - Returns: `(flow, P)` where `flow` is the mass flow required and `P` is instantaneous heater power in W.
+- `tank` — which tank to monitor, e.g. `"tank2"`. Must match a tank index created by `NumberofTanks`.
+- `layer` — which sensor layer on that tank to read, e.g. `"sensor_2"`. Sensors are indexed from 0.
+- `turn_on_temp` — the generator turns on when the sensor reading drops at or below this value [°C].
+- `turn_off_temp` — the generator turns off when the sensor reading rises at or above this value [°C]. If omitted, defaults to `turn_on_temp + 5 °C`.
 
-Notes
-- If setpoint/return temperature are missing the `IncompleteConfigError` is raised.
-- The model assumes cp = 4184 J/(kg·K) and 1 L = 1 kg for volumes.
+### Additional conditions
+
+`add_conditions` can be added to override the temperature rule with a secondary signal:
+
+```json
+"add_conditions": {
+    "turn_on": { "battery_full": ["==", "True"] }
+}
+```
+
+This turns the generator on whenever `battery_full` equals `"True"`, regardless of tank temperature. Supported operators: `<`, `>`, `<=`, `>=`, `==`.
+
+## Tank balancing
+
+When the system has more than one tank (`NumberofTanks > 1`), the controller needs to know how to move excess heat between them. `TankbalanceSetup` is a list of links, where each link is written as `"source:destination"` using dot notation — `tankN.port_name`.
+
+For example:
+
+```
+"TankbalanceSetup": [
+    "tank0.heat_out:tank1.hp_out",
+    "tank1.heat_out:tank2.hp_out"
+]
+```
+
+Each entry means: balance the residual flow from the source tank port into the destination tank port. The controller calculates whether there is a net surplus or deficit of flow in the source tank at each timestep and routes it accordingly. The direction of flow can go either way depending on the balance.
+
+The number of links should match the number of tank connections needed to keep all tanks balanced. For a 3-tank system, 2 links are typically needed.
+
+> ⚠ Port names used here must match ports defined in `tank.connections`.
+
+## Reference
+
+### Controller
+
+`ctrl = Controller(params)`
+
+**Output attributes**
+
+- `sh_supply` — float [W]: heat supplied to the space heating circuit in the current timestep.
+- `dhw_supply` — float [W]: heat supplied to the DHW circuit in the current timestep.
+- `heat_supply` — float [W]: total heat supplied. Used in `2-pipe` config only.
+- `generators` — dict: per-generator status and demand, e.g. `generators['hp_status']`, `generators['hp_demand']`.
+- `tank_connections` — dict: per-tank port temperatures and flow rates, e.g. `tank_connections['tank1']['heat_out_T']`.
+- `IdealHrodsum` — float [W]: total power supplied by the ideal backup heater. Only non-zero when `Ideal_hr_mode` is `"on"`. Use this to quantify supply deficits.
+- `hwt0_hr_1`, `hwt1_hr_1`, `hwt2_hr_1` — float [W]: heating rod power setpoints sent to each tank at the current timestep.
+
+**Methods**
+
+- `step(time)` — advances the controller by one timestep. Reads sensor temperatures, applies generator logic, computes supply flows, and updates tank balancing.
+- `validate_params(params)` — validates the configuration before the simulation starts. Raises `IncompleteConfigError` if required parameters are missing or inconsistent.
+- `calc_heat_supply(config)` — computes flow rates and temperatures for SH and DHW circuits based on the chosen pipe configuration.
+- `supply_temp(out_temp, buildingtype)` — returns the SH supply temperature and delta-T from the selected heating curve. Used internally by `calc_heat_supply`.
 
 ## Exception
 
-- `IncompleteConfigError` — used to signal missing configuration for the heating rod's temperature targets.
+- `IncompleteConfigError` — raised by validate_params if there is a missing required param or a hard constraint from the param is missing.
 
 
 ## Sample parameters
@@ -136,5 +177,4 @@ params = {
 ## Developer notes & assumptions
 
 - Many defaults and helper functions live outside this module (for example `helpers.get_nested_attr` and `helpers.set_nested_attr`). The doc assumes those helpers behave as implied by their names.
-- Units: controller expects some user inputs in kW (converted to W inside `step`) and temperatures in °C. 
-
+- Units: controller expects some user inputs in kW (converted to W inside `step`) and temperatures in °C.
