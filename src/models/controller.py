@@ -59,8 +59,11 @@ class Controller():
 
         """
         
-    def __init__(self, params):
+    def __init__(self, params, *, warn: bool = True):
 
+        
+        self.validate_params(params, warn=warn)
+        # --------------------------------Initialising attributes from params----------------------------------------------
         # Control mode
         self.operation_mode = params.get('operation_mode', 'heating')
         self.control_strategy = params.get('control_strategy', '1')
@@ -578,7 +581,161 @@ class Controller():
 
                 helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_F", dhw_F)
                 helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_T", self.dhw_rT)
+
+    def validate_params(self, params, *, warn: bool = True):
+        """
+        parameter validation for the controller model. Checks for required parameters, types, value ranges and cross-field logic.
+        """
+        name = type(self).__name__
+        hard_errors = []
+
+        # Loop 1: warnings for defaults
+        # default_warnings = {
+        #     "heating_value": (
+        #         "boiler: 'heating_value' not provided; Boiler will default to 10833.3."
+        #     ),
+        #     "cp": (
+        #         "boiler: 'cp' (specific heat capacity) not provided; Boiler will default to 4187 J/kgK (water)."
+        #     ),
+        #     "op_stages": (
+        #         "boiler: 'op_stages' not provided; Boiler will default to [0, 1] (0% and 100% of nominal power)."
+        #     ),
+        # }
+        # for key, msg in default_warnings.items():
+        #     if key not in params:
+        #         tqdm.write(msg)
+
             
+        # -------------------- warnings --------------------
+        if warn:
+            if params.get("logic", None).keys() is not None and params.get("gens", None) is not None:
+                for gen in params.get("gens", []):
+                    if not any(key.startswith(gen) for key in params["logic"].keys()):
+                        tqdm.write(f"- {name}: No logic defined for '{gen}' in 'logic' dict; it will not operate.")
+        # -------------------- constraints (dict rules, per-key) --------------------
+        rules = {
+            # required for this model
+            "supply_config": {
+                "required": True,
+                "types": (str,),
+                "pred": lambda v: v in ["2-runner","3-runner", "4-runner"],
+                "msg": "'supply_config' must be either '2-runner', '3-runner' or '4-runner'.",
+            },
+            "NumberofTanks": {
+                "required": True,
+                "types": (int, np.integer),
+                "pred": lambda v: v > 0,
+                "msg": "'NumberofTanks' must be an integer > 0 when provided.",
+            },
+            "gens": {
+                "required": True,
+                "types": (list, tuple, np.ndarray),
+                "pred": lambda v: (len(v) > 0 and all(isinstance(x, (str,)) for x in v)),
+                "msg": "'gens' must be a non-empty list/array of strings for eg. ['hp', 'chp', 'boiler'].",
+            },
+            "logic": {
+                "required": True,
+                "types": (dict,),
+                "pred": lambda v: (len(v) > 0 and all(isinstance(k, str) and isinstance(val, dict) for k, val in v.items())),
+                "msg": ("'logic' must be a non-empty dict mapping generator names (strings) to dicts. "
+                ),
+            },
+            "tank": {
+                "required": True,
+                "types": (dict,),
+                "pred": lambda v: (
+                    isinstance(v.get("connections", None), dict)
+                    and isinstance(v.get("n_sensors", None), (int, np.integer))
+                    and isinstance(v.get("volume", None), (int, float, np.number))
+                    and isinstance(v.get("n_layers", None), (int, np.integer))
+                    and isinstance(v.get("heating_rods", None), dict)
+                ),
+                "msg": (
+                    "'tank' must be a dict with keys: "
+                    "connections (dict), n_sensors (int), volume (number), n_layers (int), heating_rods (dict)."
+                ),
+            },
+
+            # conditionally required params
+            "TankbalanceSetup": {
+                "required": True if params.get("NumberofTanks", 0) > 1 else False,
+                "types": (list, tuple, np.ndarray),
+                "pred": lambda v: (len(v) > 0 and all(isinstance(x, (str,)) for x in v)),
+                "msg": "'TankbalanceSetup' must be a non-empty list/array of strings for eg. ['tank0.heat_out:tank1.hp_out', 'tank1.heat_out:tank2.hp_out'].",
+            },
+
+            # optional params
+            "operation_mode": {
+                "required": False,
+                "types": (str,),
+                "pred": lambda v: v in ["heating"],
+                "msg": "'operation_mode' must be 'heating' when provided.",
+            },
+            "control_strategy": {
+                "required": False,
+                "types": (str,),
+                "pred": lambda v: v in ["1",],
+                "msg": "'control_strategy' must be a string equal to '1' when provided.",
+            },
+            "heating_curve": {
+                "required": False,
+                "types": (str,),
+                "pred": lambda v: v in ["radiator_low_insulation", "radiator_high_insulation", "floor_low_insulation", "floor_high_insulation", "Durlach_mes"],
+                "msg": "'heating_curve' must be one of 'radiator_low_insulation', 'radiator_high_insulation', 'floor_low_insulation', 'floor_high_insulation' or 'Durlach_mes' when provided.",
+            },
+            "step_size": {
+                "required": False,
+                "types": (int, float, np.number),
+                "pred": lambda v: v > 0,
+                "msg": "'step_size' must be a number > 0 when provided.",
+            },
+        }
+
+        for key, rule in rules.items():
+            required = rule.get("required", False)
+            types_ = rule.get("types", None)
+            pred = rule.get("pred", None)
+            msg = rule.get("msg", f"Invalid '{key}'.")
+
+            if key not in params:
+                if required:
+                    hard_errors.append(f"{name}: missing required parameter '{key}'.")
+                continue
+
+            val = params.get(key, None)
+            if val is None:
+                if required:
+                    hard_errors.append(f"{name}: parameter '{key}' must not be None.")
+                continue
+
+            if types_ is not None and not isinstance(val, types_):
+                hard_errors.append(f"{name}: {msg}")
+                continue
+
+            if pred is not None and not pred(val):
+                hard_errors.append(f"{name}: {msg}")
+
+        # -------------------- cross-field required logic --------------------
+        supply_config = params.get("supply_config", None)
+
+        if supply_config == "2-runner":
+            if params.get("supply_conn", None) is None or params.get("return_conn", None) is None:
+                hard_errors.append(f"{name}: 'supply_conn' and 'return_conn' are required for '2-runner' supply_config.")
+
+        if supply_config == "3-runner":
+            # FIX: use 'return_conn' key (not 'ret_tank')
+            if params.get("sh_out", None) is None or params.get("dhw_out", None) is None or params.get("return_conn", None) is None:
+                hard_errors.append(f"{name}: 'sh_out', 'dhw_out' and 'return_conn' are required for '3-runner' supply_config.")
+
+        if supply_config == "4-runner": 
+            if params.get("sh_out", None) is None or params.get("dhw_out", None) is None or params.get("sh_ret", None) is None or params.get("dhw_ret", None) is None:
+                hard_errors.append(f"{name}: 'sh_out', 'dhw_out', 'sh_ret' and 'dhw_ret' are required for '4-runner' supply_config.")
+        
+        if hard_errors:
+            raise IncompleteConfigError(
+                f"{name} configuration error(s):\n- " + "\n- ".join(hard_errors)
+            )        
+
 class TCValve():
     def __init__(self, max):
         """

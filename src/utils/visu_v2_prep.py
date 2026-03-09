@@ -338,7 +338,7 @@ def _build_column_translation(df_columns: Iterable[str]) -> Dict[str, str]:
             suffix = col.split("-")[-1]
             columnname[col] = f"Boiler_{suffix}"
 
-        elif "CHP" in col and col not in columnname:
+        elif "Chp" in col and col not in columnname:
             suffix = col.split("-")[-1]
             columnname[col] = f"CHP_{suffix}"
 

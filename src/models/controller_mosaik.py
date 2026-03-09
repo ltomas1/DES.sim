@@ -83,7 +83,7 @@ class ControllerSimulator(mosaik_api.Simulator):
         if same_time_loop:
             self.meta['type'] = 'event-based'
         # self.meta['models']['Controller']['attrs'] += hp_attrs + chp_attrs + hwt_attrs + db_attrs + boiler_attrs
-        dummy_obj = Controller(params)
+        dummy_obj = Controller(params, warn=False)
         self.meta['models']['Controller']['attrs'] = dummy_obj.get_init_attrs()
         self.debug = params.get('debug', 'off').lower()
         return self.meta
