@@ -221,6 +221,13 @@ class Controller():
             self.season = None
             self.isday = None
 
+        # collect last 24 hours of ambient temperature data, to determine sh supply temperature from heating curve
+        self.T_amb_24h = []
+        self.T_amb_24h.append(self.T_amb)
+        n_24h = int((24*60*60) / self.step_size)
+        self.T_amb_24h = self.T_amb_24h[-n_24h:]
+        self.T_amb_24h_mean = np.mean(self.T_amb_24h)
+
         # ---------------------HP charge tank, 3 way valve--------------------------------------
         if self.season == 'summer':
             self.HP3wv_out1_share = 0 # all to tank 2(dhw tank)
@@ -456,7 +463,6 @@ class Controller():
         heating (SH) circuit"""
         
         if config == '2-pipe' or config == '2-pipe-dch':
-            #TODO: add error message if params are not defined 
             try:
                 heat_in_F = self.heat_demand/ (4184 * self.heat_dT)
                 if config == '2-pipe-dch':
@@ -498,14 +504,10 @@ class Controller():
                 self.dhw_supply, self.sh_supply = 0,0
         
         if config == '3-pipe' or config == '4-pipe':
-            #TODO: add error message if params are not defined
-            # Space heating :
+            # Space heating (SH):
             sh_out = f"tank_connections.{self.sh_out}"
-            if self.sh_out2: 
-                sh_out2 = f"tank_connections.{self.sh_out2}" #using the dhw tank as the hotter tank!
-            else:
-                sh_out2 = None
-            Tsup, Tdelta = self.supply_temp(self.T_amb, self.heating_curve) #from heating curve
+
+            Tsup, Tdelta = self.supply_temp(self.T_amb_24h_mean, self.heating_curve) #from heating curve
             # using Tdelta to calculate Tretun, and then updating it if incase T supply changes
             self.heat_dT_sh = Tdelta
 
@@ -517,35 +519,26 @@ class Controller():
                 sh_F = 0 #unlikely in current setup, but if return temp delta not fixed, then maybe
 
             sh_T = helpers.get_nested_attr(self, sh_out+'_T')   #temp of the colder tank
-            sh2_T = helpers.get_nested_attr(self, sh_out2+'_T') if sh_out2 else None
 
-            fhot, fcold, Tsup = self.tcvalve1.get_flows(sh2_T, sh_T, Tsup, sh_F, Tdelta) #required flow rates from each of the tanks
-            sh_F = fhot+fcold #flow rate could be changed if cold tank warmer than req. supply temp
             self.sh_supply = sh_F * 4184 * Tdelta
 
             Tret = Tsup - Tdelta
 
-            if self.idealheater == 'on':
-                new_flow, self.P_hr_sh = self.hr.step(sh2_T, self.sh_demand, Tsup, Tret)
-                if self.P_hr_sh > 0:
-                    sh2_T = Tsup
-                    fhot = new_flow
-                    #assume, the hotter tank(dhw tank) will be given more priority.
-                    fcold = 0
-                    self.sh_supply = self.sh_demand
+            new_flow, self.P_hr_sh = self.hr.step(sh_T, self.sh_demand, Tsup, Tret)
+            if self.P_hr_sh > 0:
+                sh_T = Tsup
+                sh_F = new_flow
+                #assume, the hotter tank(dhw tank) will be given more priority.
+                fcold = 0
+                self.sh_supply = self.sh_demand
 
-            if (self.sh_supply - self.sh_demand) < -1:
-                tqdm.write(f'Deficit : {self.sh_supply - self.sh_demand}')
-
+            fhot_sh, fcold_sh, Tsup_sh = self.tcvalve1.get_flows(sh_T, Tret, Tsup, sh_F, Tdelta) #required flow rates from each of the tanks
+            
             #setting corresponding flow rates
-            helpers.set_nested_attr(self, sh_out+'_F', -fcold)
-            helpers.set_nested_attr(self, sh_out2+'_F', -fhot)
+            helpers.set_nested_attr(self, f"tank_connections.{self.sh_out}_T", sh_T) #not passed to tank, but to the visu for supporting calcs
+            helpers.set_nested_attr(self, f"tank_connections.{self.sh_out}_F", -fhot_sh)
 
-            # helpers.set_nested_attr(self, sh_out+'_T', sh_T)
-            # helpers.set_nested_attr(self, sh_out2+'_T', sh2_T)
-
-
-            #dhw
+            # Domestic Hot Water (DHW):
             dhw_out = f"tank_connections.{self.dhw_out}"
             self.dhw_out_T = helpers.get_nested_attr(self,dhw_out+'_T')
 
@@ -558,28 +551,27 @@ class Controller():
             dhw_F = min(self.max_flow, dhw_F)
             self.dhw_supply = dhw_F * 4184 * self.dhw_Tdelta
 
-            if self.idealheater == 'on':
-                new_flow, self.IdealHrodsum = self.hr.step(self.dhw_out_T, self.dhw_demand, self.T_dhw_sp, self.dhw_out_T - self.dhw_Tdelta)
-                if self.IdealHrodsum > 0:
-                    self.dhw_out_T = self.T_dhw_sp
-                    dhw_F = new_flow
-                    self.dhw_supply = self.dhw_demand
+            new_flow, self.P_hr_dhw = self.hr.step(self.dhw_out_T, self.dhw_demand, self.T_dhw_sp, self.dhw_out_T - self.dhw_Tdelta)
+            if self.P_hr_dhw > 0:
+                self.dhw_out_T = self.T_dhw_sp
+                dhw_F = new_flow
+                self.dhw_supply = self.dhw_demand
 
+            fhot_dhw, fcold_dhw, Tsup_dhw = self.tcvalve1.get_flows(self.dhw_out_T, (self.T_dhw_sp-self.dhw_Tdelta), self.T_dhw_sp, dhw_F, self.dhw_Tdelta) #required flow rates from each of the tanks
+            self.dhw_rT = self.T_dhw_sp - self.dhw_Tdelta
 
-            self.IdealHrodsum += self.P_hr_sh
-            helpers.set_nested_attr(self, dhw_out+'_F', -dhw_F)
-            helpers.set_nested_attr(self, dhw_out+'_T', self.dhw_out_T)
-
-            self.dhw_rT = self.dhw_out_T - self.dhw_Tdelta
+            self.IdealHrodsum = self.P_hr_sh + self.P_hr_dhw 
+            helpers.set_nested_attr(self, dhw_out+'_F', -fhot_dhw)
+            helpers.set_nested_attr(self, dhw_out+'_T', self.dhw_rT)
 
             if config == '3-pipe':
-                helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", dhw_F + sh_F)
-                helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", (self.dhw_rT*dhw_F + Tret*sh_F)/(dhw_F+sh_F) if (dhw_F+sh_F) != 0 else 0)
+                helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", fhot_dhw + fhot_sh)
+                helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", (self.dhw_rT*fhot_dhw + Tret*fhot_sh)/(fhot_dhw+fhot_sh) if (fhot_dhw+fhot_sh) != 0 else 0)
             elif config == '4-pipe':
-                helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_F", sh_F)
+                helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_F", fhot_sh)
                 helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_T", Tret)
 
-                helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_F", dhw_F)
+                helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_F", fhot_dhw)
                 helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_T", self.dhw_rT)
 
     def validate_params(self, params, *, warn: bool = True):
@@ -618,8 +610,8 @@ class Controller():
             "supply_config": {
                 "required": True,
                 "types": (str,),
-                "pred": lambda v: v in ["2-runner","3-runner", "4-runner"],
-                "msg": "'supply_config' must be either '2-runner', '3-runner' or '4-runner'.",
+                "pred": lambda v: v in ["2-pipe", "2-pipe-dch", "3-pipe", "4-pipe"],
+                "msg": "'supply_config' must be either '2-pipe', '2-pipe-dch', '3-pipe' or '4-pipe'.",
             },
             "NumberofTanks": {
                 "required": True,
@@ -718,18 +710,21 @@ class Controller():
         # -------------------- cross-field required logic --------------------
         supply_config = params.get("supply_config", None)
 
-        if supply_config == "2-runner":
+        if supply_config == "2-pipe":
             if params.get("supply_conn", None) is None or params.get("return_conn", None) is None:
-                hard_errors.append(f"{name}: 'supply_conn' and 'return_conn' are required for '2-runner' supply_config.")
+                hard_errors.append(f"{name}: 'supply_conn' and 'return_conn' are required for '2-pipe' supply_config.")
 
-        if supply_config == "3-runner":
+            if params.get("T_dhn_sp", None) is None:
+                hard_errors.append(f"{name}: 'T_dhn_sp' is required for '2-pipe' supply_config.")
+
+        if supply_config == "3-pipe":
             # FIX: use 'return_conn' key (not 'ret_tank')
             if params.get("sh_out", None) is None or params.get("dhw_out", None) is None or params.get("return_conn", None) is None:
-                hard_errors.append(f"{name}: 'sh_out', 'dhw_out' and 'return_conn' are required for '3-runner' supply_config.")
+                hard_errors.append(f"{name}: 'sh_out', 'dhw_out' and 'return_conn' are required for '3-pipe' supply_config.")
 
-        if supply_config == "4-runner": 
+        if supply_config == "4-pipe": 
             if params.get("sh_out", None) is None or params.get("dhw_out", None) is None or params.get("sh_ret", None) is None or params.get("dhw_ret", None) is None:
-                hard_errors.append(f"{name}: 'sh_out', 'dhw_out', 'sh_ret' and 'dhw_ret' are required for '4-runner' supply_config.")
+                hard_errors.append(f"{name}: 'sh_out', 'dhw_out', 'sh_ret' and 'dhw_ret' are required for '4-pipe' supply_config.")
         
         if hard_errors:
             raise IncompleteConfigError(

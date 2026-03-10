@@ -97,6 +97,7 @@ class ControllerSimulator(mosaik_api.Simulator):
             if params is not None:
                 self.models[eid] = Controller(params)
                 auto_attrs = self.models[eid].get_init_attrs()
+                self.models[eid].step_size = self.step_size #assigning the step size
                 self.meta['models']['Controller']['attrs'] = auto_attrs
             else:
                 self.models[eid] = Controller()
