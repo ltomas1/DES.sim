@@ -119,7 +119,7 @@ class Controller():
         self.heat_demand = None             # The total heat demand from SH & DHW (in W)
         self.dhw_demand = None
         self.sh_demand = None
-        self.dhw_supply, self.sh_supply, self.heat_supply = None, None, None  # The heat supplied for DHW, SH and total (in W)
+        self.dhw_supply, self.sh_supply, self.heat_supply, self.dch_power = None, None, None, None  # The heat supplied for DHW, SH and total (in W)
 
         self.hp_in_F = None                 # The mass flow of water into the hot water tank from heat pump (in kg/s)
         self.hp_in_T = None                 # The temperature of water into the hot water tank from heat pump (in °C)
@@ -475,7 +475,6 @@ class Controller():
             if config == '2-pipe-dch':
                 self.sh_supply = heat_in_F * 4184 * self.heat_dT
                 self.dch_power = self.dhw_demand / 0.98 #assuming 98% efficiency for the decentralized electric heater
-                self.dhw_supply = self.dhw_demand
             else:
                 self.heat_supply = heat_in_F * 4184 * self.heat_dT
 

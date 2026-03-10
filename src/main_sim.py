@@ -75,7 +75,7 @@ def run_DES(params, collect=True, plot_graph=False):
     
     world = mosaik.World(sim_config, mosaik_config={'addr':('127.0.0.1', 0)})
     START = '2022-01-01 00:00:00'
-    END =  35*24*60*60 # one year in seconds
+    END =  365*24*60*60 # one year in seconds
 
     # unpacking input params
     params_hp = params['hp']
@@ -257,7 +257,7 @@ def run_DES(params, collect=True, plot_graph=False):
     world.connect(ctrls[0], csv_writer, 'heat_demand', 'heat_supply', 'generators.hp_demand', 'generators.hp_supply',
                 'generators.chp_demand', 'generators.chp_supply', 'sh_supply', 'dhw_supply', 
                  'pv_gen',
-                 'IdealHrodsum', 'generators.boiler_demand', 'chp_uptime', 'req_shTsup')
+                 'IdealHrodsum', 'generators.boiler_demand', 'chp_uptime', 'req_shTsup', 'dch_power')
 
     world.connect(hwts0[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
                 'heat_out.T', 'heat_out.F', 'hp_in.T', 'hp_in.F', 'hp_out.T',
