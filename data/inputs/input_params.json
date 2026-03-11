@@ -10,7 +10,6 @@
     "P_el": 50000,
     "efficiency": 0.8,
     "set_flow": 4,
-    "step_size": "STEP_SIZE",
     "heating_value": 10833.3
   },
   "boiler": {
@@ -27,7 +26,6 @@
         "heating_curve": "floor_high_insulation",
         "T_dhn_sp": 67,
         "sh_out" : "tank1.heat_out2",
-        "sh_out2" : "tank2.heat_out2",
         "dhw_out" : "tank2.heat_out",
         "supply_conn": "tank2.heat_out2",
         "return_conn": "tank0.heat_in",
