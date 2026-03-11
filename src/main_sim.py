@@ -234,12 +234,12 @@ def run_DES(params, collect=True, plot_graph=False):
                 time_shifted=True, initial_data={'hp_out.T':0}
                 )
 
-    world.connect(heatpump[0], hwts0[0], ('cond_m_neg', 'hp_out.F'),
+    world.connect(heatpump[0], hwts1[0], ('cond_m_neg', 'hp_out.F'),
                 )
 
     world.connect(heatpump[0], hwts1[0], ('cons_T', 'hp_in.T'), ('cond_m', 'hp_in.F'),
                 )
-    world.connect(heatpump[0], ctrls[0], ('cond_m_neg', 'tank_connections.tank0.hp_out_F'), ('cond_m', 'tank_connections.tank1.hp_in_F'),)
+    world.connect(heatpump[0], ctrls[0], ('cond_m_neg', 'tank_connections.tank1.hp_out_F'), ('cond_m', 'tank_connections.tank1.hp_in_F'),)
 
     """__________________________________________ battery ___________________________________________________________________""" 
 

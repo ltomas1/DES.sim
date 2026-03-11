@@ -418,7 +418,7 @@ class Controller():
             self.discharge_battery = 0
 
         # ----------------- Tank balancing flows -----------------------
-        if self.no_tanks > 1:
+        if self.tank_setup is not None:
             for link in self.tank_setup:
                 src, dst = link.split(':')
                 src_tank, src_port = src.split('.')
@@ -649,7 +649,7 @@ class Controller():
 
             # conditionally required params
             "TankbalanceSetup": {
-                "required": True if params.get("NumberofTanks", 0) > 1 else False,
+                "required": False,
                 "types": (list, tuple, np.ndarray),
                 "pred": lambda v: (len(v) > 0 and all(isinstance(x, (str,)) for x in v)),
                 "msg": "'TankbalanceSetup' must be a non-empty list/array of strings for eg. ['tank0.heat_out:tank1.hp_out', 'tank1.heat_out:tank2.hp_out'].",
