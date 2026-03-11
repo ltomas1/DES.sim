@@ -492,7 +492,8 @@ class Controller():
                 heat_in_F = new_flow
                 self.heat_supply = self.heat_demand
             
-            fhot, fcold, Tsup = self.tcvalve1.get_flows(temp, (self.T_dhn_sp - self.heat_dT), self.T_dhn_sp, heat_in_F, self.heat_dT) #required flow rates from each of the tanks
+            # mixing the hot water from the tank down, using the cold return line from the DHN to the required supply temperature
+            fhot, fcold, Tsup = self.tcvalve1.get_flows(temp, (self.T_dhn_sp - self.heat_dT), self.T_dhn_sp, heat_in_F, self.heat_dT) 
             
             helpers.set_nested_attr(self, f"tank_connections.{self.sup_tank}_T", temp) #not passed to tank, but to the visu for supporting calcs
             helpers.set_nested_attr(self, f"tank_connections.{self.sup_tank}_F", -fhot)
@@ -531,6 +532,7 @@ class Controller():
                 fcold = 0
                 self.sh_supply = self.sh_demand
 
+            # mixing the hot water from the tank down, using the cold return line from the DHN to the required supply temperature
             fhot_sh, fcold_sh, Tsup_sh = self.tcvalve1.get_flows(sh_T, Tret, Tsup, sh_F, Tdelta) #required flow rates from each of the tanks
             
             #setting corresponding flow rates
@@ -556,6 +558,7 @@ class Controller():
                 dhw_F = new_flow
                 self.dhw_supply = self.dhw_demand
 
+            # mixing the hot water from the tank down, using the cold return line from the DHN to the required supply temperature
             fhot_dhw, fcold_dhw, Tsup_dhw = self.tcvalve1.get_flows(self.dhw_out_T, (self.T_dhw_sp-self.dhw_Tdelta), self.T_dhw_sp, dhw_F, self.dhw_Tdelta) #required flow rates from each of the tanks
             self.dhw_rT = self.T_dhw_sp - self.dhw_Tdelta
 
