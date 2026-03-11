@@ -690,6 +690,7 @@ def _compute_energies(df: pd.DataFrame, *, params: Dict[str, Any], step_size: fl
         "heat_demand": 0.0,
         "battery_charge": 0.0,
         "battery_discharge": 0.0,
+        "dch_power": 0.0,
     }
 
     # A. CHP (Look for ANY column starting with CHP_ and ending with P_th)
@@ -749,6 +750,10 @@ def _compute_energies(df: pd.DataFrame, *, params: Dict[str, Any], step_size: fl
 
     if "Battery_P_el_out" in df.columns:
         energies["battery_discharge"] = _get_energy(df["Battery_P_el_out"], step_size=step_size)
+
+    if "dch_power" in df.columns:
+        energies["dch_power"] = _get_energy(df["dch_power"], step_size=step_size)
+
     # Check differences in heat supply vs demand for 2-runner cases
     energies["total_supply"] = (
         energies["chp_supply"] + energies["boiler_supply"] + energies["hp_supply"] + energies["hrods_supply"]
@@ -875,6 +880,8 @@ def _build_thermal_links(
     if energies.get("heat_supply", 0.0) > 0:
         thermal_links["Buffer Tank:DHN"] = [energies["heat_supply"], color_map["DHN"]]
 
+    if energies.get("dch_power", 0.0) > 0:
+        thermal_links["DCH:DHW"] = [energies["dch_power"], color_map["Heating Rods"]]
 
     # --- THE GENERIC LOSS CALCULATION ---
     # Loss = (Inputs + Init_Storage) - (Outputs + Final_Storage)

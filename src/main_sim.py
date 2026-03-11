@@ -83,7 +83,7 @@ def run_DES(params, collect=True, plot_graph=False):
     params['ctrl']['tank'] = params['tank']
     init_vals_hwt0 = params['init_vals_tank']['init_vals_hwt0']
     init_vals_hwt1 = params['init_vals_tank']['init_vals_hwt1']
-    init_vals_hwt2 = params['init_vals_tank']['init_vals_hwt2']    
+    init_vals_hwt2 = params['init_vals_tank']['init_vals_hwt2']
     params_chp = params['chp']
     params_boiler = params['boiler']
     params_pv = params['pv']
@@ -218,7 +218,7 @@ def run_DES(params, collect=True, plot_graph=False):
 
     world.connect(ctrls[0], chp[0], ('generators.chp_demand', 'Q_demand'), ('generators.chp_status' , 'status'),
                 time_shifted=True,
-                initial_data={'generators.chp_demand': 0}
+                initial_data={'generators.chp_demand': 0, 'generators.chp_status': 'off'}
                 )
 
     """__________________________________________ heat pump ___________________________________________________________________""" 
@@ -257,7 +257,7 @@ def run_DES(params, collect=True, plot_graph=False):
     world.connect(ctrls[0], csv_writer, 'heat_demand', 'heat_supply', 'generators.hp_demand', 'generators.hp_supply',
                 'generators.chp_demand', 'generators.chp_supply', 'sh_supply', 'dhw_supply', 
                  'pv_gen',
-                 'IdealHrodsum', 'generators.boiler_demand', 'chp_uptime', 'req_shTsup')
+                 'IdealHrodsum', 'generators.boiler_demand', 'chp_uptime', 'req_shTsup', 'dch_power')
 
     world.connect(hwts0[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
                 'heat_out.T', 'heat_out.F', 'hp_in.T', 'hp_in.F', 'hp_out.T',
