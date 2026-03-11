@@ -148,7 +148,7 @@ The number of links should match the number of tank connections needed to keep a
 
 ## Heating curves
 
-The heating curve determines the space heating supply temperature based on the 24h average of the ambient temperature. Rather than a fixed setpoint, the supply temperature adjusts — higher when it is cold outside, lower when it is mild. The controller interpolates linearly between two endpoints defined by each curve.
+The heating curve determines the space heating supply temperature based on the 24h average of the ambient temperature. Rather than a fixed setpoint, the supply temperature adjusts. The controller interpolates linearly between two endpoints defined by each curve.
 
 The `heating_curve` parameter should be chosen based on the building's heating system type and insulation level.
 
@@ -185,7 +185,7 @@ For example, with `floor_high_insulation`, the supply temperature will be 35 °C
 - `step(time)` — advances the controller by one timestep. Reads sensor temperatures, applies generator logic, computes supply flows, and updates tank balancing.
 - `validate_params(params)` — validates the configuration before the simulation starts. Raises `IncompleteConfigError` if required parameters are missing or inconsistent.
 - `calc_heat_supply(config)` — computes flow rates and temperatures for SH and DHW circuits based on the chosen pipe configuration.
-- `supply_temp(out_temp, buildingtype)` — returns the SH supply temperature and delta-T from the selected heating curve depending on the 24h average of the ambienttemperature. Used internally by `calc_heat_supply`.
+- `supply_temp(out_temp, buildingtype)` — returns the SH supply temperature and delta-T from the selected heating curve depending on the 24h average of the ambient temperature. Used internally by `calc_heat_supply`.
 
 ## Exception
 
@@ -198,20 +198,58 @@ Minimal example (constructing controller and performing one step):
 
 ```python
 params = {
-        "T_dhw_sp": 65,
-        "dhw_Tdelta" : 15,
-        "T_dhw_buffer": 5,
+        "operation_mode": "heating",
         "control_strategy": "1",
         "supply_config": "4-runner",
-        "Ideal_hr_mode" :"off",
+        "heating_curve": "floor_low_insulation",
         "sh_out" : "tank1.heat_out2",
         "sh_out2" : "tank2.heat_out2",
         "dhw_out" : "tank2.heat_out",
         "sh_ret" : "tank0.heat_in",
         "dhw_ret" : "tank2.heat_in",
-        "gens" : ["hp", "boiler"],
+        "boiler_mode": "on",
+        "Ideal_hr_mode": "off", 
+        "step_size": 900,
+        "gens" : ["hp", "chp", "boiler"],
         "NumberofTanks" : 3,
-        "TankbalanceSetup" : ["tank0.heat_out:tank1.hp_out", "tank1.heat_out:tank2.hp_out"]
+        "TankbalanceSetup" : ["tank0.heat_out:tank1.hp_out", "tank1.heat_out:tank2.hp_out"],
+        "logic" : {
+            "chp" : {
+                "turn_on" : {
+                    "tank" : "tank2",
+                    "layer" : "sensor_2",
+                    "turn_on_temp" : 65
+                },
+                "turn_off" : {
+                    "tank" : "tank2",
+                    "layer" : "sensor_2",
+                    "turn_off_temp" : 75
+                }
+            },
+            "hp" : {
+                "turn_on" : {
+                    "tank" : "tank1",
+                    "layer" : "sensor_2",
+                    "turn_on_temp" : 40
+                },
+                "turn_off" : {
+                    "tank" : "tank1",
+                    "layer" : "sensor_2",
+                    "turn_off_temp" : 65
+                },
+                "add_conditions" :{ 
+                            "turn_on" : {"battery_full" : ["==", "True"]}
+            }
+            },
+            "boiler" : {
+                "turn_on":{
+                    "tank" : "tank2",
+                    "layer" : "sensor_2",
+                    "turn_on_temp" : 64
+                }
+            }
+        }
+
     } 
 ```
 
