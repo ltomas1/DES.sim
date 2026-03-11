@@ -673,12 +673,6 @@ class Controller():
                 "pred": lambda v: v in ["radiator_low_insulation", "radiator_high_insulation", "floor_low_insulation", "floor_high_insulation", "Durlach_mes"],
                 "msg": "'heating_curve' must be one of 'radiator_low_insulation', 'radiator_high_insulation', 'floor_low_insulation', 'floor_high_insulation' or 'Durlach_mes' when provided.",
             },
-            "step_size": {
-                "required": False,
-                "types": (int, float, np.number),
-                "pred": lambda v: v > 0,
-                "msg": "'step_size' must be a number > 0 when provided.",
-            },
         }
 
         for key, rule in rules.items():

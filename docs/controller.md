@@ -45,7 +45,7 @@ The following params must be set:
 | `supply_config` | str | — | DHN topology. Must be `"2-pipe"`, `"3-pipe"` or `"4-pipe"`. See DHN configuration above. |
 | `gens` | list[str] | — | Names of the generators in the system, e.g. `["hp", "chp", "boiler"]`. Every name listed here must have a corresponding entry in `logic`, otherwise that generator will not run. |
 | `NumberofTanks` | int | — | Number of tanks in the system. Tanks are indexed from 0, so `3` creates `tank0`, `tank1`, `tank2`. |
-| `logic` | dict | — | Thermostat rules defining when each generator turns on and off. See Generator control logic below. |
+| `logic` | dict | — | Heuristic rules defining when each generator turns on and off. See Generator control logic below. |
 | `tank` | dict | — | Tank configuration shared across all tanks (volume, connections, sensors, heating rods). |
 | `TankbalanceSetup` | list[str] | — | Required when `NumberofTanks > 1`. Defines how heat flows between tanks. See Tank balancing below. |
 
@@ -54,14 +54,13 @@ The following params must be set:
 | Parameter | Type | Unit | Default | Description |
 |---|---|---|---|---|
 | `heating_curve` | str | — | `"floor_high_insulation"` | Heating curve for SH supply temperature calculation. Used in `3-pipe` and `4-pipe` only. See Heating curves below. |
-| `sh_out2` | str | — | `None` | Secondary (hotter) tank port for space heating supply. When set, the controller uses a mixing valve to blend flow from both `sh_out` and `sh_out2`. Used in `3-pipe` and `4-pipe` only. |
 | `dhw_Tdelta` | float | °C | `15` | Temperature difference between DHW supply and return. Used to compute DHW flow rate. |
 | `T_dhw_sp` | float | °C | `65` | DHW supply temperature setpoint. Used by the ideal heating rod when `Ideal_hr_mode` is `"on"`. |
 | `heat_dT` | float | °C | `15` | Temperature difference between supply and return used to compute flow rate in `2-pipe` config. |
 | `Ideal_hr_mode` | str | — | `"off"` | When set to `"on"`, enables an ideal backup heater that covers any supply deficit. Useful for identifying undersized components. |
 | `control_strategy` | str | — | `"1"` | Generator control strategy. Currently only `"1"` is supported. |
 | `operation_mode` | str | — | `"heating"` | Operating mode of the system. Currently only `"heating"` is supported. |
-| `step_size` | float | s | — | Simulation step size in seconds. |
+
 
 ## Generator control logic
 
@@ -150,7 +149,13 @@ The number of links should match the number of tank connections needed to keep a
 
 The heating curve determines the space heating supply temperature based on the 24h average of the ambient temperature. Rather than a fixed setpoint, the supply temperature adjusts. The controller interpolates linearly between two endpoints defined by each curve.
 
-The `heating_curve` parameter should be chosen based on the building's heating system type and insulation level.
+The `heating_curve` parameter should be chosen based on the building's heating system type and insulation level. for eg. this is what the heating curve if the option `floor_high_insulation` is chosen:
+
+![Heating curve shape](images/heating_curve.png)
+
+The supply temperature will be 35 °C at -10 °C outdoor and 20 °C at 15 °C outdoor, with linear interpolation in between. ΔT is the fixed difference between supply and return used for flow rate calculations.
+
+Available ranges for the heating curves are:
 
 | Option | Outdoor temp range [°C] | Supply temp range [°C] | ΔT [°C] |
 |---|---|---|---|
@@ -160,7 +165,6 @@ The `heating_curve` parameter should be chosen based on the building's heating s
 | `floor_high_insulation` | -10 to 15 | 35 to 20 | 5 |
 | `Durlach_mes` | 0 to 10 | 60 to 52 | 15 |
 
-For example, with `floor_high_insulation`, the supply temperature will be 35 °C at -10 °C outdoor and 20 °C at 15 °C outdoor, with linear interpolation in between. ΔT is the fixed difference between supply and return used for flow rate calculations.
 
 > `Durlach_mes` is a measured curve specific to one project and may not be suitable for general use.
 
@@ -203,13 +207,11 @@ params = {
         "supply_config": "4-runner",
         "heating_curve": "floor_low_insulation",
         "sh_out" : "tank1.heat_out2",
-        "sh_out2" : "tank2.heat_out2",
         "dhw_out" : "tank2.heat_out",
         "sh_ret" : "tank0.heat_in",
         "dhw_ret" : "tank2.heat_in",
         "boiler_mode": "on",
         "Ideal_hr_mode": "off", 
-        "step_size": 900,
         "gens" : ["hp", "chp", "boiler"],
         "NumberofTanks" : 3,
         "TankbalanceSetup" : ["tank0.heat_out:tank1.hp_out", "tank1.heat_out:tank2.hp_out"],
