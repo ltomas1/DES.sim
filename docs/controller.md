@@ -15,7 +15,7 @@ One shared supply pipe and one shared return pipe serve all consumers. SH and DH
 The following params must be set:
 - `supply_conn` — tank port to draw heat from
 - `return_conn` — tank port for the return flow
-- `T_dhn_sp` - DHN setpoint temp
+- `T_dhn_sp` — DHN setpoint temp
 
 ### 3-pipe
 
@@ -95,7 +95,7 @@ Each generator entry follows this pattern:
 
 ### Additional conditions
 
-`add_conditions` can be added to override the temperature rule with a secondary signal, and there are two "standard" add conditions that could be added:
+`add_conditions` can be added to override the temperature rule with a secondary signal. There are two "standard" 'add_conditions' that could be added:
 
 ```json
 "add_conditions": {
@@ -111,9 +111,9 @@ This turns the generator on whenever `battery_full` equals `"True"`, regardless 
 }
 ```
 
-This turns the generator on whenever `hp_surplus` equals `"True"`, `hp_surplus` is True when the local electricity generation is more than the local electricity consumption needed for that point of time. which leave a surplus that could be utilized by the heat pump if this condition is set.
+This turns the generator (ideally the heat pump) on whenever `hp_surplus` equals `"True"`. `hp_surplus` is True when the local electricity generation (PV + CHP generation) is more than the local electricity consumption (households) needed for that point of time. 
 
-And also custom additional conditions could be set using the supported operators: `<`, `>`, `<=`, `>=`, `==`.
+Custom additional conditions could be set using the supported operators: `<`, `>`, `<=`, `>=`, `==`.
 
 For example:
 
@@ -122,7 +122,7 @@ For example:
     "turn_off" : {"T_amb" : ["<=", 5]}
 }
 ```
-This is an example where a condition could be added to the heat pump to turn it of when ambient temp is or below 5°C.
+This is an example where a condition could be added to the heat pump to turn it off when ambient temp is equal to or below 5°C.
 
 ## Tank balancing
 
@@ -142,13 +142,12 @@ For example:
 
 Each entry means: balance the residual flow from the source tank port into the destination tank port. The controller calculates whether there is a net surplus or deficit of flow in the source tank at each timestep and routes it accordingly. The direction of flow can go either way depending on the balance.
 
-The number of links should match the number of tank connections needed to keep all tanks balanced. For a 3-tank system, 2 links are typically needed.
 
 > ⚠ Port names used here must match ports defined in `tank.connections`.
 
 ## Heating curves
 
-The heating curve determines the space heating supply temperature based on the 24h average of the ambient temperature. Rather than a fixed setpoint, the supply temperature adjusts. The controller interpolates linearly between two endpoints defined by each curve.
+The heating curve determines the space heating supply temperature based on the 24h average of the ambient temperature. The controller interpolates linearly between two endpoints defined by each curve.
 
 The `heating_curve` parameter should be chosen based on the building's heating system type and insulation level.
 
