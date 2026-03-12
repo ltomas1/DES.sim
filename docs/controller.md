@@ -156,13 +156,13 @@ The supply temperature will be 35 °C at -10 °C outdoor and 20 °C at 15 °C ou
 
 Available ranges for the heating curves are:
 
-| Option | Outdoor temp range [°C] | Supply temp range [°C] | ΔT [°C] |
-|---|---|---|---|
-| `radiator_low_insulation` | -10 to 15 | 75 to 45 | 20 |
-| `radiator_high_insulation` | -10 to 15 | 55 to 35 | 15 |
-| `floor_low_insulation` | -10 to 15 | 45 to 25 | 5 |
-| `floor_high_insulation` | -10 to 15 | 35 to 20 | 5 |
-| `Durlach_mes` | 0 to 10 | 60 to 52 | 15 |
+| Option | Ta, low [°C] | Ta, high [°C] | Supply temp at Ta, low [°C] | Supply temp at Ta, high [°C] | ΔT [°C] |
+|---|---|---|---|---|---|
+| `radiator_low_insulation` | -10 | 15 | 75 | 45 | 20 |
+| `radiator_high_insulation` | -10 | 15 | 55 | 35 | 15 |
+| `floor_low_insulation` | -10 | 15 | 45 | 25 | 5 |
+| `floor_high_insulation` | -10 | 15 | 35 | 20 | 5 |
+| `Durlach_mes` | 0 | 10 | 60 | 52 | 15 |
 
 
 > `Durlach_mes` is a measured curve specific to one project and may not be suitable for general use.
