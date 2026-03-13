@@ -9,10 +9,7 @@
     "op_stages": [0, 0.25, 0.5, 0.75, 1.0],
     "P_el": 50000,
     "efficiency": 0.8,
-    "startup_coeff": [-2.63, 3.9, 0.57],
-    "startup_limit": 11,
     "set_flow": 4,
-    "step_size": "STEP_SIZE",
     "heating_value": 10833.3
   },
   "boiler": {
@@ -25,16 +22,15 @@
     "ctrl": {
         "operation_mode": "heating",
         "control_strategy": "1",
-        "supply_config": "4-runner",
-        "heating_curve": "floor_low_insulation",
+        "supply_config": "2-pipe",
+        "heating_curve": "floor_high_insulation",
+        "T_dhn_sp": 67,
         "sh_out" : "tank1.heat_out2",
-        "sh_out2" : "tank2.heat_out2",
         "dhw_out" : "tank2.heat_out",
+        "supply_conn": "tank2.heat_out2",
+        "return_conn": "tank0.heat_in",
         "sh_ret" : "tank0.heat_in",
         "dhw_ret" : "tank2.heat_in",
-        "boiler_mode": "on",
-        "Ideal_hr_mode": "off", 
-        "step_size": 900,
         "gens" : ["hp", "chp", "boiler"],
         "NumberofTanks" : 3,
         "TankbalanceSetup" : ["tank0.heat_out:tank1.hp_out", "tank1.heat_out:tank2.hp_out"],
@@ -55,7 +51,7 @@
                 "turn_on" : {
                     "tank" : "tank1",
                     "layer" : "sensor_2",
-                    "turn_on_temp" : 40
+                    "turn_on_temp" : 43
                 },
                 "turn_off" : {
                     "tank" : "tank1",

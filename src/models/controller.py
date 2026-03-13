@@ -72,21 +72,22 @@ class Controller():
         #supply configuration
         self.config = params.get('supply_config')
         self.heating_curve = params.get('heating_curve', 'floor_high_insulation')
-        self.sh_out = params.get('sh_out', None)  #Tank which serves as the Output connection for space heating
+        self.sh_out = params.get('sh_out', None)                    # Tank which serves as the Output connection for space heating
         self.sh_out2 = params.get('sh_out2', None)
-        self.dhw_out = params.get('dhw_out', None) #Tank which serves as the Output connection for hot water demand
-        self.ret_tank = params.get('return_conn', None) #Tank which serves as the return connection; used except for 4-runner!!!
-        self.sup_tank = params.get('supply_conn', None) #Connections which serves as the heat out for 2 pipe set up
-        self.sh_ret = params.get('sh_ret', None) #Tank which serves as the return connection for space heating
+        self.dhw_out = params.get('dhw_out', None)                  # Tank which serves as the Output connection for hot water demand
+        self.ret_tank = params.get('return_conn', None)             # Tank which serves as the return connection; used except for 4-pipe!!!
+        self.sup_tank = params.get('supply_conn', None)             # Connections which serves as the heat out for 2 pipe set up
+        self.sh_ret = params.get('sh_ret', None)                    # Tank which serves as the return connection for space heating
         self.dhw_ret = params.get('dhw_ret', None)
-        self.dhw_Tdelta = params.get('dhw_Tdelta', 15) #The temperature difference in the dhw circuit.
+        self.dhw_Tdelta = params.get('dhw_Tdelta', 15)              # The temperature difference in the dhw circuit.
         self.T_dhw_sp = params.get('T_dhw_sp', 65)
-        self.heat_dT = params.get('heat_dT', 15)                 # The temperature difference in 2 runner setup
+        self.T_dhn_sp = params.get('T_dhn_sp', None)                # The temperature set point for the distribution, in 2-pipe and 2-pipe-dch setup
+        self.heat_dT = params.get('heat_dT', 15)                    # The temperature difference in 2-pipe and 2-pipe-dch setup
         self.params_hwt = params.get('tank')
         
         self.gens = params.get('gens')
-        self.no_tanks = params.get('NumberofTanks') # the number of tanks in the system
-        self.tank_setup = params.get('TankbalanceSetup', None)# the tank connections in the system
+        self.no_tanks = params.get('NumberofTanks')                 # The number of tanks in the system
+        self.tank_setup = params.get('TankbalanceSetup', None)      # The tank connections in the system
 
         self.control_logic = params.get('logic', None) # the control logic dict
         
@@ -118,7 +119,7 @@ class Controller():
         self.heat_demand = None             # The total heat demand from SH & DHW (in W)
         self.dhw_demand = None
         self.sh_demand = None
-        self.dhw_supply, self.sh_supply, self.heat_supply = None, None, None  # The heat supplied for DHW, SH and total (in W)
+        self.dhw_supply, self.sh_supply, self.heat_supply, self.dch_power = None, None, None, None  # The heat supplied for DHW, SH and total (in W)
 
         self.hp_in_F = None                 # The mass flow of water into the hot water tank from heat pump (in kg/s)
         self.hp_in_T = None                 # The temperature of water into the hot water tank from heat pump (in °C)
@@ -219,6 +220,13 @@ class Controller():
         else:
             self.season = None
             self.isday = None
+
+        # collect last 24 hours of ambient temperature data, to determine sh supply temperature from heating curve
+        self.T_amb_24h = []
+        self.T_amb_24h.append(self.T_amb)
+        n_24h = int((24*60*60) / self.step_size)
+        self.T_amb_24h = self.T_amb_24h[-n_24h:]
+        self.T_amb_24h_mean = np.mean(self.T_amb_24h)
 
         # ---------------------HP charge tank, 3 way valve--------------------------------------
         if self.season == 'summer':
@@ -410,7 +418,7 @@ class Controller():
             self.discharge_battery = 0
 
         # ----------------- Tank balancing flows -----------------------
-        if self.no_tanks > 1:
+        if self.tank_setup is not None:
             for link in self.tank_setup:
                 src, dst = link.split(':')
                 src_tank, src_port = src.split('.')
@@ -454,46 +462,52 @@ class Controller():
         """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
         heating (SH) circuit"""
         
-        if config == '2-runner': 
+        if config == '2-pipe' or config == '2-pipe-dch':
             try:
                 heat_in_F = self.heat_demand/ (4184 * self.heat_dT)
+                if config == '2-pipe-dch':
+                    heat_in_F = self.sh_demand/ (4184 * self.heat_dT)
             except ZeroDivisionError:
                 heat_in_F = 0
 
             heat_in_F = min(self.max_flow, max(0,heat_in_F))
 
-            self.heat_supply = heat_in_F * 4184 * self.heat_dT
-            if (self.heat_demand - self.heat_supply) > 1:
-                dev = self.heat_supply - self.heat_demand
-                tqdm.write(f'Heat supply deficit : {dev} W')
+            if config == '2-pipe-dch':
+                self.sh_supply = heat_in_F * 4184 * self.heat_dT
+                self.dch_power = self.dhw_demand / 0.98 #assuming 98% efficiency for the decentralized electric heater
+            else:
+                self.heat_supply = heat_in_F * 4184 * self.heat_dT
 
             temp = helpers.get_nested_attr(self, f"tank_connections.{self.sup_tank}_T") #the available temperature in tank
 
-            if self.idealheater == 'on':
-                
-                ret_temp = self.heat_sp - self.heat_dT # Return temp in case of ideal supply temperature
-                new_flow, self.IdealHrodsum = self.hr.step(temp, self.heat_demand, self.heat_sp, ret_temp)
-                if self.IdealHrodsum > 0:
-                    temp = self.heat_sp
-                    heat_in_F = new_flow
-                    self.heat_supply = self.heat_demand
-                
-            helpers.set_nested_attr(self, f"tank_connections.{self.sup_tank}_T", temp) #not passed to tank, but to the visu for supporting calcs
-            helpers.set_nested_attr(self, f"tank_connections.{self.sup_tank}_F", -heat_in_F)
-            helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", heat_in_F)
-            helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", temp - self.heat_dT)
+            ret_temp = self.T_dhn_sp - self.heat_dT # Return temp in case of ideal supply temperature
 
-            self.dhw_supply, self.sh_supply = 0,0
-        
-
-        if config == '3-runner' or config == '4-runner':
-            # Space heating :
-            sh_out = f"tank_connections.{self.sh_out}"
-            if self.sh_out2: 
-                sh_out2 = f"tank_connections.{self.sh_out2}" #using the dhw tank as the hotter tank!
+            if config == '2-pipe-dch':
+                new_flow, self.IdealHrodsum = self.hr.step(temp, self.sh_demand, self.T_dhn_sp, ret_temp)
             else:
-                sh_out2 = None
-            Tsup, Tdelta = self.supply_temp(self.T_amb, self.heating_curve) #from heating curve
+                new_flow, self.IdealHrodsum = self.hr.step(temp, self.heat_demand, self.T_dhn_sp, ret_temp)
+
+            if self.IdealHrodsum > 0:
+                temp = self.T_dhn_sp
+                heat_in_F = new_flow
+                self.heat_supply = self.heat_demand
+            
+            # mixing the hot water from the tank down, using the cold return line from the DHN to the required supply temperature
+            fhot, fcold, Tsup = self.tcvalve1.get_flows(temp, (self.T_dhn_sp - self.heat_dT), self.T_dhn_sp, heat_in_F, self.heat_dT) 
+            
+            helpers.set_nested_attr(self, f"tank_connections.{self.sup_tank}_T", temp) #not passed to tank, but to the visu for supporting calcs
+            helpers.set_nested_attr(self, f"tank_connections.{self.sup_tank}_F", -fhot)
+            helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", fhot)
+            helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", Tsup - self.heat_dT)
+
+            if config == '2-pipe':
+                self.dhw_supply, self.sh_supply = 0,0
+        
+        if config == '3-pipe' or config == '4-pipe':
+            # Space heating (SH):
+            sh_out = f"tank_connections.{self.sh_out}"
+
+            Tsup, Tdelta = self.supply_temp(self.T_amb_24h_mean, self.heating_curve) #from heating curve
             # using Tdelta to calculate Tretun, and then updating it if incase T supply changes
             self.heat_dT_sh = Tdelta
 
@@ -505,35 +519,27 @@ class Controller():
                 sh_F = 0 #unlikely in current setup, but if return temp delta not fixed, then maybe
 
             sh_T = helpers.get_nested_attr(self, sh_out+'_T')   #temp of the colder tank
-            sh2_T = helpers.get_nested_attr(self, sh_out2+'_T') if sh_out2 else None
 
-            fhot, fcold, Tsup = self.tcvalve1.get_flows(sh2_T, sh_T, Tsup, sh_F, Tdelta) #required flow rates from each of the tanks
-            sh_F = fhot+fcold #flow rate could be changed if cold tank warmer than req. supply temp
             self.sh_supply = sh_F * 4184 * Tdelta
 
             Tret = Tsup - Tdelta
 
-            if self.idealheater == 'on':
-                new_flow, self.P_hr_sh = self.hr.step(sh2_T, self.sh_demand, Tsup, Tret)
-                if self.P_hr_sh > 0:
-                    sh2_T = Tsup
-                    fhot = new_flow
-                    #assume, the hotter tank(dhw tank) will be given more priority.
-                    fcold = 0
-                    self.sh_supply = self.sh_demand
+            new_flow, self.P_hr_sh = self.hr.step(sh_T, self.sh_demand, Tsup, Tret)
+            if self.P_hr_sh > 0:
+                sh_T = Tsup
+                sh_F = new_flow
+                #assume, the hotter tank(dhw tank) will be given more priority.
+                fcold = 0
+                self.sh_supply = self.sh_demand
 
-            if (self.sh_supply - self.sh_demand) < -1:
-                tqdm.write(f'Deficit : {self.sh_supply - self.sh_demand}')
-
+            # mixing the hot water from the tank down, using the cold return line from the DHN to the required supply temperature
+            fhot_sh, fcold_sh, Tsup_sh = self.tcvalve1.get_flows(sh_T, Tret, Tsup, sh_F, Tdelta) #required flow rates from each of the tanks
+            
             #setting corresponding flow rates
-            helpers.set_nested_attr(self, sh_out+'_F', -fcold)
-            helpers.set_nested_attr(self, sh_out2+'_F', -fhot)
+            helpers.set_nested_attr(self, f"tank_connections.{self.sh_out}_T", sh_T) #not passed to tank, but to the visu for supporting calcs
+            helpers.set_nested_attr(self, f"tank_connections.{self.sh_out}_F", -fhot_sh)
 
-            # helpers.set_nested_attr(self, sh_out+'_T', sh_T)
-            # helpers.set_nested_attr(self, sh_out2+'_T', sh2_T)
-
-
-            #dhw
+            # Domestic Hot Water (DHW):
             dhw_out = f"tank_connections.{self.dhw_out}"
             self.dhw_out_T = helpers.get_nested_attr(self,dhw_out+'_T')
 
@@ -546,28 +552,28 @@ class Controller():
             dhw_F = min(self.max_flow, dhw_F)
             self.dhw_supply = dhw_F * 4184 * self.dhw_Tdelta
 
-            if self.idealheater == 'on':
-                new_flow, self.IdealHrodsum = self.hr.step(self.dhw_out_T, self.dhw_demand, self.T_dhw_sp, self.dhw_out_T - self.dhw_Tdelta)
-                if self.IdealHrodsum > 0:
-                    self.dhw_out_T = self.T_dhw_sp
-                    dhw_F = new_flow
-                    self.dhw_supply = self.dhw_demand
+            new_flow, self.P_hr_dhw = self.hr.step(self.dhw_out_T, self.dhw_demand, self.T_dhw_sp, self.dhw_out_T - self.dhw_Tdelta)
+            if self.P_hr_dhw > 0:
+                self.dhw_out_T = self.T_dhw_sp
+                dhw_F = new_flow
+                self.dhw_supply = self.dhw_demand
 
+            # mixing the hot water from the tank down, using the cold return line from the DHN to the required supply temperature
+            fhot_dhw, fcold_dhw, Tsup_dhw = self.tcvalve1.get_flows(self.dhw_out_T, (self.T_dhw_sp-self.dhw_Tdelta), self.T_dhw_sp, dhw_F, self.dhw_Tdelta) #required flow rates from each of the tanks
+            self.dhw_rT = self.T_dhw_sp - self.dhw_Tdelta
 
-            self.IdealHrodsum += self.P_hr_sh
-            helpers.set_nested_attr(self, dhw_out+'_F', -dhw_F)
-            helpers.set_nested_attr(self, dhw_out+'_T', self.dhw_out_T)
+            self.IdealHrodsum = self.P_hr_sh + self.P_hr_dhw 
+            helpers.set_nested_attr(self, dhw_out+'_F', -fhot_dhw)
+            helpers.set_nested_attr(self, dhw_out+'_T', self.dhw_rT)
 
-            self.dhw_rT = self.dhw_out_T - self.dhw_Tdelta
-
-            if config == '3-runner':
-                helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", dhw_F + sh_F)
-                helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", (self.dhw_rT*dhw_F + Tret*sh_F)/(dhw_F+sh_F) if (dhw_F+sh_F) != 0 else 0)
-            elif config == '4-runner':
-                helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_F", sh_F)
+            if config == '3-pipe':
+                helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", fhot_dhw + fhot_sh)
+                helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", (self.dhw_rT*fhot_dhw + Tret*fhot_sh)/(fhot_dhw+fhot_sh) if (fhot_dhw+fhot_sh) != 0 else 0)
+            elif config == '4-pipe':
+                helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_F", fhot_sh)
                 helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_T", Tret)
 
-                helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_F", dhw_F)
+                helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_F", fhot_dhw)
                 helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_T", self.dhw_rT)
 
     def validate_params(self, params, *, warn: bool = True):
@@ -606,8 +612,8 @@ class Controller():
             "supply_config": {
                 "required": True,
                 "types": (str,),
-                "pred": lambda v: v in ["2-runner","3-runner", "4-runner"],
-                "msg": "'supply_config' must be either '2-runner', '3-runner' or '4-runner'.",
+                "pred": lambda v: v in ["2-pipe", "2-pipe-dch", "3-pipe", "4-pipe"],
+                "msg": "'supply_config' must be either '2-pipe', '2-pipe-dch', '3-pipe' or '4-pipe'.",
             },
             "NumberofTanks": {
                 "required": True,
@@ -646,7 +652,7 @@ class Controller():
 
             # conditionally required params
             "TankbalanceSetup": {
-                "required": True if params.get("NumberofTanks", 0) > 1 else False,
+                "required": False,
                 "types": (list, tuple, np.ndarray),
                 "pred": lambda v: (len(v) > 0 and all(isinstance(x, (str,)) for x in v)),
                 "msg": "'TankbalanceSetup' must be a non-empty list/array of strings for eg. ['tank0.heat_out:tank1.hp_out', 'tank1.heat_out:tank2.hp_out'].",
@@ -700,18 +706,21 @@ class Controller():
         # -------------------- cross-field required logic --------------------
         supply_config = params.get("supply_config", None)
 
-        if supply_config == "2-runner":
+        if supply_config == "2-pipe":
             if params.get("supply_conn", None) is None or params.get("return_conn", None) is None:
-                hard_errors.append(f"{name}: 'supply_conn' and 'return_conn' are required for '2-runner' supply_config.")
+                hard_errors.append(f"{name}: 'supply_conn' and 'return_conn' are required for '2-pipe' supply_config.")
 
-        if supply_config == "3-runner":
+            if params.get("T_dhn_sp", None) is None:
+                hard_errors.append(f"{name}: 'T_dhn_sp' is required for '2-pipe' supply_config.")
+
+        if supply_config == "3-pipe":
             # FIX: use 'return_conn' key (not 'ret_tank')
             if params.get("sh_out", None) is None or params.get("dhw_out", None) is None or params.get("return_conn", None) is None:
-                hard_errors.append(f"{name}: 'sh_out', 'dhw_out' and 'return_conn' are required for '3-runner' supply_config.")
+                hard_errors.append(f"{name}: 'sh_out', 'dhw_out' and 'return_conn' are required for '3-pipe' supply_config.")
 
-        if supply_config == "4-runner": 
+        if supply_config == "4-pipe": 
             if params.get("sh_out", None) is None or params.get("dhw_out", None) is None or params.get("sh_ret", None) is None or params.get("dhw_ret", None) is None:
-                hard_errors.append(f"{name}: 'sh_out', 'dhw_out', 'sh_ret' and 'dhw_ret' are required for '4-runner' supply_config.")
+                hard_errors.append(f"{name}: 'sh_out', 'dhw_out', 'sh_ret' and 'dhw_ret' are required for '4-pipe' supply_config.")
         
         if hard_errors:
             raise IncompleteConfigError(
@@ -742,22 +751,22 @@ class TCValve():
         Parameters
         ----------
         Thot : float
-            Temperature of the hot tank [°C].
+            Temperature of the hot port (A) [°C].
         Tcold : float
-            Temperature of the cold tank [°C].
+            Temperature of the cold port (B) [°C].
         T : float
             Target (mixed) supply temperature [°C].
         flow : float
-            Total requested flow rate [kg/s or L/s].
+            Total requested flow rate at outgoing port (AB) [kg/s or L/s].
         dT : float
-            Temperature difference between suppy and return lines.
+            Temperature difference between supply and return lines.
 
         Returns
         -------
         f_hot : float
-            Flow rate from the hot tank [kg/s or L/s].
+            Flow rate into the hot port (A) [kg/s or L/s].
         f_cold : float
-            Flow rate from the cold tank [kg/s or L/s].
+            Flow rate into the cold port (B) [kg/s or L/s].
         T_sup : float
             Actual supply temperature achieved after mixing [°C].
         """
@@ -817,7 +826,6 @@ class TCValve():
 
         return f_hot, f_cold, T_sup
 
-        
 class idealHeatRod():
     """
     Ideal electric heating rod model.
@@ -874,7 +882,7 @@ class idealHeatRod():
         
         # Assuming a 5k tolerance, this case intended for space heating, exact outflow temp is not important.
         #If outflow temp lower than tolerance, deficit to achieve determined temp calc here.
-        if temp < sup_setTemp - 5:
+        if temp < sup_setTemp - 0.5:
             flow = demand/ (self.cp * (sup_setTemp - ret_setTemp))
             P = flow * self.cp * (sup_setTemp - temp)
         else:
