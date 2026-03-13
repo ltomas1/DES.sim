@@ -454,8 +454,7 @@ class Controller():
         """Calculate the mass flows and temperatures of water, and the heat from the back up heater in the space
         heating (SH) circuit"""
         
-        if config == '2-runner':
-            #TODO: add error message if params are not defined 
+        if config == '2-runner': 
             try:
                 heat_in_F = self.heat_demand/ (4184 * self.heat_dT)
             except ZeroDivisionError:
@@ -488,7 +487,6 @@ class Controller():
         
 
         if config == '3-runner' or config == '4-runner':
-            #TODO: add error message if params are not defined
             # Space heating :
             sh_out = f"tank_connections.{self.sh_out}"
             if self.sh_out2: 
