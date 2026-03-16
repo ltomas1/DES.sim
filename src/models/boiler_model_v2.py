@@ -109,7 +109,6 @@ class Gboiler(Transformer_base):
         self.startup_coeff = params.get('startup_coeff', None) # Future : list of lists, corresponding to each power stage
         self.startup_time = params.get('startup_limit', None)
         self.startup_eta_coeff = params.get('startup_eta_coeff', None)# coefficients to represent lower eta at startup
-        self.step_size = None
 
         #input/outpus
         self.status = None
@@ -176,7 +175,7 @@ class Gboiler(Transformer_base):
         if warn:
             if (params.get("startup_coeff", None) is None and params.get("startup_eta_coeff", None) is None) and params.get("startup_limit", None) is not None:
                 tqdm.write(
-                    f"- {name}: 'startup_limit' is defined but no startup coefficients are provided; 'startup_limit' will be ignored."
+                    f"- {name}: 'startup_limit' is defined but no startup coefficients are provided; a linear ramp with 'startup_limit' will be used for startup power and efficiency."
                 )
         # -------------------- constraints (dict rules, per-key) --------------------
         rules = {

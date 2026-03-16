@@ -26,7 +26,7 @@ Author: AqibThennadan
 import mosaik_api
 from tqdm import tqdm
 import numpy as np
-import numpy as np
+
 
 class IncompleteConfigError(Exception):
     """Raised when required configuration for a transformer is missing."""
@@ -71,7 +71,6 @@ class Transformer_base:
         self.set_flow = params.get('set_flow', None) #fixed flow rate kg/s
         self.nom_eta = params.get('efficiency', None)
         self.heat_value = params.get('heating_value', 10833.3)
-        self.step_size = None
 
 
         # the inputs/outputs - decide whether a seperate class or not!
@@ -161,13 +160,13 @@ class Transformer_base:
         # Loop 1: warnings for defaults
         # default_warnings = {
         #     "heating_value": (
-        #         "boiler: 'heating_value' not provided; Boiler will default to 10833.3."
+        #         "{name}: 'heating_value' not provided; Boiler will default to 10833.3."
         #     ),
         #     "cp": (
-        #         "boiler: 'cp' (specific heat capacity) not provided; Boiler will default to 4187 J/kgK (water)."
+        #         "{name}: 'cp' (specific heat capacity) not provided; Boiler will default to 4187 J/kgK (water)."
         #     ),
         #     "op_stages": (
-        #         "boiler: 'op_stages' not provided; Boiler will default to [0, 1] (0% and 100% of nominal power)."
+        #         "{name}: 'op_stages' not provided; Boiler will default to [0, 1] (0% and 100% of nominal power)."
         #     ),
         # }
         # for key, msg in default_warnings.items():

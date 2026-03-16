@@ -9,11 +9,8 @@ class CHP(Gboiler):
     def __init__(self, params, *, warn: bool = True):
         super().__init__(params, warn=warn)
 
-        self.nom_P_el = params.get('P_el', None) # TODO: warning (or error) if this is None
+        self.nom_P_el = params.get('P_el', None)
         self.elec_share = params.get('elec_share', None) # TH to EL ratio, P_el / P_th
-        self.startup_coeff = params.get('startup_coeff') # Future : list of lists, corresponding to each power stage
-        self.startup_time = params.get('startup_limit')
-        self.step_size = None
 
         if self.nom_P_el:
             self.elec_share = self.nom_P_el/self.nom_P_th #More intuitive to have the nominal power defined by the user.
