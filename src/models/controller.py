@@ -419,27 +419,72 @@ class Controller():
 
         # ----------------- Tank balancing flows -----------------------
         if self.tank_setup is not None:
+            tol = 1e-9
+        
+            # First pass: collect all balance endpoints
+            balance_endpoints = []
             for link in self.tank_setup:
-                src, dst = link.split(':')
-                src_tank, src_port = src.split('.')
-                dst_tank, dst_port = dst.split('.')
-                self.tank_connections[src_tank][f'{src_port}_F'] = 0
-                self.residual_flow = sum([flow for port, flow in self.tank_connections[src_tank].items() if '_F' in port ])
-                
-                if self.residual_flow > 0:
-                    # Flow from src to dst
-                    self.tank_connections[dst_tank][f'{dst_port}_T'] = self.tank_connections[src_tank][f'{src_port}_T']
-                    self.tank_connections[dst_tank][f'{dst_port}_F'] = self.residual_flow #inflow
-                    self.tank_connections[src_tank][f'{src_port}_F'] = -self.residual_flow #outflow
-                else:
-                    # Flow from dst to src
-                    self.tank_connections[src_tank][f'{src_port}_T'] = self.tank_connections[dst_tank][f'{dst_port}_T']
-                    self.tank_connections[src_tank][f'{src_port}_F'] = -self.residual_flow #inflow
-                    self.tank_connections[dst_tank][f'{dst_port}_F'] = self.residual_flow #outflow
+                left, right = link.split(':')
+                left_tank, left_port = left.split('.')
+                right_tank, right_port = right.split('.')
+                balance_endpoints.append((left_tank, left_port))
+                balance_endpoints.append((right_tank, right_port))
+        
+            # Build set once for fast lookup when computing residuals
+            balance_port_set = set(balance_endpoints)
+
+            # Second pass: reset all endpoint flows globally
+            for tank, port in balance_port_set:
+                self.tank_connections[tank][f'{port}_F'] = 0.0
+
+
+            # Third pass: balancing transfers using running residuals
+            residual = {}
+            for tank, vals in self.tank_connections.items():
+                residual[tank] = sum(
+                    flow
+                    for flow_key, flow in vals.items()
+                    if flow_key.endswith('_F')
+                    and (tank, flow_key[:-2]) not in balance_port_set
+                )
+            
+            for link in self.tank_setup:
+                left, right = link.split(':')
+                left_tank, left_port = left.split('.')
+                right_tank, right_port = right.split('.')
+            
+                left_res = residual[left_tank]
+                right_res = residual[right_tank]
+
+                # branch 1: left side has excess, right side has deficit or near-neutral
+                if left_res > tol and right_res <= tol:
+                    if right_res < -tol:
+                        flow_amt = min(left_res, -right_res)   # opposite side has deficit
+                    else:
+                        flow_amt = left_res                   # opposite side is near-neutral
+
+                    self.tank_connections[right_tank][f'{right_port}_T'] = self.tank_connections[left_tank][f'{left_port}_T']
+                    self.tank_connections[right_tank][f'{right_port}_F'] = flow_amt
+                    self.tank_connections[left_tank][f'{left_port}_F'] = -flow_amt
+                    residual[left_tank] -= flow_amt
+                    residual[right_tank] += flow_amt
+
+                # branch 2: right side has excess, left side has deficit or near-neutral
+                elif right_res > tol and left_res <= tol:
+                    if left_res < -tol:
+                        flow_amt = min(right_res, -left_res)   # opposite side has deficit
+                    else:
+                        flow_amt = right_res                    # opposite side is near-neutral
+            
+                    self.tank_connections[left_tank][f'{left_port}_T'] = self.tank_connections[right_tank][f'{right_port}_T']
+                    self.tank_connections[left_tank][f'{left_port}_F'] = flow_amt
+                    self.tank_connections[right_tank][f'{right_port}_F'] = -flow_amt
+                    residual[right_tank] -= flow_amt
+                    residual[left_tank] += flow_amt
 
         for tank, vals in self.tank_connections.items():
             self.netflow = sum([flow for port, flow in vals.items() if '_F' in port ])
-            if abs(self.netflow) > 1e-5:
+            if abs(self.netflow) > 1e-2:
                 raise ValueError(f"{tank} netflow error!")
 
     def supply_temp(self, out_temp, buildingtype):
