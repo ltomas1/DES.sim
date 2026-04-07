@@ -1,0 +1,185 @@
+{
+    "hp": {
+        "hp_model": "Air_60kW",
+        "heat_source": "Air",
+        "calc_mode": "fast"
+    },
+
+    "chp": {
+        "nom_P_th": 90000,
+        "op_stages": [0, 0.25, 0.5, 0.75, 1.0],
+        "P_el": 50000,
+        "efficiency": 0.8,
+        "set_flow": 4,
+        "heating_value": 10833.3
+    },
+
+    "boiler": {
+        "nom_P_th": 200000,
+        "set_temp": 75,
+        "efficiency": 0.8,
+        "heating_value": 10833.3
+    },
+
+    "ctrl": {
+        "operation_mode": "heating",
+        "control_strategy": "1",
+        "supply_config": "4-pipe",
+        "heating_curve": "floor_high_insulation",
+        "T_dhn_sp": 67,
+        "sh_out" : "tank1.heat_out2",
+        "dhw_out" : "tank2.heat_out",
+        "sh_ret" : "tank0.heat_in",
+        "dhw_ret" : "tank2.heat_in",
+        "gens" : ["hp", "chp", "boiler"],
+        "NumberofTanks" : 3,
+        "TankbalanceSetup" : ["tank0.heat_out:tank1.hp_out", "tank1.heat_out:tank2.hp_out"],
+        "logic" : {
+            "chp" : {
+                "turn_on" : {
+                    "tank" : "tank2",
+                    "layer" : "sensor_2",
+                    "turn_on_temp" : 65
+                },
+                "turn_off" : {
+                    "tank" : "tank2",
+                    "layer" : "sensor_2",
+                    "turn_off_temp" : 75
+                }
+            },
+            "hp" : {
+                "turn_on" : {
+                    "tank" : "tank1",
+                    "layer" : "sensor_2",
+                    "turn_on_temp" : 43
+                },
+                "turn_off" : {
+                    "tank" : "tank1",
+                    "layer" : "sensor_2",
+                    "turn_off_temp" : 65
+                },
+                "add_conditions" :{ 
+                            "turn_on" : {"battery_full" : ["==", "True"]}
+            }
+            },
+            "boiler" : {
+                "turn_on":{
+                    "tank" : "tank2",
+                    "layer" : "sensor_2",
+                    "turn_on_temp" : 64
+                }
+            }
+        }
+
+    },
+
+    "tank": {
+        "Tanknumber" : "-",
+        "height": 2500,
+        "volume": 20000,
+        "T_env": 20.0,
+        "htc_walls": 0.28,
+        "htc_layers": 0.897,
+        "n_layers": 3,
+        "n_sensors": 3,
+        "connections": {
+            "heat_in": {
+                "pos": 150
+            },
+            "heat_out": {
+                "pos": 2350
+            },
+            "chp_in": {
+                "pos": 2300
+            },
+            "chp_out": {
+                "pos": 50
+            },
+            "hp_in": {
+                "pos": 2200
+            },
+            "hp_out": {
+                "pos": 100
+            },
+            "boiler_in": {
+                "pos": 2400
+            },
+            "boiler_out": {
+                "pos": 120
+            },
+            "heat_out2": {
+                "pos": 2400
+            },
+            "heat_in2": {
+                "pos": 200
+            }
+        },
+        "heating_rods": {
+            "hr_1": {
+                "mode": "on",
+                "pos": 2200,
+                "P_th_stages": [
+                    0,
+                    500,
+                    1000,
+                    2000,
+                    10000
+                ],
+                "T_max": 67,
+                "eta": 1
+            }
+        }
+    },
+
+    "init_vals_tank": {
+        "init_vals_hwt0": {
+            "layers": {
+                "T": [
+                    40.0,
+                    30.0,
+                    20.0
+                ]
+            },
+            "hr_1": {
+                "P_el": 0
+            }
+        },
+        "init_vals_hwt1": {
+            "layers": {
+                "T": [
+                    40.0,
+                    30.0,
+                    20.0
+                ]
+            },
+            "hr_1": {
+                "P_el": 0
+            }
+        },
+        "init_vals_hwt2": {
+            "layers": {
+                "T": [
+                    80.0,
+                    70.0,
+                    60.0
+                ]
+            },
+            "hr_1": {
+                "P_el": 500
+            }
+        }
+    },
+
+    "pv" : {
+        "calc_mode" : "simple",
+        "nom_power" : 70000,
+        "coordinates" : [49.1, 8.5, "Stutensee", 110, "Etc/GMT-1"],
+        "irradiation_data" : "../data/inputs/2025-04-07-Project1-weather.csv"
+    },
+
+    "battery": {
+        "nom_capacity": 65000,
+        "charge_eff": 0.93,
+        "max_charge_power": 25000
+    }
+}
