@@ -168,7 +168,7 @@ def prepare_visu_v2(
 
     # Stage 1: resolve paths + validate
     paths = _stage1_resolve_paths(
-        project_root=project_root,
+        project_root=os.path.dirname(os.path.abspath("__file__")),
         des_csv_path=des_csv_path,
         pv_output_dir=pv_output_dir,
         input_csv_path=input_csv_path,
