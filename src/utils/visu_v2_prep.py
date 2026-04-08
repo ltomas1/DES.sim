@@ -51,10 +51,6 @@ REQUIRED_PLOT_COLUMNS = [
 COLUMN_TRANSLATION_BASE: Dict[str, str] = {
     "Power[w]": "PV_P[W]",
     "CSV-0.DNI_0-DNI": "DNI",
-    "CSV-1.HEATLOAD_0-T_amb": "T_amb",
-    "CSV-1.HEATLOAD_0-Heat Demand [kW]": "Heat Demand [KW]",
-    "CSV-1.HEATLOAD_0-Domestic hot water (kW)": "Domestic Hot Water [KW]",
-    "CSV-1.HEATLOAD_0-Space heating (kW)": "Space Heating [KW]",
     "CHPSim-0.CHP_0-eff_el": "CHP_eff",
 }
 
@@ -172,7 +168,7 @@ def prepare_visu_v2(
 
     # Stage 1: resolve paths + validate
     paths = _stage1_resolve_paths(
-        project_root=project_root,
+        project_root=os.path.dirname(os.path.abspath("__file__")),
         des_csv_path=des_csv_path,
         pv_output_dir=pv_output_dir,
         input_csv_path=input_csv_path,
@@ -332,13 +328,24 @@ def _merge_pv_and_dedup(df: pd.DataFrame, pv_df: pd.DataFrame) -> pd.DataFrame:
 def _build_column_translation(df_columns: Iterable[str]) -> Dict[str, str]:
     columnname: Dict[str, str] = dict(COLUMN_TRANSLATION_BASE)
 
-    # 3. The Generic Loop
+    # Generic loop over all columns
     for col in df_columns:
         # Skip if already renamed
-        if col.startswith("HWT") or col.startswith("CHP_") or col.startswith("Boiler_") or col.startswith(
-            "HP_"
-        ):
+        if col.startswith("HWT") or col.startswith("CHP_") or col.startswith("Boiler_") or col.startswith("HP_"):
             continue
+
+        # Handle HEATLOAD columns regardless of CSV simulator index
+        if ".HEATLOAD_0-" in col:
+            heatload_suffix_map = {
+                "T_amb": "T_amb",
+                "Heat Demand [kW]": "Heat Demand [KW]",
+                "Domestic hot water (kW)": "Domestic Hot Water [KW]",
+                "Space heating (kW)": "Space Heating [KW]",
+            }
+            raw = col.split(".HEATLOAD_0-", 1)[1]
+            if raw in heatload_suffix_map:
+                columnname[col] = heatload_suffix_map[raw]
+                continue
 
         if "HotWaterTankSim" in col:
             tank_id = col.split(".")[0].split("-")[-1]
@@ -1051,7 +1058,7 @@ def _stage1_resolve_paths(
     pv_output_dir: Optional[Path | str],
     input_csv_path: Optional[Path | str],
     params_json_path: Optional[Path | str],
-) -> Dict[str, Path]:
+) -> Dict[str, Any]:
     root = Path(project_root).resolve() if project_root is not None else _infer_project_root()
 
     des_csv = Path(des_csv_path).resolve() if des_csv_path is not None else (root / "data" / "outputs" / "DES_data.csv")
@@ -1069,24 +1076,18 @@ def _stage1_resolve_paths(
 
     if not des_csv.exists():
         raise FileNotFoundError(f"DES output CSV not found: {des_csv}")
-    if not pv_dir.exists():
-        raise FileNotFoundError(f"PV output directory not found: {pv_dir}")
     if not input_csv.exists():
         raise FileNotFoundError(f"Input demand CSV not found: {input_csv}")
     if not params_json.exists():
         raise FileNotFoundError(f"Params JSON not found: {params_json}")
 
+    # PV directory is optional; scenarios without PV should still run.
     return {"root": root, "des_csv": des_csv, "pv_dir": pv_dir, "input_csv": input_csv, "params_json": params_json}
 
 
-def _stage2_load_inputs(paths: Dict[str, Path]) -> Dict[str, Any]:
+def _stage2_load_inputs(paths: Dict[str, Any]) -> Dict[str, Any]:
     df = pd.read_csv(paths["des_csv"], sep=",", index_col=DES_DATE_INDEX_COL)
     df.index = pd.to_datetime(df.index)
-
-    latest_pv_file = _find_latest_csv(paths["pv_dir"])
-    pv_df = pd.read_csv(latest_pv_file)
-    pv_df.index = pd.to_datetime(pv_df[PV_INDEX_COL])
-    pv_df.index = pv_df.index.tz_localize(None)
 
     input_df = pd.read_csv(paths["input_csv"], sep=",", skiprows=[0])
     input_df.index = pd.to_datetime(input_df[INPUT_TIME_COL])
@@ -1105,10 +1106,29 @@ def _stage2_load_inputs(paths: Dict[str, Path]) -> Dict[str, Any]:
     params_chp = params.get("params_chp")
     params_boiler = params.get("params_boiler")
 
+    # PV handling: only load PV if scenario requests it AND data exists.
+    latest_pv_file = None
+    pv_df = None
+    pv_simulated = bool(params.get("pv"))
+    pv_dir = paths.get("pv_dir")
+
+    if pv_simulated and isinstance(pv_dir, Path) and pv_dir.exists():
+        try:
+            latest_pv_file = _find_latest_csv(pv_dir)
+            _pv = pd.read_csv(latest_pv_file)
+            _pv.index = pd.to_datetime(_pv[PV_INDEX_COL])
+            _pv.index = _pv.index.tz_localize(None)
+            pv_df = _pv
+        except FileNotFoundError:
+            # PV requested but no PV CSV present -> continue without PV merge.
+            latest_pv_file = None
+            pv_df = None
+
     return {
         "df_raw": df,
         "latest_pv_file": latest_pv_file,
         "pv_df": pv_df,
+        "pv_simulated": pv_simulated,
         "input_df": input_df,
         "params": params,
         "params_hp": params_hp,
@@ -1121,7 +1141,12 @@ def _stage2_load_inputs(paths: Dict[str, Path]) -> Dict[str, Any]:
 
 
 def _stage3_prepare_frames(loaded: Dict[str, Any]) -> Dict[str, Any]:
-    df = _merge_pv_and_dedup(loaded["df_raw"], loaded["pv_df"])
+    df = loaded["df_raw"].copy()
+
+    pv_df = loaded.get("pv_df")
+    if isinstance(pv_df, pd.DataFrame) and not pv_df.empty:
+        df = _merge_pv_and_dedup(df, pv_df)
+
     df, untranslated_columns = _apply_column_translation(df)
     df = df.apply(pd.to_numeric, errors="coerce")
     df_monthly = df.resample("M").sum() / 4
