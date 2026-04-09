@@ -12,7 +12,7 @@ class CHP(Gboiler):
         self.nom_P_el = params.get('P_el', None)
         self.elec_share = params.get('elec_share', None) # TH to EL ratio, P_el / P_th
 
-        if self.nom_P_el:
+        if self.nom_P_el and self.nom_P_th > 0:
             self.elec_share = self.nom_P_el/self.nom_P_th #More intuitive to have the nominal power defined by the user.
         self.P_el = None
 

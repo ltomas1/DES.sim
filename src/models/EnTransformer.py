@@ -197,8 +197,8 @@ class Transformer_base:
             "nom_P_th": {
                 "required": False,
                 "types": (int, float, np.number),
-                "pred": lambda v: v > 0,
-                "msg": "'nom_P_th' must be a number > 0 when provided.",
+                "pred": lambda v: v >= 0,
+                "msg": "'nom_P_th' must be a number >= 0 when provided.",
             },
             "set_temp": {
                 "required": False,
