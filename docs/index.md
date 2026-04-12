@@ -1,4 +1,4 @@
-# main_sim — Configuration Guide
+# main_sim.py — Configuration Guide
 
 ## Overview
 
