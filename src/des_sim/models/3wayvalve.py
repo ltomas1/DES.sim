@@ -1,5 +1,5 @@
 import mosaik_api
-from src.utils import helpers
+from des_sim.utils import helpers
 
 class ThreeWayValve():
     '''

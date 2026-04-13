@@ -122,7 +122,7 @@ def sim(params):
     # --------------------------npro weather-----------------------------------------
     # raw = pd.read_csv(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'data', 'inputs', '2025-04-07-Project1-weather.csv')), 
     #                   sep=';', index_col='Time', encoding='cp1252')
-    raw = pd.read_csv(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', data_path)), 
+    raw = pd.read_csv(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', data_path)), 
                       sep=';', index_col='Time', encoding='cp1252')
 
     weather = pd.DataFrame({
@@ -180,14 +180,14 @@ def sim(params):
     weather.index = weather.index.tz_localize(None)
     unique_id = str(uuid.uuid4())[:8]
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    output_path = os.path.abspath(os.path.join(script_dir, '..', '..', 'data', 'outputs', 'pv', f'PVlib_output{unique_id}.csv'))
+    output_path = os.path.abspath(os.path.join(script_dir, '..', '..', '..', 'data', 'outputs', 'pv', f'PVlib_output{unique_id}.csv'))
     weather.to_csv(output_path)
     print('PVlib simulation finished!')
     
     return output_path
 
 if __name__ == "__main__":   
-    path = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'data','inputs', 'input_params.json'))
+    path = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', '..', 'data','inputs', 'input_params.json'))
     with open(path, 'r') as f:
         params = json.load(f)
 

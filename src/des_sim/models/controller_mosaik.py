@@ -3,9 +3,9 @@ Mosaik interface for controller model
 
 """
 import mosaik_api
-from src.models.controller import Controller
+from des_sim.models.controller import Controller
 from tqdm import tqdm
-from src.utils import helpers
+from des_sim.utils import helpers
 
 META = {
     'type': 'time-based',

@@ -297,7 +297,7 @@ def _resolve_step_size(step_size: Optional[float]) -> float:
         pass
 
     try:
-        from src import main_sim  # type: ignore
+        from des_sim import main_sim  # type: ignore
 
         return float(main_sim.STEP_SIZE)
     except Exception:
