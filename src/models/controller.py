@@ -419,28 +419,99 @@ class Controller():
 
         # ----------------- Tank balancing flows -----------------------
         if self.tank_setup is not None:
+            tol = 1e-9
+
+            # Reset balancing endpoints and build the link graph
+            link_adjacency = {tank: set() for tank in self.tanks}
             for link in self.tank_setup:
-                src, dst = link.split(':')
-                src_tank, src_port = src.split('.')
-                dst_tank, dst_port = dst.split('.')
-                self.tank_connections[src_tank][f'{src_port}_F'] = 0
-                self.residual_flow = sum([flow for port, flow in self.tank_connections[src_tank].items() if '_F' in port ])
-                
-                if self.residual_flow > 0:
-                    # Flow from src to dst
-                    self.tank_connections[dst_tank][f'{dst_port}_T'] = self.tank_connections[src_tank][f'{src_port}_T']
-                    self.tank_connections[dst_tank][f'{dst_port}_F'] = self.residual_flow #inflow
-                    self.tank_connections[src_tank][f'{src_port}_F'] = -self.residual_flow #outflow
-                else:
-                    # Flow from dst to src
-                    self.tank_connections[src_tank][f'{src_port}_T'] = self.tank_connections[dst_tank][f'{dst_port}_T']
-                    self.tank_connections[src_tank][f'{src_port}_F'] = -self.residual_flow #inflow
-                    self.tank_connections[dst_tank][f'{dst_port}_F'] = self.residual_flow #outflow
+                left, right = link.split(':')
+                left_tank, left_port = left.split('.')
+                right_tank, right_port = right.split('.')
+                self.tank_connections[left_tank][f'{left_port}_F'] = 0.0
+                self.tank_connections[right_tank][f'{right_port}_F'] = 0.0
+                link_adjacency[left_tank].add(right_tank)
+                link_adjacency[right_tank].add(left_tank)
+
+            # Compute residuals once after reset
+            residuals = {
+                tank: sum(flow for key, flow in vals.items() if key.endswith('_F'))
+                for tank, vals in self.tank_connections.items()
+            }
+
+            # Rerun passes until nothing moves; cascades resolve across passes
+            for i in range(len(self.tank_setup) + 1):
+                flow_moved = False
+
+                for link in self.tank_setup:
+                    left, right = link.split(':')
+                    left_tank, left_port = left.split('.')
+                    right_tank, right_port = right.split('.')
+
+                    left_res = residuals[left_tank]
+                    right_res = residuals[right_tank]
+
+                    # Decide donor and receiver based on residual signs
+                    donor_tank = donor_port = recv_tank = recv_port = None
+                    flow = 0.0
+
+                    if left_res > tol and right_res < -tol:
+                        # left has surplus, right has deficit
+                        donor_tank, donor_port = left_tank, left_port
+                        recv_tank, recv_port = right_tank, right_port
+                        flow = min(left_res, -right_res)
+                    elif right_res > tol and left_res < -tol:
+                        # right has surplus, left has deficit
+                        donor_tank, donor_port = right_tank, right_port
+                        recv_tank, recv_port = left_tank, left_port
+                        flow = min(right_res, -left_res)
+                    elif left_res > tol and abs(right_res) <= tol:
+                        # left has surplus, right is neutral: push only if a
+                        # deficit can be reached through right (cascade)
+                        if self._deficit_reachable(right_tank, link_adjacency, residuals, tol):
+                            donor_tank, donor_port = left_tank, left_port
+                            recv_tank, recv_port = right_tank, right_port
+                            flow = left_res
+                    elif right_res > tol and abs(left_res) <= tol:
+                        # right has surplus, left is neutral: same idea, mirrored
+                        if self._deficit_reachable(left_tank, link_adjacency, residuals, tol):
+                            donor_tank, donor_port = right_tank, right_port
+                            recv_tank, recv_port = left_tank, left_port
+                            flow = right_res
+
+                    if donor_tank is None or flow <= tol:
+                        continue
+
+                    # Apply the transfer and keep residuals in sync
+                    self.tank_connections[recv_tank][f'{recv_port}_T'] = self.tank_connections[donor_tank][f'{donor_port}_T']
+                    self.tank_connections[recv_tank][f'{recv_port}_F'] += flow
+                    self.tank_connections[donor_tank][f'{donor_port}_F'] -= flow
+                    residuals[donor_tank] -= flow
+                    residuals[recv_tank] += flow
+                    flow_moved = True
+
+                if not flow_moved:
+                    break
 
         for tank, vals in self.tank_connections.items():
             self.netflow = sum([flow for port, flow in vals.items() if '_F' in port ])
             if abs(self.netflow) > 1e-5:
                 raise ValueError(f"{tank} netflow error!")
+
+    
+    def _deficit_reachable(self, start_tank, link_adjacency, residuals, tol):
+        """Walk the link graph from start_tank; return True if any reachable
+        tank has a deficit residual."""
+        visited = {start_tank}
+        stack = [start_tank]
+        while stack:
+            node = stack.pop()
+            if residuals[node] < -tol:
+                return True
+            for neighbor in link_adjacency[node]:
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    stack.append(neighbor)
+        return False
 
     def supply_temp(self, out_temp, buildingtype):
         # largely based on npro guidelines.
