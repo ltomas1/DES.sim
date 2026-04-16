@@ -39,9 +39,9 @@ class Battery():
             self.P_el_out = min(self.P_el_out, self.max_discharge_power)
 
         # calculate new state of charge
-        if self.P_el_in is not None:
+        if self.P_el_in is not None and self.nom_capacity > 0:
             self.soc += ((self.P_el_in * self.charge_eff) * (self.step_size / 3600)) / self.nom_capacity * 100
-        if self.P_el_out is not None:
+        if self.P_el_out is not None and self.nom_capacity > 0:
             self.soc -= ((self.P_el_out / self.discharge_eff) * (self.step_size / 3600)) / self.nom_capacity * 100
        
         # ensure soc is within 0-100%
