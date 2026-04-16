@@ -77,8 +77,8 @@ class Battery():
                 "nom_capacity": {
                     "required": True,
                     "types": (int, float, np.number),
-                    "pred": lambda v: v > 0,
-                    "msg": "'nom_capacity' must be a number > 0 when provided.",
+                    "pred": lambda v: v >= 0,
+                    "msg": "'nom_capacity' must be a number >= 0 when provided.",
                 },
                 "charge_eff": {
                     "required": True,
@@ -89,8 +89,8 @@ class Battery():
                 "max_charge_power": {
                     "required": True,
                     "types": (int, float, np.number),
-                    "pred": lambda v: v > 0,
-                    "msg": "'max_charge_power' must be a number > 0 when provided.",
+                    "pred": lambda v: v >= 0,
+                    "msg": "'max_charge_power' must be a number >= 0 when provided.",
 
                 # optional common numeric params
                 },
@@ -103,8 +103,8 @@ class Battery():
                 "max_discharge_power": {
                     "required": False,
                     "types": (int, float, np.number),
-                    "pred": lambda v: v > 0,
-                    "msg": "'max_discharge_power' must be a number > 0 when provided.",
+                    "pred": lambda v: v >= 0,
+                    "msg": "'max_discharge_power' must be a number >= 0 when provided.",
                 },
             }
 
