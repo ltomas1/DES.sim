@@ -81,6 +81,7 @@ def run_DES(params, collect=True, plot_graph=False):
 
     # -----------------------------------------pv-------------------------------------------------------------------------------------
     #Standalone pvmodel-------------------------------------------------
+    params['pv']['irradiation_data'] = str(PROJECT_ROOT / params['pv']['irradiation_data'])
     pv_results = pvlib_model.sim(params_pv)
     pv_csv = world.start('CSV', sim_start = START, datafile = pv_results)
     pv_mod = pv_csv.Data.create(1)

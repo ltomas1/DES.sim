@@ -92,7 +92,7 @@ def sim(params):
         # longitude = params.get('longitude')
         nom_power = params.get('nom_power')
         coordinates = params.get('coordinates')
-        data_path = params.get('irradiation_data') #Relative to the main_sim dir
+        data_path = params.get('irradiation_data') #Relative to the project root dir
 
         module_info = ['SandiaMod','SunPower_128_Cell_Module__2009__E__']
         inverter_info = ['cecinverter', 'AEconversion_GMbH__INV500_90US_xxxxx__208V_']
@@ -122,8 +122,7 @@ def sim(params):
     # --------------------------npro weather-----------------------------------------
     # raw = pd.read_csv(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', 'data', 'inputs', '2025-04-07-Project1-weather.csv')), 
     #                   sep=';', index_col='Time', encoding='cp1252')
-    raw = pd.read_csv(os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', '..', data_path)), 
-                      sep=';', index_col='Time', encoding='cp1252')
+    raw = pd.read_csv(data_path, sep=';', index_col='Time', encoding='cp1252')
 
     weather = pd.DataFrame({
         'ghi' : raw['Global horizontal irradiance (W/m²)'],
@@ -179,8 +178,8 @@ def sim(params):
 
     weather.index = weather.index.tz_localize(None)
     unique_id = str(uuid.uuid4())[:8]
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    output_path = os.path.abspath(os.path.join(script_dir, '..', '..', '..', 'data', 'outputs', 'pv', f'PVlib_output{unique_id}.csv'))
+    #script_dir = os.path.dirname(os.path.abspath(__file__))
+    output_path = os.path.abspath(os.path.join(data_path, '..', '..', 'outputs', 'pv', f'PVlib_output{unique_id}.csv'))
     weather.to_csv(output_path)
     print('PVlib simulation finished!')
     

@@ -1,4 +1,9 @@
-[tool.setuptools]
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [project]
 name = "DES_sim"
@@ -10,6 +15,7 @@ keywords = ["DES", "mosaik", "simulation", "HP", "CHP", "PV"]
 
 # add necessary dependencies of the repo. They can be installed via "pip install ."
 dependencies = [
+    "setuptools<81",
     "mosaik==3.2.0",
     "mosaik-api==3.0.3",
     "mosaik-api-v3==3.0.9",
@@ -19,20 +25,17 @@ dependencies = [
     "mosaik-csv",
     "pandas",
     "numpy",
-    "pytest",
-    "flake8",
     "matplotlib",
     "plotly==5.24.1",
     "nest_asyncio",
     "nbformat==5.10.4"
-
 ]
-
 
 [project.optional-dependencies]
 # add optional dependencies of the repo. They could be installed via "pip install .[dev]" 
 dev = [
     "pytest",
+    "flake8",
 ]
 
 opti = [
