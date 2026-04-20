@@ -39,9 +39,9 @@ class Battery():
             self.P_el_out = min(self.P_el_out, self.max_discharge_power)
 
         # calculate new state of charge
-        if self.P_el_in is not None:
+        if self.P_el_in is not None and self.nom_capacity > 0:
             self.soc += ((self.P_el_in * self.charge_eff) * (self.step_size / 3600)) / self.nom_capacity * 100
-        if self.P_el_out is not None:
+        if self.P_el_out is not None and self.nom_capacity > 0:
             self.soc -= ((self.P_el_out / self.discharge_eff) * (self.step_size / 3600)) / self.nom_capacity * 100
        
         # ensure soc is within 0-100%
@@ -77,8 +77,8 @@ class Battery():
                 "nom_capacity": {
                     "required": True,
                     "types": (int, float, np.number),
-                    "pred": lambda v: v > 0,
-                    "msg": "'nom_capacity' must be a number > 0 when provided.",
+                    "pred": lambda v: v >= 0,
+                    "msg": "'nom_capacity' must be a number >= 0 when provided.",
                 },
                 "charge_eff": {
                     "required": True,
@@ -89,8 +89,8 @@ class Battery():
                 "max_charge_power": {
                     "required": True,
                     "types": (int, float, np.number),
-                    "pred": lambda v: v > 0,
-                    "msg": "'max_charge_power' must be a number > 0 when provided.",
+                    "pred": lambda v: v >= 0,
+                    "msg": "'max_charge_power' must be a number >= 0 when provided.",
 
                 # optional common numeric params
                 },
@@ -103,8 +103,8 @@ class Battery():
                 "max_discharge_power": {
                     "required": False,
                     "types": (int, float, np.number),
-                    "pred": lambda v: v > 0,
-                    "msg": "'max_discharge_power' must be a number > 0 when provided.",
+                    "pred": lambda v: v >= 0,
+                    "msg": "'max_discharge_power' must be a number >= 0 when provided.",
                 },
             }
 

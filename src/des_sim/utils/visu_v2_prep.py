@@ -153,6 +153,7 @@ def prepare_visu_v2(
     params_json_path: Optional[Path | str] = None,
     step_size: Optional[float] = None,
     verbose: bool = False,
+    dict_input: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Prepare all data structures that `visu_v2.ipynb` expects.
 
@@ -168,15 +169,14 @@ def prepare_visu_v2(
 
     # Stage 1: resolve paths + validate
     paths = _stage1_resolve_paths(
-        project_root=os.path.dirname(os.path.abspath("__file__")),
+        project_root=project_root,
         des_csv_path=des_csv_path,
         pv_output_dir=pv_output_dir,
         input_csv_path=input_csv_path,
         params_json_path=params_json_path,
     )
 
-    # Stage 2: load raw inputs
-    loaded = _stage2_load_inputs(paths)
+    loaded = _stage2_load_inputs(paths, dict_input=dict_input)
 
     # Stage 3: prepare frames
     prepared = _stage3_prepare_frames(loaded)
@@ -249,6 +249,8 @@ def prepare_visu_v2(
         "df": prepared["df"],
         "generic_energy_sankey": build_sankey_inputs(computed["final_links"]),
         "electric_sankey": build_sankey_inputs(computed["elec_links"]),
+        "energies": computed["energies"],
+        "final_links": computed["final_links"],
         "aggregated_plot_traces": computed["aggregated_traces"],
         "params": loaded["params"],
         "params_hp": loaded["params_hp"],
@@ -297,7 +299,7 @@ def _resolve_step_size(step_size: Optional[float]) -> float:
         pass
 
     try:
-        from des_sim import main_sim  # type: ignore
+        from src import main_sim  # type: ignore
 
         return float(main_sim.STEP_SIZE)
     except Exception:
@@ -792,8 +794,8 @@ def _build_electrical_links(df: pd.DataFrame, *, input_df: pd.DataFrame, step_si
 
     if "Household_demand" in clone_df.columns:
         users["Household Electricity"] = clone_df["Household_demand"]
-    elif "Electricity Demand [W]" in input_df.columns:
-        users["Household Electricity"] = input_df["Electricity Demand [W]"]
+    elif "Electricity demand[kW]" in input_df.columns:
+        users["Household Electricity"] = input_df["Electricity demand[kW]"]*1000
 
     if "HP_P_Required" in clone_df.columns:
         users["Heat Pump"] = clone_df["HP_P_Required"]
@@ -1085,12 +1087,33 @@ def _stage1_resolve_paths(
     return {"root": root, "des_csv": des_csv, "pv_dir": pv_dir, "input_csv": input_csv, "params_json": params_json}
 
 
-def _stage2_load_inputs(paths: Dict[str, Any]) -> Dict[str, Any]:
-    df = pd.read_csv(paths["des_csv"], sep=",", index_col=DES_DATE_INDEX_COL)
-    df.index = pd.to_datetime(df.index)
+def _stage2_load_inputs(paths: Dict[str, Any], dict_input: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    
+    def nested_dict_to_df(data, sep="-"):
+            flat = {
+            f"{k}{sep}{sk}": pd.Series(vals)
+            for k, sub in data.items()
+            for sk, vals in sub.items()
+            }
+            return pd.DataFrame(flat)
+    
+    if dict_input is not None:
+        df = nested_dict_to_df(dict_input)
+        df.set_index("CSV-1.HEATLOAD_0-Timestamp", inplace=True)
+        df.index = pd.to_datetime(df.index)
+        
+        # input_df are all df columns that start with "CSV-1." 
+        input_cols = [col for col in df.columns if col.startswith("CSV-1.")]
+        input_df = df[input_cols]
+        input_df.columns = [col.split("-", 1)[-1] for col in input_df.columns]
+        # delete the input columns from df to avoid confusion later
+        df.drop(columns=input_cols, inplace=True)
+    else:
+        df = pd.read_csv(paths["des_csv"], sep=",", index_col=DES_DATE_INDEX_COL)
+        df.index = pd.to_datetime(df.index)
 
-    input_df = pd.read_csv(paths["input_csv"], sep=",", skiprows=[0])
-    input_df.index = pd.to_datetime(input_df[INPUT_TIME_COL])
+        input_df = pd.read_csv(paths["input_csv"], sep=",", skiprows=[0])
+        input_df.index = pd.to_datetime(input_df[INPUT_TIME_COL])
 
     with open(paths["params_json"], "r", encoding="utf-8") as f:
         params: Dict[str, Any] = json.load(f)
@@ -1148,6 +1171,11 @@ def _stage3_prepare_frames(loaded: Dict[str, Any]) -> Dict[str, Any]:
         df = _merge_pv_and_dedup(df, pv_df)
 
     df, untranslated_columns = _apply_column_translation(df)
+    # check for duplicate columns in df and delete one of them
+    if df.columns.duplicated().any():
+        # delete one of the duplicated columns (keep the first one)
+        df = df.loc[:, ~df.columns.duplicated()]
+
     df = df.apply(pd.to_numeric, errors="coerce")
     df_monthly = df.resample("M").sum() / 4
     return {"df": df, "df_monthly": df_monthly, "untranslated_columns": untranslated_columns}
@@ -1175,7 +1203,12 @@ def _stage4_compute_outputs(*, df: pd.DataFrame, input_df: pd.DataFrame, params:
 
 
 if __name__ == "__main__":
-    out = prepare_visu_v2(verbose=True, step_size=90*15)
+
+    out = prepare_visu_v2(verbose=True, step_size=90*15, 
+                          project_root='C:/Users/leroytomas/Desktop/GitHub/discco',
+                          des_csv_path='C:/Users/leroytomas/Desktop/GitHub/discco/data/outputs/DES_data.csv',
+                          input_csv_path='C:/Users/leroytomas/Desktop/GitHub/discco/data/inputs/10_MFH_15min.csv',
+                          pv_output_dir='C:/Users/leroytomas/Desktop/GitHub/discco/data/outputs/pv')
     print(
         "prepare_visu_v2 OK | ",
         "df:",
