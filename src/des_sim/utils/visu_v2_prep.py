@@ -299,7 +299,7 @@ def _resolve_step_size(step_size: Optional[float]) -> float:
         pass
 
     try:
-        from src import main_sim  # type: ignore
+        from des_sim import main_sim  # type: ignore
 
         return float(main_sim.STEP_SIZE)
     except Exception:
@@ -1204,11 +1204,7 @@ def _stage4_compute_outputs(*, df: pd.DataFrame, input_df: pd.DataFrame, params:
 
 if __name__ == "__main__":
 
-    out = prepare_visu_v2(verbose=True, step_size=90*15, 
-                          project_root='C:/Users/leroytomas/Desktop/GitHub/discco',
-                          des_csv_path='C:/Users/leroytomas/Desktop/GitHub/discco/data/outputs/DES_data.csv',
-                          input_csv_path='C:/Users/leroytomas/Desktop/GitHub/discco/data/inputs/10_MFH_15min.csv',
-                          pv_output_dir='C:/Users/leroytomas/Desktop/GitHub/discco/data/outputs/pv')
+    out = prepare_visu_v2(verbose=True, step_size=90*15)
     print(
         "prepare_visu_v2 OK | ",
         "df:",
