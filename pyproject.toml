@@ -2,6 +2,9 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+license-files = ["LICENSE"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
@@ -9,6 +12,7 @@ where = ["src"]
 name = "DES_sim"
 authors = [{name = "Leroy Tomas", email = "leroy.tomas@hs-offenburg.de"}]
 version = "1.0.1"
+license = {file = "LICENSE"}    
 requires-python = "==3.10.13"
 readme = "README.md"
 keywords = ["DES", "mosaik", "simulation", "HP", "CHP", "PV"]
