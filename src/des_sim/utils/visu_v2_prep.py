@@ -1204,7 +1204,7 @@ def _stage4_compute_outputs(*, df: pd.DataFrame, input_df: pd.DataFrame, params:
 
 if __name__ == "__main__":
 
-    out = prepare_visu_v2(verbose=True, step_size=90*15)
+    out = prepare_visu_v2(verbose=True, step_size=90*15, dict_input=sim_data)
     print(
         "prepare_visu_v2 OK | ",
         "df:",
