@@ -20,7 +20,7 @@ The controller module contains an updated class for the controller model (:class
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-from src.utils import helpers
+from des_sim.utils import helpers
 
 import operator
 import warnings

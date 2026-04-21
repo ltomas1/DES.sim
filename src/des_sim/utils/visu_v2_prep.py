@@ -299,7 +299,7 @@ def _resolve_step_size(step_size: Optional[float]) -> float:
         pass
 
     try:
-        from src import main_sim  # type: ignore
+        from des_sim import main_sim  # type: ignore
 
         return float(main_sim.STEP_SIZE)
     except Exception:
@@ -794,8 +794,8 @@ def _build_electrical_links(df: pd.DataFrame, *, input_df: pd.DataFrame, step_si
 
     if "Household_demand" in clone_df.columns:
         users["Household Electricity"] = clone_df["Household_demand"]
-    elif "Electricity Demand [W]" in input_df.columns:
-        users["Household Electricity"] = input_df["Electricity Demand [W]"]
+    elif "Electricity demand[kW]" in input_df.columns:
+        users["Household Electricity"] = input_df["Electricity demand[kW]"]*1000
 
     if "HP_P_Required" in clone_df.columns:
         users["Heat Pump"] = clone_df["HP_P_Required"]

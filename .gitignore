@@ -11,11 +11,14 @@ __pycache__/
 #ignore the pytest cache
 **/.pytest_cache
 
-#ignore the build folder
+# ignore the build folder
 **/build
-
-#ignore the util_figures folder
+# ignore the dist folder
+**/dist
+# ignore the util_figures folder
 **/src/utils/util_figures
+# ignore the .venv folder
+**/.venv
 
 # ignore all logging files
 *.log

@@ -1,8 +1,8 @@
 import mosaik_api
 import numpy as np
 from tqdm import tqdm
-from src.models.EnTransformer import Transformer_base
-from src.models.boiler_model_v2 import Gboiler
+from des_sim.models.EnTransformer import Transformer_base
+from des_sim.models.boiler_model_v2 import Gboiler
 
 class CHP(Gboiler):
 

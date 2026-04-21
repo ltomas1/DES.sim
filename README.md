@@ -5,18 +5,19 @@ This project uses the mosaik package to simulate heat pump in conjuction with a 
 ## Installation
 
 To get started first create a new conda env with:
-```
 conda create --name myenv python=3.10.13
-```
-Second activate the environment and install the dependencies out of the pyproject.toml file:
-```
+
+Second, activate the environment and install the package:
 conda activate myenv
 pip install .
-```
-After that you can run the script with:
-```
-python src/main.py
-```
+
+*(If you plan to modify the core models in the `src/` folder, install in editable mode instead using `pip install -e .`)*
+
+After that you can run the simulation script from the project root with:
+python main_sim.py
+
+*Note: Configuration is pulled from data/inputs/input_params.json, and outputs are saved to data/outputs/.*
+
 ### Installing dependencies
 Install the recommended dependencies with:
 ```
