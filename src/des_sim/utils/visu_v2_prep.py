@@ -7,7 +7,6 @@ This module is intentionally opinionated: it provides a single "magic" entrypoin
 artifacts.
 
 Behavior invariants (do not change without updating the notebook expectations):
-- PV "latest" selection uses `os.path.getctime`.
 - `untranslated_columns` is a sorted `np.ndarray` (from `np.setdiff1d`).
 - `df_monthly` uses `df.resample("M").sum() / 4` (kept as-is).
 - Electrical allocation order is defined by the insertion order of detected users/producers.
@@ -25,7 +24,6 @@ import pandas as pd
 
 
 DES_DATE_INDEX_COL = "date"
-PV_INDEX_COL = "Unnamed: 0"
 INPUT_TIME_COL = "Time"
 
 SECONDS_PER_HOUR = 3600.0
@@ -49,8 +47,8 @@ REQUIRED_PLOT_COLUMNS = [
 ]
 
 COLUMN_TRANSLATION_BASE: Dict[str, str] = {
-    "Power[w]": "PV_P[W]",
     "CSV-0.DNI_0-DNI": "DNI",
+    "CSV-0.Data_0-Power[w]": "PV_P[W]",
     "CHPSim-0.CHP_0-eff_el": "CHP_eff",
 }
 
@@ -148,7 +146,6 @@ def prepare_visu_v2(
     *,
     project_root: Optional[Path | str] = None,
     des_csv_path: Optional[Path | str] = None,
-    pv_output_dir: Optional[Path | str] = None,
     input_csv_path: Optional[Path | str] = None,
     params_json_path: Optional[Path | str] = None,
     step_size: Optional[float] = None,
@@ -162,8 +159,8 @@ def prepare_visu_v2(
 
     Pipeline stages:
     - Stage 1: resolve paths + validate inputs
-    - Stage 2: load raw inputs (DES, PV, demand, params)
-    - Stage 3: prepare frames (merge PV, translate columns, coerce numeric, monthly)
+    - Stage 2: load raw inputs (DES, demand, params)
+    - Stage 3: prepare frames (translate columns, coerce numeric, monthly)
     - Stage 4: compute outputs (energies + electrical/thermal Sankey links)
     """
 
@@ -171,7 +168,6 @@ def prepare_visu_v2(
     paths = _stage1_resolve_paths(
         project_root=project_root,
         des_csv_path=des_csv_path,
-        pv_output_dir=pv_output_dir,
         input_csv_path=input_csv_path,
         params_json_path=params_json_path,
     )
@@ -229,7 +225,6 @@ def prepare_visu_v2(
         _print_run_report(
             root=paths["root"],
             des_csv=paths["des_csv"],
-            latest_pv_file=loaded["latest_pv_file"],
             input_csv=paths["input_csv"],
             params_json=paths["params_json"],
             resolved_step_size=computed["resolved_step_size"],
@@ -308,25 +303,6 @@ def _resolve_step_size(step_size: Optional[float]) -> float:
             "ensure main_sim is importable (as in the notebook)."
         )
 
-
-def _merge_pv_and_dedup(df: pd.DataFrame, pv_df: pd.DataFrame) -> pd.DataFrame:
-    # Merge PV output onto the DES output (index-aligned time series)
-    merged = df.merge(pv_df, left_index=True, right_index=True, how="left")
-
-    # 1. CLEAN UP PV DUPLICATES (Fixes _x and _y)
-    # If we have _x and _y columns, keep _x (usually the main file) and drop _y
-    cols_to_drop = [c for c in merged.columns if c.endswith("_y")]
-    if cols_to_drop:
-        merged.drop(columns=cols_to_drop, inplace=True)
-
-    # Rename _x columns back to normal (remove the suffix)
-    rename_map = {c: c.replace("_x", "") for c in merged.columns if c.endswith("_x")}
-    if rename_map:
-        merged.rename(columns=rename_map, inplace=True)
-
-    return merged
-
-
 def _build_column_translation(df_columns: Iterable[str]) -> Dict[str, str]:
     columnname: Dict[str, str] = dict(COLUMN_TRANSLATION_BASE)
 
@@ -397,7 +373,6 @@ def _print_run_report(
     *,
     root: Path,
     des_csv: Path,
-    latest_pv_file: Path,
     input_csv: Path,
     params_json: Path,
     resolved_step_size: float,
@@ -421,7 +396,6 @@ def _print_run_report(
     for label, p in [
         ("project_root", root),
         ("DES CSV", des_csv),
-        ("PV CSV (latest)", latest_pv_file),
         ("Input demand CSV", input_csv),
         ("Params JSON", params_json),
     ]:
@@ -1057,14 +1031,12 @@ def _stage1_resolve_paths(
     *,
     project_root: Optional[Path | str],
     des_csv_path: Optional[Path | str],
-    pv_output_dir: Optional[Path | str],
     input_csv_path: Optional[Path | str],
     params_json_path: Optional[Path | str],
 ) -> Dict[str, Any]:
     root = Path(project_root).resolve() if project_root is not None else _infer_project_root()
 
     des_csv = Path(des_csv_path).resolve() if des_csv_path is not None else (root / "data" / "outputs" / "DES_data.csv")
-    pv_dir = Path(pv_output_dir).resolve() if pv_output_dir is not None else (root / "data" / "outputs" / "pv")
     input_csv = (
         Path(input_csv_path).resolve()
         if input_csv_path is not None
@@ -1083,8 +1055,7 @@ def _stage1_resolve_paths(
     if not params_json.exists():
         raise FileNotFoundError(f"Params JSON not found: {params_json}")
 
-    # PV directory is optional; scenarios without PV should still run.
-    return {"root": root, "des_csv": des_csv, "pv_dir": pv_dir, "input_csv": input_csv, "params_json": params_json}
+    return {"root": root, "des_csv": des_csv, "input_csv": input_csv, "params_json": params_json}
 
 
 def _stage2_load_inputs(paths: Dict[str, Any], dict_input: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -1129,29 +1100,10 @@ def _stage2_load_inputs(paths: Dict[str, Any], dict_input: Optional[Dict[str, An
     params_chp = params.get("params_chp")
     params_boiler = params.get("params_boiler")
 
-    # PV handling: only load PV if scenario requests it AND data exists.
-    latest_pv_file = None
-    pv_df = None
-    pv_simulated = bool(params.get("pv"))
-    pv_dir = paths.get("pv_dir")
-
-    if pv_simulated and isinstance(pv_dir, Path) and pv_dir.exists():
-        try:
-            latest_pv_file = _find_latest_csv(pv_dir)
-            _pv = pd.read_csv(latest_pv_file)
-            _pv.index = pd.to_datetime(_pv[PV_INDEX_COL])
-            _pv.index = _pv.index.tz_localize(None)
-            pv_df = _pv
-        except FileNotFoundError:
-            # PV requested but no PV CSV present -> continue without PV merge.
-            latest_pv_file = None
-            pv_df = None
+    
 
     return {
         "df_raw": df,
-        "latest_pv_file": latest_pv_file,
-        "pv_df": pv_df,
-        "pv_simulated": pv_simulated,
         "input_df": input_df,
         "params": params,
         "params_hp": params_hp,
@@ -1165,10 +1117,6 @@ def _stage2_load_inputs(paths: Dict[str, Any], dict_input: Optional[Dict[str, An
 
 def _stage3_prepare_frames(loaded: Dict[str, Any]) -> Dict[str, Any]:
     df = loaded["df_raw"].copy()
-
-    pv_df = loaded.get("pv_df")
-    if isinstance(pv_df, pd.DataFrame) and not pv_df.empty:
-        df = _merge_pv_and_dedup(df, pv_df)
 
     df, untranslated_columns = _apply_column_translation(df)
     # check for duplicate columns in df and delete one of them
@@ -1211,6 +1159,4 @@ if __name__ == "__main__":
         out["df"].shape,
         "| final_links:",
         # len(out["final_links"]),
-        "| latest_pv:",
-        # out["latest_pv_file"],
     )
