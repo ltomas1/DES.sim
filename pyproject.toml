@@ -12,7 +12,7 @@ where = ["src"]
 name = "DES_sim"
 authors = [{name = "Leroy Tomas", email = "leroy.tomas@hs-offenburg.de"}]
 version = "1.0.2"
-license = {file = "LICENSE}
+license = {LICENSE}
 requires-python = "==3.10.13"
 readme = "README.md"
 keywords = ["DES", "mosaik", "simulation", "HP", "CHP", "PV"]
