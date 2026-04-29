@@ -15,7 +15,7 @@ logger = logging.getLogger("mosaik_logger")
 PROJECT_ROOT = Path(__file__).resolve().parent # Goes up to the main repo folder
 OUTPUT_PATH = PROJECT_ROOT / "data" / "outputs"
 
-from des_sim.models import pvlib_model
+from des_sim.models import des_pv
 STEP_SIZE = 60*15 # step size 15 minutes
 HV = 10833.3 #Heating value of natural gas in Wh/m^3; standard cubic meter
 
@@ -65,7 +65,7 @@ def run_DES(params, collect=True, plot_graph=False):
     
     world = mosaik.World(sim_config, mosaik_config={'addr':('127.0.0.1', 0)})
     START = '2022-01-01 00:00:00'
-    END =  5*24*60*60 # one year in seconds
+    END =  365*24*60*60 # one year in seconds
 
     # unpacking input params
     params_hp = params['hp']
@@ -81,8 +81,10 @@ def run_DES(params, collect=True, plot_graph=False):
 
     # -----------------------------------------pv-------------------------------------------------------------------------------------
     #Standalone pvmodel-------------------------------------------------
+    params['pv']["sim_start"] = START
     params['pv']['irradiation_data'] = str(PROJECT_ROOT / params['pv']['irradiation_data'])
-    pv_results = pvlib_model.sim(params_pv)
+    pv = des_pv.DES_PV(params_pv)
+    pv_results = pv.sim() # getting the output path of the csv
     pv_csv = world.start('CSV', sim_start = START, datafile = pv_results)
     pv_mod = pv_csv.Data.create(1)
         
