@@ -6,20 +6,20 @@ import nest_asyncio
 nest_asyncio.apply()
 import logging
 import json
+from pathlib import Path
 
 #setup the logger
 logger = logging.getLogger("mosaik_logger")
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-OUTPUT_PATH = os.path.join(current_dir, "..", 'data/outputs')
-sys.path.append(os.path.join(current_dir, ".."))
+PROJECT_ROOT = Path(__file__).resolve().parent # Goes up to the main repo folder
+OUTPUT_PATH = PROJECT_ROOT / "data" / "outputs"
 
-from src.models import pvlib_model
+from des_sim.models import des_pv
 STEP_SIZE = 60*15 # step size 15 minutes
 HV = 10833.3 #Heating value of natural gas in Wh/m^3; standard cubic meter
 
 def export2json(params_dict):
-    filename = os.path.join(OUTPUT_PATH, 'used_params.json')
+    filename = OUTPUT_PATH / 'used_params.json'
     with open(filename, 'w') as f:
         json.dump(params_dict, f, indent = 4)
 
@@ -39,11 +39,11 @@ def run_DES(params, collect=True, plot_graph=False):
         
         },
         'ControllerSim': {
-            'python': 'src.models.controller_mosaik:ControllerSimulator',
+            'python': 'des_sim.models.controller_mosaik:ControllerSimulator',
             
         },
         'Collector': {
-                'python': 'src.models.collector:Collector',
+                'python': 'des_sim.models.collector:Collector',
         }
     }
     
@@ -60,8 +60,7 @@ def run_DES(params, collect=True, plot_graph=False):
     init_vals_hwt0 = params['init_vals_tank']['init_vals_hwt0']
         
     # ----------------------Input data csv------------------------
-    HEAT_LOAD_DATA = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'data', 'inputs', 'Input_kfw55_2_el.csv'))
-    # configure the simulator
+    HEAT_LOAD_DATA = PROJECT_ROOT / "data" / "inputs" / "Input_kfw55_2_el.csv"    # configure the simulator
     csv = world.start('CSV', sim_start=START, datafile=HEAT_LOAD_DATA)
     # Instantiate model
     heat_load = csv.HEATLOAD.create(1)
@@ -69,7 +68,7 @@ def run_DES(params, collect=True, plot_graph=False):
     # ------------------Output data storage-----------------------
     # configure the simulator
     csv_sim_writer = world.start('CSV_writer', start_date= START, date_format='%Y-%m-%d %H:%M:%S',
-                                output_file=os.path.join(OUTPUT_PATH, 'DES_data.csv'))
+                                output_file=OUTPUT_PATH / 'DES_data.csv')
     # Instantiate model
     collector = world.start('Collector')
     csv_writer = csv_sim_writer.CSVWriter(buff_size=15 * 60 * 60)
@@ -174,7 +173,7 @@ def run_DES(params, collect=True, plot_graph=False):
 
     # plot the data flow
     if plot_graph == True:
-        mosaik.util.plot_dataflow_graph(world, folder=os.path.join(current_dir, 'utils/util_figures'), show_plot=False)
+        mosaik.util.plot_dataflow_graph(world, folder=f"{PROJECT_ROOT}/data/outputs", show_plot=False)
 
     return data
     
@@ -196,7 +195,7 @@ if __name__ == "__main__":
    
     # unpacking parameters from teh input json
     filename = 'input_params.json'
-    path = os.path.join('..', 'data', 'inputs', filename)
+    path = PROJECT_ROOT / "data" / "inputs" / filename
     with open(path, 'r') as f:
         params = json.load(f)
     
