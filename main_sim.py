@@ -1,6 +1,5 @@
 import mosaik
 import mosaik.util
-#import os
 import sys
 import nest_asyncio
 nest_asyncio.apply()
@@ -11,7 +10,6 @@ from pathlib import Path
 logger = logging.getLogger("mosaik_logger")
 
 
-#CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = Path(__file__).resolve().parent # Goes up to the main repo folder
 OUTPUT_PATH = PROJECT_ROOT / "data" / "outputs"
 
@@ -98,7 +96,7 @@ def run_DES(params, collect=True, plot_graph=False):
     # ------------------Output data storage-----------------------
     # configure the simulator
     csv_sim_writer = world.start('CSV_writer', start_date= START, date_format='%Y-%m-%d %H:%M:%S',
-                                output_file=OUTPUT_PATH / 'DES_data.csv')
+                                output_file=str(OUTPUT_PATH / 'DES_data.csv'))
     # Instantiate model
     collector = world.start('Collector')
     csv_writer = csv_sim_writer.CSVWriter(buff_size=15 * 60 * 60)
@@ -274,6 +272,8 @@ def run_DES(params, collect=True, plot_graph=False):
 
     world.connect(battery[0], csv_writer, 'soc', 'P_el_in', 'P_el_out')
 
+    world.connect(pv_mod[0], csv_writer, 'Power[w]')
+
     # auto-connect *all* source attributes to collector
     def connect_all_attrs(world, src_sim, src_entities, collector_ent):
         for e in src_entities:
@@ -307,7 +307,7 @@ def run_DES(params, collect=True, plot_graph=False):
 
     # plot the data flow
     if plot_graph == True:
-        mosaik.util.plot_dataflow_graph(world, folder=CURRENT_DIR / "utils" / "util_figures", show_plot=False)
+        mosaik.util.plot_dataflow_graph(world, folder=str(PROJECT_ROOT / 'data' / 'outputs'), show_plot=False)
 
     return data
     
