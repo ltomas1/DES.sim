@@ -768,7 +768,7 @@ def _build_electrical_links(df: pd.DataFrame, *, input_df: pd.DataFrame, step_si
         users["Battery"] = clone_df["Battery_P_el_in"]
     
     if "dch_power" in clone_df.columns:
-        users["DCH"] = clone_df["dch_power"]
+        users["DCH"] = clone_df["dch_power"].fillna(0)
 
     if "Household_demand" in clone_df.columns:
         users["Household Electricity"] = clone_df["Household_demand"]
