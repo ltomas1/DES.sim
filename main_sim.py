@@ -13,7 +13,7 @@ logger = logging.getLogger("mosaik_logger")
 PROJECT_ROOT = Path(__file__).resolve().parent # Goes up to the main repo folder
 OUTPUT_PATH = PROJECT_ROOT / "data" / "outputs"
 
-from des_sim.models import des_pv
+from des_sim.models import pv_model
 STEP_SIZE = 60*15 # step size 15 minutes
 HV = 10833.3 #Heating value of natural gas in Wh/m^3; standard cubic meter
 
@@ -21,17 +21,17 @@ def export2json(params_dict):
     filename = OUTPUT_PATH / 'used_params.json'
     with open(filename, 'w') as f:
         json.dump(params_dict, f, indent = 4)
-
+    
 def run_DES(params, collect=True, plot_graph=False):
     sim_config = {
         'EnergyTransformer' : {
-            'python' : 'des_sim.models.EnergyTransformer_frame:TransformerSimulator',
+            'python' : 'des_sim.models.EnergyTransformer_model:TransformerSimulator',
         },
-        'Boilersim_v2' : {
-            'python' : 'des_sim.models.boiler_model_v2:TransformerSimulator'
+        'Boilersim' : {
+            'python' : 'des_sim.models.boiler_model:TransformerSimulator'
         },
-        'Chpsim_v2' : {
-            'python' : 'des_sim.models.chp_model_v2:TransformerSimulator'
+        'Chpsim' : {
+            'python' : 'des_sim.models.chp_model:TransformerSimulator'
         },
         'CSV': {
             'python': 'mosaik_csv:CSV',
@@ -55,7 +55,7 @@ def run_DES(params, collect=True, plot_graph=False):
                 'python': 'des_sim.models.collector:Collector',
         },
         'BatterySim': {
-                'python': 'des_sim.models.battery:BatterySimulator',
+                'python': 'des_sim.models.battery_model:BatterySimulator',
         },
     }
     
@@ -81,7 +81,7 @@ def run_DES(params, collect=True, plot_graph=False):
     #Standalone pvmodel-------------------------------------------------
     params['pv']["sim_start"] = START
     params['pv']['irradiation_data'] = str(PROJECT_ROOT / params['pv']['irradiation_data'])
-    pv = des_pv.DES_PV(params_pv)
+    pv = pv_model.PV(params_pv)
     pv_results = pv.sim() # getting the output path of the csv
     pv_csv = world.start('CSV', sim_start = START, datafile = pv_results)
     pv_mod = pv_csv.Data.create(1)
@@ -109,8 +109,8 @@ def run_DES(params, collect=True, plot_graph=False):
     hwtsim1 = world.start('HotWaterTankSim', step_size=STEP_SIZE,config={**params_hwt, "Tanknumber" : 1})
     hwtsim2 = world.start('HotWaterTankSim', step_size=STEP_SIZE, config={**params_hwt, "Tanknumber" : 2})
     ctrlsim = world.start('ControllerSim', step_size=STEP_SIZE, params = params['ctrl'])
-    chpsim = world.start('Chpsim_v2', step_size = STEP_SIZE, params = params_chp)
-    boilersim = world.start('Boilersim_v2', step_size = STEP_SIZE, params = params_boiler)
+    chpsim = world.start('Chpsim', step_size = STEP_SIZE, params = params_chp)
+    boilersim = world.start('Boilersim', step_size = STEP_SIZE, params = params_boiler)
     batsim = world.start('BatterySim', step_size = STEP_SIZE, params = params_bat)
     
     # Instantiate other models

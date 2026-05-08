@@ -8,7 +8,7 @@ Author: AqibThennadan
 
 import mosaik_api
 
-from des_sim.models.EnTransformer import Transformer_base
+from des_sim.models.EnTransformer_model import Transformer_base
 import numpy as np
 from tqdm import tqdm
 

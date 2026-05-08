@@ -8,6 +8,13 @@ Its role is to assemble configured subsystem models into one executable scenario
 Model-level behavior is defined in each model block.
 System-level behavior depends on how those blocks are combined and connected in the simulation run.
 
+## Model configuration guides
+
+- Controller — [controller.md](controller.md)
+- Gas Boiler — [gasboiler.md](gasboiler.md)
+- CHP — [chp.md](chp.md)
+- PV — [pv.md](pv.md)
+
 ## Input setup
 
 The simulation is configured through one input dictionary.

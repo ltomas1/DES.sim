@@ -85,7 +85,7 @@ def _define_module_inverter(nom_power, params = None):
     
     return module, inverter, temperature_model_parameters, nSnP, power_ratio
 
-class DES_PV():
+class PV():
     '''
     PV power simulator based on pvlib ModelChain.
 
@@ -442,7 +442,7 @@ META = {
     },
 }
 
-class DES_PVsim(mosaik_api.Simulator):
+class PVSimulator(mosaik_api.Simulator):
     def __init__(self):
         
         super().__init__(META)
@@ -466,7 +466,7 @@ class DES_PVsim(mosaik_api.Simulator):
 
         self.eid_prefix = params.get('eid_prefix')
         
-        self.dummy_object = DES_PVsim(params)
+        self.dummy_object = PV(params, warn=False)
         self.meta['models']['Transformer']['attrs'] = self.dummy_object.get_init_attrs()
         # self.meta['models']['Transformer']['trigger'] = self.dummy_object.get_init_attrs()
 
@@ -478,7 +478,7 @@ class DES_PVsim(mosaik_api.Simulator):
         next_eid = len(self.models) #if create called a second time, eid will not repeat
         for i in range(next_eid, next_eid + num):
             eid = '%s%d' % (self.eid_prefix, i)
-            self.models[eid] = DES_PVsim(params)
+            self.models[eid] = PV(params)
             self.models[eid].step_size = self.step_size
             entities.append({'eid': eid, 'type': model})
             
@@ -520,7 +520,7 @@ class DES_PVsim(mosaik_api.Simulator):
         return data
 
 def main():
-    return mosaik_api.start_simulation(DES_PVsim())
+    return mosaik_api.start_simulation(PVSimulator())
 
 if __name__ == '__main__':
     # main()
