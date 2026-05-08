@@ -561,7 +561,10 @@ class Controller():
             if self.IdealHrodsum > 0:
                 temp = self.T_dhn_sp
                 heat_in_F = new_flow
-                self.heat_supply = self.heat_demand
+                if config == '2-pipe-dch':
+                    self.sh_supply = self.sh_demand
+                else:
+                    self.heat_supply = self.heat_demand
             
             # mixing the hot water from the tank down, using the cold return line from the DHN to the required supply temperature
             fhot, fcold, Tsup = self.tcvalve1.get_flows(temp, (self.T_dhn_sp - self.heat_dT), self.T_dhn_sp, heat_in_F, self.heat_dT) 
