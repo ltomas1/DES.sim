@@ -262,7 +262,10 @@ class PV():
 
         unique_id = str(uuid.uuid4())[:8]
         # script_dir = os.path.dirname(os.path.abspath(__file__))
-        self.output_path = os.path.abspath(os.path.join(self.irradiation_datapath, '..', '..', 'outputs', 'pv', f'PVlib_output{unique_id}.csv'))
+        output_dir = params.get('output_dir') 
+        if not output_dir:
+            raise ValueError("Missing 'output_dir' in params. The orchestrator must provide an absolute path for outputs.")
+        self.output_path = os.path.join(output_dir, f'PVlib_output{unique_id}.csv')
         # self.weather.to_csv(self.output_path)
         if self.op_mode == 'standalone':
             print(f'Saving output to {os.getcwd()}/outputs/pv/PVlib_output{unique_id}.csv')
@@ -396,37 +399,37 @@ class PV():
             )
         #-------------------------------------------------------------------------------
 
-    def fetch_pvgis(lat, long, year, array_configs):
-        '''
-        Fetches PVGIS hourly poa data for each array, and returns a list of dataframes.
-        Additionally, prepares the df with necessary columns and resamples to 15 min with interpolation.
-        '''
-        weather_list = []
-        for arr in array_configs:
-            data, input, meta = pvlib.iotools.get_pvgis_hourly(
-                latitude=lat,
-                longitude=long,
-                start=year,
-                end=year,
-                components=True,
-                pvcalculation=False,
-                outputformat='csv',
-                surface_tilt=arr['tilt'],
-                surface_azimuth=180 - arr['azimuth']  # PVGIS: 0=south, -90=east, +90=west
-            )
+def fetch_pvgis(lat, long, year, array_configs):
+    '''
+    Fetches PVGIS hourly poa data for each array, and returns a list of dataframes.
+    Additionally, prepares the df with necessary columns and resamples to 15 min with interpolation.
+    '''
+    weather_list = []
+    for arr in array_configs:
+        data, input, meta = pvlib.iotools.get_pvgis_hourly(
+            latitude=lat,
+            longitude=long,
+            start=year,
+            end=year,
+            components=True,
+            pvcalculation=False,
+            outputformat='csv',
+            surface_tilt=arr['tilt'],
+            surface_azimuth=180 - arr['azimuth']  # PVGIS: 0=south, -90=east, +90=west
+        )
 
-            weather = data[['poa_direct', 'poa_sky_diffuse', 'poa_ground_diffuse',
-                            'temp_air', 'wind_speed']].copy()
+        weather = data[['poa_direct', 'poa_sky_diffuse', 'poa_ground_diffuse',
+                        'temp_air', 'wind_speed']].copy()
 
-            weather['poa_diffuse'] = weather['poa_sky_diffuse'] + weather['poa_ground_diffuse']
-            weather['poa_global']  = weather['poa_direct'] + weather['poa_diffuse']
+        weather['poa_diffuse'] = weather['poa_sky_diffuse'] + weather['poa_ground_diffuse']
+        weather['poa_global']  = weather['poa_direct'] + weather['poa_diffuse']
 
-            weather = weather[['poa_global', 'poa_direct', 'poa_diffuse', 'temp_air', 'wind_speed']]
-            weather = weather.resample('15T', offset='10min').interpolate() #there's a 10 min offset in the timestamps of pvgis data
-            weather.index = weather.index - pd.Timedelta(minutes=10)
-            weather_list.append(weather)
+        weather = weather[['poa_global', 'poa_direct', 'poa_diffuse', 'temp_air', 'wind_speed']]
+        weather = weather.resample('15T', offset='10min').interpolate() #there's a 10 min offset in the timestamps of pvgis data
+        weather.index = weather.index - pd.Timedelta(minutes=10)
+        weather_list.append(weather)
 
-        return weather_list
+    return weather_list
 
 # %%
 
@@ -527,9 +530,11 @@ if __name__ == '__main__':
     params = {
         "calc_mode" : "simple",
         "op_year" : 2024,
+        "sim_start" : "2024-01-01 00:00:00",
+        "op_mode" : "standalone",
         'nom_power' : 60000, 
         'coordinates' : [48.993105744518026, 8.452778948680054, "Durlach", 115, "UTC"],
         # "irradiation_data" : "../data/inputs/2025-04-07-Project1-weather.csv"
     }
 
-    DES_PV(params)
+    PV(params)

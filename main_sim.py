@@ -17,10 +17,6 @@ from des_sim.models import pv_model
 STEP_SIZE = 60*15 # step size 15 minutes
 HV = 10833.3 #Heating value of natural gas in Wh/m^3; standard cubic meter
 
-def export2json(params_dict):
-    filename = OUTPUT_PATH / 'used_params.json'
-    with open(filename, 'w') as f:
-        json.dump(params_dict, f, indent = 4)
     
 def run_DES(params, collect=True, plot_graph=False):
     sim_config = {
@@ -80,7 +76,9 @@ def run_DES(params, collect=True, plot_graph=False):
     # -----------------------------------------pv-------------------------------------------------------------------------------------
     #Standalone pvmodel-------------------------------------------------
     params['pv']["sim_start"] = START
-    params['pv']['irradiation_data'] = str(PROJECT_ROOT / params['pv']['irradiation_data'])
+    params['pv']['output_dir'] = str(OUTPUT_PATH / "pv") 
+    if params_pv.get('irradiation_data'):
+        params_pv['irradiation_data'] = str(PROJECT_ROOT / params['pv']['irradiation_data'])
     pv = pv_model.PV(params_pv)
     pv_results = pv.sim() # getting the output path of the csv
     pv_csv = world.start('CSV', sim_start = START, datafile = pv_results)
