@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-"""Preprocessing helper for `visu_v2.ipynb`.
+"""Preprocessing helper for `visu.ipynb`.
 
 This module is intentionally opinionated: it provides a single "magic" entrypoint
-(`prepare_visu_v2`) that loads simulation outputs and returns a dict of notebook-ready
+(`prepare_visu`) that loads simulation outputs and returns a dict of notebook-ready
 artifacts.
 
 Behavior invariants (do not change without updating the notebook expectations):
@@ -108,6 +108,7 @@ GENERIC_ENERGY_SANKEY_NODE_CONFIG: Dict[str, Tuple[float, float, str]] = {
     "Heat Deficit": (1, 0.9, "crimson"),
     # --- Layer 2: Storage (Middle-Right) ---
     "Buffer Tank": (2, 0.35, "rgba(0, 0, 189, 0.8)"),
+    "DCH" : (2, 0.65, "rgba(75, 0, 130, 0.7)"),
     # --- Layer 3: Consumers (Right) ---
     "DHW": (3, 0.1, "teal"),
     "SH": (3, 0.35, "thistle"),
@@ -142,7 +143,7 @@ SUPPLY_RETURN_COLORS: Dict[str, str] = {
 }
 
 
-def prepare_visu_v2(
+def prepare_visu(
     *,
     project_root: Optional[Path | str] = None,
     des_csv_path: Optional[Path | str] = None,
@@ -152,7 +153,7 @@ def prepare_visu_v2(
     verbose: bool = False,
     dict_input: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Prepare all data structures that `visu_v2.ipynb` expects.
+    """Prepare all data structures that `visu.ipynb` expects.
 
     This is intended to be a preprocessing entry point.
     Keep the plotting notebook unchanged; only replace its prep section.
@@ -386,7 +387,7 @@ def _print_run_report(
     thermal_links: Dict[str, list],
     final_links: Dict[str, list],
 ) -> None:
-    print("\n=== visu_v2 preprocessing report ===")
+    print("\n=== visu preprocessing report ===")
 
     units = ["B", "KiB", "MiB", "GiB", "TiB"]
     step = 1024.0
@@ -765,6 +766,9 @@ def _build_electrical_links(df: pd.DataFrame, *, input_df: pd.DataFrame, step_si
     users: Dict[str, pd.Series] = {}
     if "Battery_P_el_in" in clone_df.columns:
         users["Battery"] = clone_df["Battery_P_el_in"]
+    
+    if "dch_power" in clone_df.columns:
+        users["DCH"] = clone_df["dch_power"].fillna(0)
 
     if "Household_demand" in clone_df.columns:
         users["Household Electricity"] = clone_df["Household_demand"]
@@ -864,7 +868,8 @@ def _build_thermal_links(
         thermal_links["Buffer Tank:DHN"] = [energies["heat_supply"], color_map["DHN"]]
 
     if energies.get("dch_power", 0.0) > 0:
-        thermal_links["DCH:DHW"] = [energies["dch_power"], color_map["Heating Rods"]]
+        # Multiply by 0.98 to show the actual thermal energy delivered to DHW
+        thermal_links["DCH:DHW"] = [energies["dch_power"] * 0.98, color_map["Heating Rods"]]
 
     # --- THE GENERIC LOSS CALCULATION ---
     # Loss = (Inputs + Init_Storage) - (Outputs + Final_Storage)
@@ -1152,9 +1157,9 @@ def _stage4_compute_outputs(*, df: pd.DataFrame, input_df: pd.DataFrame, params:
 
 if __name__ == "__main__":
 
-    out = prepare_visu_v2(verbose=True, step_size=90*15, dict_input=sim_data)
+    out = prepare_visu(verbose=True, step_size=90*15, dict_input=sim_data)
     print(
-        "prepare_visu_v2 OK | ",
+        "prepare_visu OK | ",
         "df:",
         out["df"].shape,
         "| final_links:",

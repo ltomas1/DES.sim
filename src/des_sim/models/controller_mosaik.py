@@ -3,7 +3,7 @@ Mosaik interface for controller model
 
 """
 import mosaik_api
-from des_sim.models.controller import Controller
+from des_sim.models.controller_model import Controller
 from tqdm import tqdm
 from des_sim.utils import helpers
 
