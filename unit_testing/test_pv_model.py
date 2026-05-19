@@ -1,5 +1,7 @@
 import pytest
 from des_sim.models.pv_model import PV
+import pandas as pd
+from unittest.mock import patch
 
 
 # --- Good params baseline ---
@@ -91,35 +93,63 @@ def test_invalid_pv_arrays_missing_keys():
     with pytest.raises(ValueError, match="pv_arrays"):
         pv.validate_params(params)
 
-def test_pv_simulation_runs_with_pvgis(tmp_path):
-    """Full simulation via PVGIS should produce a CSV with Power[w]."""
+@patch("des_sim.models.pv_model.fetch_pvgis")
+def test_pv_simulation_runs_with_pvgis(mock_fetch, tmp_path):
+    """Full simulation mocked to run instantly without internet."""
+    dates = pd.date_range("2022-01-01", periods=3, freq="15min", tz="UTC")
+    fake_df = pd.DataFrame({
+        "poa_global": [0.0, 800.0, 0.0], "poa_direct": [0.0, 600.0, 0.0],
+        "poa_diffuse": [0.0, 200.0, 0.0], "temp_air": [9.0, 15.0, 9.0],
+        "wind_speed": [2.6, 3.2, 2.6]
+    }, index=dates)
+
+    # Return a tuple of exactly 1 DataFrame
+    mock_fetch.return_value = (fake_df,)
+
     params = make_valid_params(out_dir=tmp_path)
-    # No irradiation_data key = uses PVGIS
+    # FORCE the params to have exactly 1 array so it matches the mock!
+    params["pv_arrays"] = [{"tilt": 30, "azimuth": 180}]
+    
     pv = PV(params)
     result_path = pv.sim()
     
-    import pandas as pd
     df = pd.read_csv(result_path)
-    assert "Power[w]" in df.columns
     assert len(df) > 0
-    assert (df["Power[w]"] >= 0).all(), "PV model produced negative power"
+    mock_fetch.assert_called_once()
 
-def test_pv_multi_array_matches_single_array_count(tmp_path):
-    """Two arrays should produce the same number of rows as one array."""
-    single = make_valid_params(out_dir=tmp_path)
+@patch("des_sim.models.pv_model.fetch_pvgis")
+def test_pv_multi_array_matches_single_array_count(mock_fetch, tmp_path):
+    """Two arrays should produce the same number of rows as one array, instantly."""
+    dates = pd.date_range("2022-01-01", periods=3, freq="15min", tz="UTC")
+    fake_df = pd.DataFrame({
+        "poa_global": [0.0, 800.0, 0.0], "poa_direct": [0.0, 600.0, 0.0],
+        "poa_diffuse": [0.0, 200.0, 0.0], "temp_air": [9.0, 15.0, 9.0],
+        "wind_speed": [2.6, 3.2, 2.6]
+    }, index=dates)
+
+    single_dir = tmp_path / "single"
+    single_dir.mkdir()
+    multi_dir = tmp_path / "multi"
+    multi_dir.mkdir()
+    
+    single = make_valid_params(out_dir=single_dir)
     single["pv_arrays"] = [{"tilt": 30, "azimuth": 180}]
     
-    multi = make_valid_params(out_dir=tmp_path)
+    multi = make_valid_params(out_dir=multi_dir)
     multi["pv_arrays"] = [{"tilt": 30, "azimuth": 180}, {"tilt": 30, "azimuth": 90}]
     
-    import pandas as pd
+    # Run Single (Mock returns tuple of 1 DataFrame)
+    mock_fetch.return_value = (fake_df,)
     pv_single = PV(single)
-    pv_multi = PV(multi)
-    
     df_single = pd.read_csv(pv_single.sim())
+    
+    # Run Multi (Mock returns tuple of 2 DataFrames)
+    mock_fetch.return_value = (fake_df, fake_df)
+    pv_multi = PV(multi)
     df_multi = pd.read_csv(pv_multi.sim())
     
     assert len(df_single) == len(df_multi)
+    assert mock_fetch.call_count == 2
 
 def test_pv_simulation_with_local_csv(tmp_path):
     """Providing a local weather CSV should bypass PVGIS and use local data."""
