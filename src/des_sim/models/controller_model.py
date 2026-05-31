@@ -264,7 +264,7 @@ class Controller():
             else:
                 self.battery_full = "False"
         
-        battery_surplus = self.total_gen - self.HP_P_Required
+        battery_surplus = self.total_gen - (self.HP_P_Required or 0)
         if battery_surplus > 0 and self.battery_full == "False":
             self.charge_battery = battery_surplus
         else:
