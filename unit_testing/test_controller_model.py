@@ -1,6 +1,6 @@
 import pytest
 from des_sim.models.controller_model import Controller, IncompleteConfigError
-from des_sim.models.hotwatertank_model import HotWaterTank
+from mosaik_components.heatpump.hotwatertank.hotwatertank import HotWaterTank
 from des_sim.models.hotwatertank_mosaik import HotWaterTankSimulator
 
 # --- Good params baseline ---
@@ -767,4 +767,190 @@ def test_controller_tanks_coupled_energy_balance_multistep():
         f"    E_ideal_heater total          = {total_ideal_heater_J:.0f} J\n"
         f"    E_loss total                  = {total_loss_J:.0f} J\n"
         f"  tolerance (2% of demand)        = {tolerance:.0f} J"
+    )
+
+def test_controller_tanks_boiler_coupled_energy_balance():
+    """Coupled controller + 3 tanks + gas boiler in 4-pipe config, 60 steps.
+
+    Tank2 starts at moderate temperature (top at 70°C, just 5°C above the
+    boiler's 64°C turn-on threshold). DHW + SH demand cool the tanks until
+    tank2 drops past 64°C, at which point the boiler turns on, heats tank2
+    until it exceeds 69°C (turn-on + 5 default), then turns off. Cycle
+    repeats.
+
+    Energy balance:
+        ΔU_tanks = E_boiler_input + E_ideal_heater - E_demanded - E_loss
+
+    This adds a real heat source to the energy budget. If the controller's
+    boiler turn-on/turn-off logic or the boiler model's flow calculation
+    has a bug, the equation won't close.
+    """
+    from des_sim.models.boiler_model import Gboiler
+
+    sim = HotWaterTankSimulator()
+
+    params = make_controller_params(config="4-pipe")
+    ctrl = Controller(params, warn=False)
+    ctrl.step_size = 900
+    ctrl.T_amb = 10.0
+    ctrl.HP_P_Required = 0.0
+    # See design note: this attribute is unset in __init__; in production
+    # mosaik wires it from the tank model. We set it explicitly.
+    ctrl.hwt_mass = 20000
+
+    # Boiler matching the production config (200 kW gas boiler, 75°C setpoint)
+    boiler = Gboiler(
+        {
+            "nom_P_th": 200000,
+            "set_temp": 75,
+            "efficiency": 0.8,
+            "heating_value": 10833.3,
+        },
+        warn=False,
+    )
+    boiler.step_size = ctrl.step_size
+    boiler.status = "off"
+    boiler.Q_demand = 0
+
+    tank_params = {
+        **params["tank"],
+        "height": 2500,
+        "T_env": 20.0,
+        "htc_walls": 0.28,
+        "htc_layers": 0.897,
+    }
+    init_temps = [
+        [30.0, 30.0, 30.0],   # tank0: return buffer
+        [60.0, 70.0, 80.0],   # tank1: SH source at top
+        [60.0, 65.0, 70.0],   # tank2: DHW source, near boiler threshold
+    ]
+    tanks = []
+    for T in init_temps:
+        iv = {"layers": {"T": T}, "hr_1": {"P_el": 0, "P_th_set": 0}}
+        tanks.append(HotWaterTank(tank_params, init_vals=iv))
+
+    CP = 4184
+    RHO = 1.0
+    N_STEPS = 1000
+    SH_DEMAND_KW = 5.0
+    DHW_DEMAND_KW = 5.0
+
+    def sync_tank_to_controller():
+        for i, tank in enumerate(tanks):
+            tname = f"tank{i}"
+            for j in range(params["tank"]["n_sensors"]):
+                ctrl.tank_temps[tname][f"sensor_{j}"] = (
+                    tank.sensors[f"sensor_{j:02d}"].T
+                )
+            for pname, conn in tank.connections.items():
+                if conn.F <= 0:
+                    ctrl.tank_connections[tname][f"{pname}_T"] = conn.T
+
+    def sync_controller_to_tank():
+        for i, tank in enumerate(tanks):
+            tname = f"tank{i}"
+            for pname, conn in tank.connections.items():
+                conn.F = ctrl.tank_connections[tname][f"{pname}_F"]
+                if conn.F > 0:
+                    conn.T = ctrl.tank_connections[tname][f"{pname}_T"]
+
+    def sync_boiler_to_tank2():
+        """Push boiler flows to tank2's boiler_in/boiler_out ports.
+        MUST run after sync_controller_to_tank, since that wipes all
+        connection F values back to the controller's view (which has
+        boiler ports at 0)."""
+        if boiler.mdot is not None and boiler.mdot > 0:
+            # Set T before F when F is becoming positive, so the connection
+            # picks its corresponding_layer by temperature match (not position).
+            tanks[2].connections["boiler_in"].T = boiler.temp_out
+            tanks[2].connections["boiler_in"].F = boiler.mdot
+            tanks[2].connections["boiler_out"].F = boiler.mdot_neg
+        else:
+            tanks[2].connections["boiler_in"].F = 0
+            tanks[2].connections["boiler_out"].F = 0
+
+    def total_internal_energy():
+        return sum(
+            layer.volume * RHO * CP * layer.T
+            for tank in tanks for layer in tank.layers
+        )
+
+    def step_heat_loss():
+        return sum(
+            (layer.T - tank.T_env) * layer.outer_surface * tank.htc_walls
+            * ctrl.step_size
+            for tank in tanks for layer in tank.layers
+        )
+
+    U_initial = total_internal_energy()
+    total_demanded_J = 0.0
+    total_delivered_J = 0.0
+    total_ideal_heater_J = 0.0
+    total_boiler_input_J = 0.0
+    total_loss_J = 0.0
+    boiler_fired = False
+
+    for step_num in range(N_STEPS):
+        sync_tank_to_controller()
+
+        ctrl.sh_demand = SH_DEMAND_KW
+        ctrl.dhw_demand = DHW_DEMAND_KW
+        ctrl.heat_demand = 0.0
+
+        ctrl.step(step_num * ctrl.step_size)
+
+        # Controller -> boiler (status + demand)
+        boiler.status = ctrl.generators["boiler_status"]
+        boiler.Q_demand = ctrl.generators["boiler_demand"]
+        boiler.step_size = ctrl.step_size
+        # Tank -> boiler (cold-side inlet temperature)
+        boiler.temp_in = tanks[2].connections["boiler_out"].T
+
+        boiler.step(step_num * ctrl.step_size)
+
+        if boiler.status == "on" and boiler.P_th > 0:
+            boiler_fired = True
+
+        total_delivered_J += (ctrl.sh_supply + ctrl.dhw_supply) * ctrl.step_size
+        total_demanded_J += (SH_DEMAND_KW + DHW_DEMAND_KW) * 1000 * ctrl.step_size
+        total_ideal_heater_J += ctrl.IdealHrodsum * ctrl.step_size
+        total_boiler_input_J += boiler.P_th * ctrl.step_size
+
+        total_loss_J += step_heat_loss()
+
+        sync_controller_to_tank()
+        sync_boiler_to_tank2()
+
+        for tank in tanks:
+            sim._step_model(tank, ctrl.step_size)
+
+    U_final = total_internal_energy()
+    delta_U = U_final - U_initial
+
+    # ----- Checks -----
+    assert total_delivered_J == pytest.approx(total_demanded_J, rel=1e-3), (
+        f"delivered != demanded: {total_delivered_J:.0f} vs {total_demanded_J:.0f}"
+    )
+
+    assert boiler_fired, (
+        "boiler should have fired at least once — tank2 top should drop below "
+        "64°C within 1000 steps under 5 kW DHW draw with initial top temp 70°C"
+    )
+
+    expected_delta_U = (
+        total_boiler_input_J + total_ideal_heater_J
+        - total_demanded_J - total_loss_J
+    )
+    tolerance = 0.02 * total_demanded_J
+    assert abs(delta_U - expected_delta_U) < tolerance, (
+        f"Energy balance does not close:\n"
+        f"  ΔU (measured)            = {delta_U:.0f} J\n"
+        f"  ΔU (expected)            = {expected_delta_U:.0f} J\n"
+        f"  discrepancy              = {delta_U - expected_delta_U:.0f} J\n"
+        f"  budget components:\n"
+        f"    E_demanded             = {total_demanded_J:.0f} J\n"
+        f"    E_boiler_input         = {total_boiler_input_J:.0f} J\n"
+        f"    E_ideal_heater         = {total_ideal_heater_J:.0f} J\n"
+        f"    E_loss                 = {total_loss_J:.0f} J\n"
+        f"  tolerance (2% of demand) = {tolerance:.0f} J"
     )
