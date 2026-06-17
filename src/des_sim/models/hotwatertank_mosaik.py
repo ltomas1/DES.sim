@@ -1,9 +1,22 @@
 from mosaik_components.heatpump.hotwatertank.hotwatertank_mosaik import (
-HotWaterTankSimulator as _UpstreamSim)
+    HotWaterTankSimulator as _UpstreamSim,
+    set_nested_attr
+)
 from mosaik_components.heatpump.hotwatertank.hotwatertank import MassFlow
 
 class HotWaterTankSimulator(_UpstreamSim):
-    
+    """Subclass that fixes the substep energy-balance bug in upstream.
+
+    Upstream HotWaterTankSimulator.step() calls model.step() directly,
+    which triggers the tank's internal recursive substep fallback and
+    mismanages _T_buffer. Here we override step() to route through
+    _step_model(), which pre-computes substeps and handles _T_buffer
+    correctly.
+
+    Vendored from upstream: <version 1.0.1>
+    Reason: substep _T_buffer bug, pending upstream merge request.
+    """
+
     def _compute_n_substeps(self, model, step_size):
         """
         Mirror the exact CFL check from HotWaterTank.step():
@@ -64,4 +77,33 @@ class HotWaterTankSimulator(_UpstreamSim):
                 conn._T_buffer = []
             for _ in range(n_substeps):
                 model.step(sub_dt, adapted_step_size_mode=True)
+    
+    def step(self, time, inputs, max_advance):
+        if self.meta['type'] == 'event-based':
+            if self.time != time:
+                self.first_iteration = True
+                self.step_executed = False
+            else:
+                self.first_iteration = False
+            self.time = time
+        for eid, attrs in inputs.items():
+            for attr, src_ids in attrs.items():
+                if attr == '_':
+                    pass
+                else:
+                    for src_id, val in src_ids.items():
+                        set_nested_attr(self.models[eid], attr, val)
+        if self.meta['type'] == 'event-based':
+            if not self.first_iteration and not self.step_executed:
+                for eid, model in self.models.items():
+                    self._step_model(model, self.step_size)  # <-- changed
+                    self.step_executed = True
+        else:
+            for eid, model in self.models.items():
+                self._step_model(model, self.step_size)      # <-- changed
+        if self.meta['type'] == 'event-based':
+            if self.step_executed and (time + self.step_size) <= self.mosaik.world.until:
+                return (time + self.step_size)
+        else:
+            return (time + self.step_size)
 

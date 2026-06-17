@@ -941,7 +941,7 @@ def test_controller_tanks_boiler_coupled_energy_balance():
         total_boiler_input_J + total_ideal_heater_J
         - total_demanded_J - total_loss_J
     )
-    tolerance = 0.02 * total_demanded_J
+    tolerance = 0.005 * total_demanded_J
     assert abs(delta_U - expected_delta_U) < tolerance, (
         f"Energy balance does not close:\n"
         f"  ΔU (measured)            = {delta_U:.0f} J\n"
@@ -952,5 +952,18 @@ def test_controller_tanks_boiler_coupled_energy_balance():
         f"    E_boiler_input         = {total_boiler_input_J:.0f} J\n"
         f"    E_ideal_heater         = {total_ideal_heater_J:.0f} J\n"
         f"    E_loss                 = {total_loss_J:.0f} J\n"
-        f"  tolerance (2% of demand) = {tolerance:.0f} J"
+        f"  tolerance (0.1% of demand) = {tolerance:.0f} J"
     )
+    # ----- Budget summary (visible with pytest -s) -----
+    print(f"\n{'='*55}")
+    print(f"  Energy Budget Summary ({N_STEPS} steps × {ctrl.step_size}s)")
+    print(f"{'='*55}")
+    print(f"  ΔU tanks (measured)     : {delta_U/1e6:+.4f} MJ")
+    print(f"  ΔU tanks (expected)     : {expected_delta_U/1e6:+.4f} MJ")
+    print(f"  discrepancy             : {(delta_U - expected_delta_U)/1e6:+.6f} MJ")
+    print(f"{'='*55}")
+    print(f"  E_demanded              : {total_demanded_J/1e6:.4f} MJ")
+    print(f"  E_boiler_input          : {total_boiler_input_J/1e6:.4f} MJ")
+    print(f"  E_ideal_heater          : {total_ideal_heater_J/1e6:.4f} MJ")
+    print(f"  E_loss                  : {total_loss_J/1e6:.4f} MJ")
+    print(f"{'='*55}")
