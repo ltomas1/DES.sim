@@ -141,9 +141,12 @@ class Controller():
         self.P_hr_sh = 0                #Instantatus of Ideal heater only for space heating.
         self.tcvalve1 = TCValve(self.max_flow)
         self.hr = idealHeatRod()
-        self.hwt2_hr_1 = 0 #Inbuilt heatingrods
-        self.hwt1_hr_1 = 0
-        self.hwt0_hr_1 = 0
+
+        for i in range(self.no_tanks):              # Inbuilt heating rod demand per tank, initialised to 0.
+            setattr(self, f"hwt{i}_hr_1", 0)
+
+        
+        self.rod_tanks = params.get("rod_tanks", [f"tank{self.no_tanks - 1}"]) # Which tanks actually have a heating rod. Default: only the last tank.
 
         self.pv_gen = None
         self.chp_el = None  # The electricity generation from the chp
@@ -271,11 +274,30 @@ class Controller():
         # self.tankLayer_volume = 3.14 * self.params_hwt['height'] * (self.params_hwt['diameter']/2e3)**2  #height is in mm, so H/10^3 * density 1000kg/m3; so density omitted here!
         self.tankLayer_mass = self.params_hwt['volume'] * 1 / self.params_hwt['n_layers'] #1L = 1Kg
         
-        # if chaning hr position, change the temp value here as well!
-        if self.params_hwt['heating_rods']['hr_1']['mode'] == 'on' and self.tank_temps['tank2']['sensor_2'] < self.params_hwt['heating_rods']['hr_1']['T_max']:
-            self.hwt2_hr_1 = self.tankLayer_mass * 4184 * (self.params_hwt['heating_rods']['hr_1']['T_max'] - self.tank_temps['tank2']['sensor_2'])
+        # Reset all per-tank heating rod demands to 0 each step.
+        for i in range(self.no_tanks):
+            setattr(self, f"hwt{i}_hr_1", 0)
 
-        self.hwt1_hr_1, self.hwt0_hr_1 = 0,0 
+        heating_rods = self.params_hwt.get('heating_rods', {})
+        if 'hr_1' in heating_rods:
+            rod_cfg = heating_rods['hr_1']
+
+            layer_height = self.params_hwt['height'] / self.params_hwt['n_layers']
+            rod_layer = min(
+                int(rod_cfg['pos'] // layer_height),
+                self.params_hwt['n_layers'] - 1,
+            )
+            sensor_key = f"sensor_{rod_layer}"
+
+            for tank in self.rod_tanks:
+                if tank not in self.tanks:
+                    continue
+                tank_idx = self.tanks.index(tank)
+                if (rod_cfg.get('mode') == 'on'
+                        and self.tank_temps[tank][sensor_key] < rod_cfg['T_max']):
+                    demand = (self.tankLayer_mass * 4184
+                            * (rod_cfg['T_max'] - self.tank_temps[tank][sensor_key]))
+                    setattr(self, f"hwt{tank_idx}_hr_1", demand)
 
         # ------------------------------------------Control strategies for the operation of heat pump in heating mode
         if self.operation_mode.lower() == 'heating':
@@ -751,6 +773,16 @@ class Controller():
                 "pred": lambda v: v in ["radiator_low_insulation", "radiator_high_insulation", "floor_low_insulation", "floor_high_insulation", "Durlach_mes"],
                 "msg": "'heating_curve' must be one of 'radiator_low_insulation', 'radiator_high_insulation', 'floor_low_insulation', 'floor_high_insulation' or 'Durlach_mes' when provided.",
             },
+            "rod_tanks": {
+                "required": False,
+                "types": (list, tuple),
+                "pred": lambda v: (
+                    len(v) > 0
+                    and all(isinstance(x, str) for x in v)
+                    and all(x.startswith("tank") for x in v)
+                ),
+                "msg": "'rod_tanks' must be a non-empty list of tank names like ['tank0', 'tank2'].",
+            },
         }
 
         for key, rule in rules.items():
@@ -779,6 +811,8 @@ class Controller():
 
         # -------------------- cross-field required logic --------------------
         supply_config = params.get("supply_config", None)
+        rod_tanks = params.get("rod_tanks")
+        n_tanks = params.get("NumberofTanks")  
 
         if supply_config == "2-pipe":
             if params.get("supply_conn", None) is None or params.get("return_conn", None) is None:
@@ -795,6 +829,15 @@ class Controller():
         if supply_config == "4-pipe": 
             if params.get("sh_out", None) is None or params.get("dhw_out", None) is None or params.get("sh_ret", None) is None or params.get("dhw_ret", None) is None:
                 hard_errors.append(f"{name}: 'sh_out', 'dhw_out', 'sh_ret' and 'dhw_ret' are required for '4-pipe' supply_config.")
+        
+        if rod_tanks is not None and isinstance(n_tanks, int):
+            valid_tanks = {f"tank{i}" for i in range(n_tanks)}
+            invalid = [t for t in rod_tanks if t not in valid_tanks]
+            if invalid:
+                hard_errors.append(
+                    f"{name}: 'rod_tanks' references nonexistent tanks {invalid}. "
+                    f"Valid options are {sorted(valid_tanks)}."
+                )
         
         if hard_errors:
             raise IncompleteConfigError(
