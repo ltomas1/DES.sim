@@ -738,11 +738,13 @@ class Controller():
                     and isinstance(v.get("n_sensors", None), (int, np.integer))
                     and isinstance(v.get("volume", None), (int, float, np.number))
                     and isinstance(v.get("n_layers", None), (int, np.integer))
-                    and isinstance(v.get("heating_rods", None), dict)
+                    # Only validate type if the key exists in the dict:
+                    and ("heating_rods" not in v or isinstance(v.get("heating_rods"), dict))
                 ),
                 "msg": (
                     "'tank' must be a dict with keys: "
-                    "connections (dict), n_sensors (int), volume (number), n_layers (int), heating_rods (dict)."
+                    "connections (dict), n_sensors (int), volume (number), n_layers (int). "
+                    "heating_rods (dict) is optional."
                 ),
             },
 
@@ -781,7 +783,7 @@ class Controller():
                     and all(isinstance(x, str) for x in v)
                     and all(x.startswith("tank") for x in v)
                 ),
-                "msg": "'rod_tanks' must be a non-empty list of tank names like ['tank0', 'tank2'].",
+                "msg": "'rod_tanks' must be a non-empty list of tank names like ['tank0', 'tank2'] when provided.",
             },
         }
 
