@@ -251,12 +251,12 @@ def run_DES(params, collect=True, plot_graph=False):
     world.connect(hwts0[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
                 'heat_out.T', 'heat_out.F', 'hp_in.T', 'hp_in.F', 'hp_out.T',
                 'hp_out.F', 'heat_in.T', 'heat_in.F','heat_out2.F', 'heat_out2.T',
-                'T_mean')
+                'T_mean', 'hr_1.P_th')
 
     world.connect(hwts1[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
                 'heat_out.T', 'heat_out.F', 'hp_in.T', 'hp_in.F', 'hp_out.T',
                 'hp_out.F', 'heat_in.T', 'heat_in.F', 'heat_out2.F', 'heat_out2.T',
-                'T_mean')
+                'T_mean', 'hr_1.P_th')
 
     world.connect(hwts2[0], csv_writer, 'sensor_00.T', 'sensor_01.T', 'sensor_02.T', 
                 'heat_out.T', 'heat_out.F', 'hp_in.T', 'hp_in.F', 'hp_out.T',

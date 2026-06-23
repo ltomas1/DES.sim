@@ -60,6 +60,7 @@ The following params must be set:
 | `Ideal_hr_mode` | str | — | `"off"` | When set to `"on"`, enables an ideal backup heater that covers any supply deficit. Useful for identifying undersized components. |
 | `control_strategy` | str | — | `"1"` | Generator control strategy. Currently only `"1"` is supported. |
 | `operation_mode` | str | — | `"heating"` | Operating mode of the system. Currently only `"heating"` is supported. |
+| `rod_tanks` | list[str] | — | Last tank | When a tank is added to the list it will have an electrical heating rod. If not provided the last tank of the setup will by default have a heating rod if the heating rod configuration is set in the Tank params |
 
 
 ## Generator control logic
