@@ -75,6 +75,7 @@ class Controller():
         self.sh_out = params.get('sh_out', None)                    # Tank which serves as the Output connection for space heating
         self.sh_out2 = params.get('sh_out2', None)
         self.dhw_out = params.get('dhw_out', None)                  # Tank which serves as the Output connection for hot water demand
+        self.dhw_out2 = params.get('dhw_out2', None)
         self.ret_tank = params.get('return_conn', None)             # Tank which serves as the return connection; used except for 4-pipe!!!
         self.sup_tank = params.get('supply_conn', None)             # Connections which serves as the heat out for 2 pipe set up
         self.sh_ret = params.get('sh_ret', None)                    # Tank which serves as the return connection for space heating
@@ -84,6 +85,7 @@ class Controller():
         self.T_dhn_sp = params.get('T_dhn_sp', None)                # The temperature set point for the distribution, in 2-pipe and 2-pipe-dch setup
         self.heat_dT = params.get('heat_dT', 15)                    # The temperature difference in 2-pipe and 2-pipe-dch setup
         self.params_hwt = params.get('tank')
+        self.max_flow = params.get('max_flow', 20)                  # The max flow rate permissible in one step.
         
         self.gens = params.get('gens')
         self.no_tanks = params.get('NumberofTanks')                 # The number of tanks in the system
@@ -136,10 +138,11 @@ class Controller():
 
         self.hwt_hr_P_th_set = None         # The heat demand for the in built heating rod of the hot water tank (in W)
 
-        self.max_flow = 20            #The max flow rate permissible in one step.
         self.IdealHrodsum = 0           # The sum of P_hr and space heating idealheater
         self.P_hr_sh = 0                #Instantatus of Ideal heater only for space heating.
         self.tcvalve1 = TCValve(self.max_flow)
+        if self.config in ['3-pipe', '4-pipe']:
+            self.tcvalve2 = TCValve(self.max_flow) if self.dhw_out2 is not None else None
         self.hr = idealHeatRod()
 
         for i in range(self.no_tanks):              # Inbuilt heating rod demand per tank, initialised to 0.
@@ -620,20 +623,30 @@ class Controller():
 
             Tret = Tsup - Tdelta
 
+            donor_T = helpers.get_nested_attr(self, f"tank_connections.{self.dhw_out}_T") \
+                    if self.dhw_out2 is not None else None
+
+            if donor_T is not None and sh_T < Tsup and donor_T > sh_T:
+                # blend hot DHW water into cold SH-tank water to reach Tsup
+                f_dhw_borrow, f_sh_tank, sh_T = self.tcvalve2.get_flows(donor_T, sh_T, Tsup, sh_F, Tdelta)
+            else:
+                # mixing the hot water from the tank down, using the cold return line from the DHN to the required supply temperature
+                f_sh_tank, fcold_sh, Tsup_sh = self.tcvalve1.get_flows(sh_T, Tret, Tsup, sh_F, Tdelta) #required flow rates from each of the tanks
+                f_dhw_borrow = 0.0
+
             new_flow, self.P_hr_sh = self.hr.step(sh_T, self.sh_demand, Tsup, Tret)
             if self.P_hr_sh > 0:
                 sh_T = Tsup
                 sh_F = new_flow
-                #assume, the hotter tank(dhw tank) will be given more priority.
-                fcold = 0
-                self.sh_supply = self.sh_demand
-
-            # mixing the hot water from the tank down, using the cold return line from the DHN to the required supply temperature
-            fhot_sh, fcold_sh, Tsup_sh = self.tcvalve1.get_flows(sh_T, Tret, Tsup, sh_F, Tdelta) #required flow rates from each of the tanks
+                f_sh_tank = new_flow    # heater sits in SH line → full flow comes from SH side
+                f_dhw_borrow = 0.0      # no longer borrowing; heater covers it
+                self.sh_supply = self.sh_demand      
             
             #setting corresponding flow rates
             helpers.set_nested_attr(self, f"tank_connections.{self.sh_out}_T", sh_T) #not passed to tank, but to the visu for supporting calcs
-            helpers.set_nested_attr(self, f"tank_connections.{self.sh_out}_F", -fhot_sh)
+            helpers.set_nested_attr(self, f"tank_connections.{self.sh_out}_F", -f_sh_tank)
+            if self.dhw_out2 is not None:
+                helpers.set_nested_attr(self, f"tank_connections.{self.dhw_out2}_F", -f_dhw_borrow) 
 
             # Domestic Hot Water (DHW):
             dhw_out = f"tank_connections.{self.dhw_out}"
@@ -663,10 +676,12 @@ class Controller():
             helpers.set_nested_attr(self, dhw_out+'_T', self.dhw_rT)
 
             if config == '3-pipe':
-                helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", fhot_dhw + fhot_sh)
-                helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T", (self.dhw_rT*fhot_dhw + Tret*fhot_sh)/(fhot_dhw+fhot_sh) if (fhot_dhw+fhot_sh) != 0 else 0)
+                helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_F", fhot_dhw + f_sh_tank + f_dhw_borrow)
+                helpers.set_nested_attr(self, f"tank_connections.{self.ret_tank}_T",
+                    (self.dhw_rT*fhot_dhw + Tret*(f_sh_tank + f_dhw_borrow)) / (fhot_dhw + f_sh_tank + f_dhw_borrow)
+                    if (fhot_dhw + f_sh_tank + f_dhw_borrow) != 0 else 0)
             elif config == '4-pipe':
-                helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_F", fhot_sh)
+                helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_F", f_sh_tank + f_dhw_borrow)
                 helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_T", Tret)
 
                 helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_F", fhot_dhw)
@@ -772,7 +787,7 @@ class Controller():
             "heating_curve": {
                 "required": False,
                 "types": (str,),
-                "pred": lambda v: v in ["radiator_low_insulation", "radiator_high_insulation", "floor_low_insulation", "floor_high_insulation", "Durlach_mes"],
+                "pred": lambda v: v in ["radiator_low_insulation", "radiator_high_insulation", "floor_low_insulation", "floor_high_insulation", "Durlach_mes", "DHN_high_insulation"],
                 "msg": "'heating_curve' must be one of 'radiator_low_insulation', 'radiator_high_insulation', 'floor_low_insulation', 'floor_high_insulation' or 'Durlach_mes' when provided.",
             },
             "rod_tanks": {
@@ -784,6 +799,18 @@ class Controller():
                     and all(x.startswith("tank") for x in v)
                 ),
                 "msg": "'rod_tanks' must be a non-empty list of tank names like ['tank0', 'tank2'] when provided.",
+            },
+            "dhw_out2": {
+                "required": False,
+                "types": (str,),
+                "pred": lambda v: v.startswith("tank") and "." in v,
+                "msg": "'dhw_out2' must be a tank connection string for the DHW->SH valve when provided.",
+            },
+            "max_flow": {
+                "required": False,
+                "types": (int, float, np.number),
+                "pred": lambda v: v > 0,
+                "msg": "'max_flow' must be a positive number when provided.",
             },
         }
 
