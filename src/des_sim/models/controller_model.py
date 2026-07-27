@@ -545,6 +545,7 @@ class Controller():
             "radiator_high_insulation": {"T_out": [-10, 15], "T_supply": [55, 35], "delta_T": 15},
             "floor_low_insulation": {"T_out": [-10, 15], "T_supply": [45, 25], "delta_T": 5},
             "floor_high_insulation": {"T_out": [-10, 15], "T_supply": [35, 20], "delta_T": 5},
+            "DHN_high_insulation": {"T_out": [-10, 15], "T_supply": [45, 35], "delta_T": 15},
             "Durlach_mes" : {"T_out": [0, 10], "T_supply": [60, 52], "delta_T": 15}
         }
 
