@@ -789,7 +789,7 @@ class Controller():
                 "required": False,
                 "types": (str,),
                 "pred": lambda v: v in ["radiator_low_insulation", "radiator_high_insulation", "floor_low_insulation", "floor_high_insulation", "Durlach_mes", "DHN_high_insulation"],
-                "msg": "'heating_curve' must be one of 'radiator_low_insulation', 'radiator_high_insulation', 'floor_low_insulation', 'floor_high_insulation' or 'Durlach_mes' when provided.",
+                "msg": "'heating_curve' must be one of 'radiator_low_insulation', 'radiator_high_insulation', 'floor_low_insulation', 'floor_high_insulation', 'DHN_high_insulation' or 'Durlach_mes' when provided.",
             },
             "rod_tanks": {
                 "required": False,
