@@ -228,7 +228,8 @@ class Controller():
             self.isday = None
 
         # collect last 24 hours of ambient temperature data, to determine sh supply temperature from heating curve
-        self.T_amb_24h = []
+        if not hasattr(self, 'T_amb_24h'):
+            self.T_amb_24h = []
         self.T_amb_24h.append(self.T_amb)
         n_24h = int((24*60*60) / self.step_size)
         self.T_amb_24h = self.T_amb_24h[-n_24h:]
