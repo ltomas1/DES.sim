@@ -683,11 +683,24 @@ class Controller():
                     (self.dhw_rT*fhot_dhw + Tret*(f_sh_tank + f_dhw_borrow)) / (fhot_dhw + f_sh_tank + f_dhw_borrow)
                     if (fhot_dhw + f_sh_tank + f_dhw_borrow) != 0 else 0)
             elif config == '4-pipe':
-                helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_F", f_sh_tank + f_dhw_borrow)
-                helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_T", Tret)
+                f_sh_ret = f_sh_tank + f_dhw_borrow
 
-                helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_F", fhot_dhw)
-                helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_T", self.dhw_rT)
+                if self.season == 'summer':
+                    # summer: the SH circuit is idle, so its return connection is free.
+                    # Route the DHW return through it instead and leave 'dhw_ret' unused.
+                    helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_F", f_sh_ret + fhot_dhw)
+                    helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_T",
+                        (self.dhw_rT*fhot_dhw + Tret*f_sh_ret) / (fhot_dhw + f_sh_ret)
+                        if (fhot_dhw + f_sh_ret) != 0 else 0)
+
+                    helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_F", 0)
+                    helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_T", 0) # no flow on this port
+                else:
+                    helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_F", f_sh_ret)
+                    helpers.set_nested_attr(self, f"tank_connections.{self.sh_ret}_T", Tret)
+
+                    helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_F", fhot_dhw)
+                    helpers.set_nested_attr(self, f"tank_connections.{self.dhw_ret}_T", self.dhw_rT)
 
     def validate_params(self, params, *, warn: bool = True):
         """
