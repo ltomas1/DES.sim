@@ -35,6 +35,7 @@ def make_controller_params(config="4-pipe"):
             }
         },
         "tank": {
+            "height": 2500,
             "volume": 20000,
             "n_layers": 3,
             "n_sensors": 3,
