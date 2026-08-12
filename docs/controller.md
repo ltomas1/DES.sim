@@ -46,7 +46,7 @@ The following params must be set:
 | `gens` | list[str] | — | Names of the generators in the system, e.g. `["hp", "chp", "boiler"]`. Every name listed here must have a corresponding entry in `logic`, otherwise that generator will not run. |
 | `NumberofTanks` | int | — | Number of tanks in the system. Tanks are indexed from 0, so `3` creates `tank0`, `tank1`, `tank2`. |
 | `logic` | dict | — | Heuristic rules defining when each generator turns on and off. See Generator control logic below. |
-| `tank` | dict | — | Tank configuration shared across all tanks (volume, connections, sensors, heating rods). |
+| `tank` | dict | — | Tank configuration shared across all tanks. Required sub-keys: `connections` (dict), `n_sensors` (int), `volume` (number), `n_layers` (int). `heating_rods` (dict) is optional; when it defines an `hr_1` rod, `height` (number, tank height in mm) is also required — it is used to work out which layer the rod sits in. In `main_sim.py` this dict is the same object passed to the hot water tank simulator. |
 | `TankbalanceSetup` | list[str] | — | Required when `NumberofTanks > 1`. Defines how heat flows between tanks. See Tank balancing below. |
 
 ### Optional
