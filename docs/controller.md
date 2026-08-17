@@ -60,6 +60,9 @@ The following params must be set:
 | `Ideal_hr_mode` | str | — | `"off"` | When set to `"on"`, enables an ideal backup heater that covers any supply deficit. Useful for identifying undersized components. |
 | `control_strategy` | str | — | `"1"` | Generator control strategy. Currently only `"1"` is supported. |
 | `operation_mode` | str | — | `"heating"` | Operating mode of the system. Currently only `"heating"` is supported. |
+| `rod_tanks` | list[str] | — | `Last tank` | Each tank in the list get an electrical heating rod. If this list is not provided the last tank of the setup will by default get an electrical heating rod if the heating rod configuration is set in the Tank params |
+| `dhw_out2` | str | — | `None` | Tank port to borrow hot water from for the SH circuit when the SH tank is below target supply temp. Enables the DHW→SH mixing valve. Used in 3-pipe and 4-pipe only. When unset, the valve is disabled. |
+| `max_flow` | float | kg/s | `20` | Maximum flow rate permitted through a valve in one step. |
 
 
 ## Generator control logic
@@ -203,13 +206,13 @@ Minimal example (constructing controller and performing one step):
 params = {
         "operation_mode": "heating",
         "control_strategy": "1",
-        "supply_config": "4-runner",
+        "supply_config": "4-pipe",
         "heating_curve": "floor_low_insulation",
         "sh_out" : "tank1.heat_out2",
         "dhw_out" : "tank2.heat_out",
+        "dhw_out2" : "tank2.heat_out2"
         "sh_ret" : "tank0.heat_in",
         "dhw_ret" : "tank2.heat_in",
-        "boiler_mode": "on",
         "Ideal_hr_mode": "off", 
         "gens" : ["hp", "chp", "boiler"],
         "NumberofTanks" : 3,
