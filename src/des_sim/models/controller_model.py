@@ -770,11 +770,16 @@ class Controller():
                     and isinstance(v.get("n_layers", None), (int, np.integer))
                     # Only validate type if the key exists in the dict:
                     and ("heating_rods" not in v or isinstance(v.get("heating_rods"), dict))
+                    # 'height' is only read to locate the rod's layer, so it is
+                    # required exactly when an 'hr_1' heating rod is configured:
+                    and ("hr_1" not in (v.get("heating_rods") or {})
+                         or isinstance(v.get("height", None), (int, float, np.number)))
                 ),
                 "msg": (
                     "'tank' must be a dict with keys: "
                     "connections (dict), n_sensors (int), volume (number), n_layers (int). "
-                    "heating_rods (dict) is optional."
+                    "heating_rods (dict) is optional, but when it defines 'hr_1' "
+                    "the tank must also provide height (number, in mm)."
                 ),
             },
 
