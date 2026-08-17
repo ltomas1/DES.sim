@@ -641,8 +641,8 @@ def _compute_energies(df: pd.DataFrame, *, params: Dict[str, Any], step_size: fl
     params_hwt = params.get("tank") or {}
     init_vals_tanks = params.get("init_vals_tank") or {}
 
-    params_chp = params.get("params_chp") or {}
-    params_boiler = params.get("params_boiler") or {}
+    params_chp = params.get("chp") or {}
+    params_boiler = params.get("boiler") or {}
 
     init_energy, end_energy = _compute_storage_energies(
         df,
@@ -681,13 +681,15 @@ def _compute_energies(df: pd.DataFrame, *, params: Dict[str, Any], step_size: fl
     chp_th_cols = [c for c in df.columns if c.startswith("CHP_") and c.endswith("P_th")]
     if chp_th_cols:
         energies["chp_supply"] = _get_energy(df[chp_th_cols[0]], step_size=step_size)
-        if eta_chp > 0:
-            energies["chp_gas_consumption"] = energies["chp_supply"] / eta_chp
 
     # Electrical output (P_el)
     chp_el_cols = [c for c in df.columns if c.startswith("CHP_") and "P_el" in c]
     if chp_el_cols:
         energies["chp_el_supply"] = _get_energy(df[chp_el_cols[0]], step_size=step_size)
+
+    # gas consumption = (thermal + electrical) output / overall (Q_th+P_el)/Q_fuel efficiency
+    if chp_th_cols and eta_chp > 0:
+        energies["chp_gas_consumption"] = (energies["chp_supply"] + energies["chp_el_supply"]) / eta_chp
 
     # B. Boiler
     boiler_cols = [c for c in df.columns if c.startswith("Boiler_") and c.endswith("P_th")]
@@ -1102,8 +1104,8 @@ def _stage2_load_inputs(paths: Dict[str, Any], dict_input: Optional[Dict[str, An
         params_ctrl["tank"] = params["tank"]
 
     init_vals_tanks = params.get("init_vals_tank")
-    params_chp = params.get("params_chp")
-    params_boiler = params.get("params_boiler")
+    params_chp = params.get("chp")
+    params_boiler = params.get("boiler")
 
     
 
