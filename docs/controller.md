@@ -36,6 +36,8 @@ The following params must be set:
 - `sh_ret` — dedicated space heating return port
 - `dhw_ret` — dedicated DHW return port
 
+**Summer operation:** the controller derives a `season` from the current timestamp's month (June–August = `summer`, otherwise `winter`). During summer, the SH circuit is assumed idle, so its dedicated return port (`sh_ret`) is reused to carry the DHW return flow instead, and `dhw_ret` is left at zero flow/temperature.
+
 ## Parameters
 
 ### Required — all configurations
@@ -54,6 +56,8 @@ The following params must be set:
 | Parameter | Type | Unit | Default | Description |
 |---|---|---|---|---|
 | `heating_curve` | str | — | `"floor_high_insulation"` | Heating curve for SH supply temperature calculation. Used in `3-pipe` and `4-pipe` only. See Heating curves below. |
+| `T_lim` | float | °C | `15` | Ambient temperature above which no space heating is needed. Used to scale the SH return temperature by relative heating load. See Heating curves below. |
+| `T_amb_nom` | float | °C | `-10` | Design/nominal outdoor temperature the heating system is sized for. Used together with `T_lim` to scale the SH return temperature. See Heating curves below. |
 | `dhw_Tdelta` | float | °C | `15` | Temperature difference between DHW supply and return. Used to compute DHW flow rate. |
 | `T_dhw_sp` | float | °C | `65` | DHW supply temperature setpoint. Used by the ideal heating rod when `Ideal_hr_mode` is `"on"`. |
 | `heat_dT` | float | °C | `15` | Temperature difference between supply and return used to compute flow rate in `2-pipe` config. |
@@ -151,13 +155,19 @@ Each entry means: balance the residual flow from the source tank port into the d
 
 The heating curve determines the space heating supply temperature based on the 24h average of the ambient temperature. The controller interpolates linearly between two endpoints defined by each curve.
 
-The `heating_curve` parameter should be chosen based on the building's heating system type and insulation level. for eg. this is what the heating curve if the option `floor_high_insulation` is chosen:
+The `heating_curve` parameter should be chosen based on the building's heating system type and insulation level. for eg. this is what the heating curve if the option `floor_high_insulation` is chosen, including the corresponding load-dependent return temperature (dashed):
 
-![Heating curve shape](images/heating_curve.png)
+![Heating curve shape, with supply and return temperature](images/heating_curve.png)
 
-The supply temperature will be 35 °C at -10 °C outdoor and 20 °C at 15 °C outdoor, with linear interpolation in between. ΔT is the fixed difference between supply and return used for flow rate calculations.
+The supply temperature will be 35 °C at -10 °C outdoor and 20 °C at 15 °C outdoor, with linear interpolation in between. ΔT (`delta_T`) in the table below is each curve's *nominal* (design-point) difference between supply and return, reached when the 24h average ambient temperature equals `T_amb_nom`.
 
-Available ranges for the heating curves are:
+The return temperature scales with the relative heating load. This load-dependent scaling follows the approach described in Lämmle et al., *"Performance of air and ground source heat pumps retrofitted to radiator heating systems and measures to reduce space heating temperatures in existing buildings"*, Energy, vol. 242, 2022 ([ScienceDirect](https://www.sciencedirect.com/science/article/pii/S0360544221032011#sec2)).
+
+At `T_amb_24h_mean == T_amb_nom`, `Qdot_rel == 1` and the return temperature matches `Tsupply - delta_T`, same as the curve's nominal ΔT. `Qdot_rel` is clamped to the `[0.01, 1]` range, so the SH ΔT never exceeds the curve's nominal `delta_T`, even if the ambient temperature drops further below `T_amb_nom`. As the average ambient temperature rises toward `T_lim`, `Qdot_rel` shrinks toward its floor of `0.01` and the gap between supply and return narrows accordingly (the supply/return gap itself is additionally floored at 1 K).
+
+Once the 24h average ambient temperature exceeds `T_lim`, the heating limit has been reached and the controller zeroes `sh_demand` for that step regardless of the demand passed in.
+
+Available options for the heating curves are:
 
 | Option | Ta, low [°C] | Ta, high [°C] | Supply temp at Ta, low [°C] | Supply temp at Ta, high [°C] | ΔT [°C] |
 |---|---|---|---|---|---|
@@ -165,10 +175,7 @@ Available ranges for the heating curves are:
 | `radiator_high_insulation` | -10 | 15 | 55 | 35 | 15 |
 | `floor_low_insulation` | -10 | 15 | 45 | 25 | 5 |
 | `floor_high_insulation` | -10 | 15 | 35 | 20 | 5 |
-| `Durlach_mes` | 0 | 10 | 60 | 52 | 15 |
-
-
-> `Durlach_mes` is a measured curve specific to one project and may not be suitable for general use.
+| `DHN_high_insulation` | -10 | 15 | 45 | 30 | 10 |
 
 ## Reference
 
@@ -191,7 +198,7 @@ Available ranges for the heating curves are:
 - `step(time)` — advances the controller by one timestep. Reads sensor temperatures, applies generator logic, computes supply flows, and updates tank balancing.
 - `validate_params(params)` — validates the configuration before the simulation starts. Raises `IncompleteConfigError` if required parameters are missing or inconsistent.
 - `calc_heat_supply(config)` — computes flow rates and temperatures for SH and DHW circuits based on the chosen pipe configuration.
-- `supply_temp(out_temp, buildingtype)` — returns the SH supply temperature and delta-T from the selected heating curve depending on the 24h average of the ambient temperature. Used internally by `calc_heat_supply`.
+- `supply_temp(out_temp, buildingtype)` — returns the SH supply and return temperature from the selected heating curve, depending on the 24h average of the ambient temperature. The return temperature is scaled by the relative heating load (see Heating curves below). Used internally by `calc_heat_supply`.
 
 ## Exception
 
