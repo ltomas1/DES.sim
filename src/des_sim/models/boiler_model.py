@@ -148,7 +148,7 @@ class Gboiler(Transformer_base):
             
             self.P_th = min(self.P_th, P_stage) #ensuring that the power does not exceed the target power stage, and also allows startup behaviour for part-load       
         
-        else: #When startup behaviour not specified
+        elif self.status == 'on': #When startup behaviour not specified
             self.P_th = P_stage
         
         # If regression for efficiency during startup specified   

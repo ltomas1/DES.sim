@@ -39,7 +39,7 @@ def run_DES(params, collect=True, plot_graph=False):
             'python': 'mosaik_components.heatpump.Heat_Pump_mosaik:HeatPumpSimulator',
         },
         'HotWaterTankSim': {
-            'python': 'mosaik_components.heatpump.hotwatertank.hotwatertank_mosaik:HotWaterTankSimulator',
+            'python': 'des_sim.models.hotwatertank_mosaik:HotWaterTankSimulator',
         },
         'ControllerSim': {
             'python': 'des_sim.models.controller_mosaik:ControllerSimulator', 

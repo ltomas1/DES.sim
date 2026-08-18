@@ -1,7 +1,17 @@
 image: python:3.10
 
 stages:
+  - test
   - deploy
+
+run_tests:
+  stage: test
+  tags:
+    - shared_docker
+  script:
+    # Install your package and the [dev] dependencies (which includes pytest)
+    - pip install ".[dev]"
+    - pytest unit_testing/ -v
 
 publish_to_pypi:
   stage: deploy
