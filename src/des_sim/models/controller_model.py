@@ -72,6 +72,8 @@ class Controller():
         #supply configuration
         self.config = params.get('supply_config')
         self.heating_curve = params.get('heating_curve', 'floor_high_insulation')
+        self.T_lim = params.get('T_lim', 15)                         # The limit temperature for the heating curve
+        self.T_amb_nom = params.get('T_amb_nom', -10)                 # The lowest ambient temperature for which the heating system must provide sufficient heat
         self.sh_out = params.get('sh_out', None)                    # Tank which serves as the Output connection for space heating
         self.sh_out2 = params.get('sh_out2', None)
         self.dhw_out = params.get('dhw_out', None)                  # Tank which serves as the Output connection for hot water demand
@@ -546,14 +548,20 @@ class Controller():
             "radiator_high_insulation": {"T_out": [-10, 15], "T_supply": [55, 35], "delta_T": 15},
             "floor_low_insulation": {"T_out": [-10, 15], "T_supply": [45, 25], "delta_T": 5},
             "floor_high_insulation": {"T_out": [-10, 15], "T_supply": [35, 20], "delta_T": 5},
-            "DHN_high_insulation": {"T_out": [-10, 15], "T_supply": [45, 35], "delta_T": 15},
+            "DHN_high_insulation": {"T_out": [-10, 15], "T_supply": [45, 30], "delta_T": 10},
             "Durlach_mes" : {"T_out": [0, 10], "T_supply": [60, 52], "delta_T": 15}
         }
 
         curve = self.heating_curves[buildingtype]
         Tsupply = np.interp(out_temp, curve['T_out'], curve['T_supply'])
-        # Treturn = Tsupply - curve['delta_T']
-        return Tsupply, curve['delta_T']
+        Qdot_rel = (self.T_lim - self.T_amb_24h_mean)/(self.T_lim - self.T_amb_nom) 
+        Qdot_rel = min(1, max(0.01, Qdot_rel)) # limit to 0.01-1 range
+        T_supply_nom = max(curve['T_supply'])
+        T_return_nom = T_supply_nom - curve['delta_T']
+        Treturn = Tsupply - Qdot_rel * (T_supply_nom - T_return_nom)
+        if Tsupply - Treturn < 1:
+            Treturn = Tsupply - 1
+        return Tsupply, Treturn
     
     
     def calc_heat_supply(self, config):
@@ -608,32 +616,29 @@ class Controller():
             # Space heating (SH):
             sh_out = f"tank_connections.{self.sh_out}"
 
-            Tsup, Tdelta = self.supply_temp(self.T_amb_24h_mean, self.heating_curve) #from heating curve
-            # using Tdelta to calculate Tretun, and then updating it if incase T supply changes
-            self.heat_dT_sh = Tdelta
+            Tsup, Tret = self.supply_temp(self.T_amb_24h_mean, self.heating_curve) #from heating curve
+            self.heat_dT_sh = Tsup - Tret
 
             self.req_shTsup = Tsup # only for debugging
+
+            if self.T_lim < self.T_amb_24h_mean:    # limit temperature for SH has been reached
+                self.sh_demand = 0
             
-            try:
-                sh_F = self.sh_demand/ (4184 * self.heat_dT_sh)  #total flow rate
-            except ZeroDivisionError:
-                sh_F = 0 #unlikely in current setup, but if return temp delta not fixed, then maybe
+            sh_F = self.sh_demand/ (4184 * self.heat_dT_sh)  #total flow rate
 
             sh_T = helpers.get_nested_attr(self, sh_out+'_T')   #temp of the colder tank
 
-            self.sh_supply = sh_F * 4184 * Tdelta
-
-            Tret = Tsup - Tdelta
+            self.sh_supply = sh_F * 4184 * self.heat_dT_sh
 
             donor_T = helpers.get_nested_attr(self, f"tank_connections.{self.dhw_out}_T") \
                     if self.dhw_out2 is not None else None
 
             if donor_T is not None and sh_T < Tsup and donor_T > sh_T:
                 # blend hot DHW water into cold SH-tank water to reach Tsup
-                f_dhw_borrow, f_sh_tank, sh_T = self.tcvalve2.get_flows(donor_T, sh_T, Tsup, sh_F, Tdelta)
+                f_dhw_borrow, f_sh_tank, sh_T = self.tcvalve2.get_flows(donor_T, sh_T, Tsup, sh_F, self.heat_dT_sh)
             else:
                 # mixing the hot water from the tank down, using the cold return line from the DHN to the required supply temperature
-                f_sh_tank, fcold_sh, Tsup_sh = self.tcvalve1.get_flows(sh_T, Tret, Tsup, sh_F, Tdelta) #required flow rates from each of the tanks
+                f_sh_tank, fcold_sh, Tsup_sh = self.tcvalve1.get_flows(sh_T, Tret, Tsup, sh_F, self.heat_dT_sh) #required flow rates from each of the tanks
                 f_dhw_borrow = 0.0
 
             new_flow, self.P_hr_sh = self.hr.step(sh_T, self.sh_demand, Tsup, Tret)
